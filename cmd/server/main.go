@@ -193,16 +193,65 @@ func main() {
 		writeJSON(w, http.StatusOK, map[string]string{"improved": improved})
 	})
 	mux.HandleFunc("GET /api/nodes", func(w http.ResponseWriter, r *http.Request) {
-		c := &http.Client{Timeout: 2 * time.Second}
-		resp, err := c.Get(envOr("KANBAN_NODE_AGENT", "http://127.0.0.1:8788/health"))
-		if err != nil {
-			writeJSON(w, http.StatusOK, map[string]string{"status": "down", "error": err.Error()})
-			return
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
-		writeJSON(w, http.StatusOK, json.RawMessage(body))
+		st, err := kanban.NodeAgentHealth()
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, st)
 	})
+	// remote task dispatch via node-agent (mac/windows workspaces)
+	mux.HandleFunc("POST /api/remote/dispatch", func(w http.ResponseWriter, r *http.Request) {
+		var req kanban.NodeDispatchRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil { fail(w, err, 400); return }
+		res, err := kanban.DispatchRemote(req, 10*time.Minute)
+		if err != nil { fail(w, err, 502); return }
+		writeJSON(w, http.StatusOK, res)
+	})
+
+	// hermes logs (read-only, whitelisted files, bounded tail)
+	mux.HandleFunc("GET /api/logs", func(w http.ResponseWriter, r *http.Request) {
+		tail, err := kanban.ReadLogTail(r.URL.Query().Get("file"), r.URL.Query().Get("tail"))
+		if err != nil { fail(w, err, 400); return }
+		// optional server-side filter: keep lines containing q (case-insensitive)
+		if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
+			lq := strings.ToLower(q)
+			kept := make([]string, 0, len(tail.Lines))
+			for _, l := range tail.Lines {
+				if strings.Contains(strings.ToLower(l), lq) {
+					kept = append(kept, l)
+				}
+			}
+			tail.Lines = kept
+		}
+		writeJSON(w, http.StatusOK, tail)
+	})
+
+	// skills (read-only registry from ~/.hermes/skills)
+	mux.HandleFunc("GET /api/skills", func(w http.ResponseWriter, r *http.Request) {
+		skills, err := kanban.ListSkills()
+		if err != nil { fail(w, err, 500); return }
+		if q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q"))); q != "" {
+			kept := skills[:0]
+			for _, s := range skills {
+				if strings.Contains(strings.ToLower(s.Name), q) || strings.Contains(strings.ToLower(s.Description), q) {
+					kept = append(kept, s)
+				}
+			}
+			skills = kept
+		}
+		writeJSON(w, http.StatusOK, skills)
+	})
+	mux.HandleFunc("GET /api/skills/content", func(w http.ResponseWriter, r *http.Request) {
+		c, err := kanban.SkillContent(r.URL.Query().Get("name"))
+		if err != nil { fail(w, err, 404); return }
+		writeJSON(w, http.StatusOK, c)
+	})
+
+	// memory (read-only snapshot MEMORY.md / USER.md / SOUL.md)
+	mux.HandleFunc("GET /api/memory", func(w http.ResponseWriter, r *http.Request) {
+		mem, err := kanban.ReadMemory()
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, mem)
+	})
+
 	mux.Handle("/", spa(dist))
 
 	log.Printf("kanban-board listening on %s (dist=%s)", addr, dist)

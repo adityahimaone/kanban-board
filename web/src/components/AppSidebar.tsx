@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import type { Board } from "@/api"
-import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, Layers } from "lucide-react"
+import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, Layers, ScrollText, Puzzle, Brain } from "lucide-react"
 
-export type Page = "board" | "workspaces" | "profiles" | "providers" | "workspaces" | "profiles" | "providers"
+export type Page = "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory"
 
 export function AppSidebar({
   page,
@@ -74,6 +74,24 @@ export function AppSidebar({
                 <SidebarMenuButton isActive={page === "providers"} onClick={() => onSelectPage("providers")} tooltip="Providers">
                   <Server />
                   <span>Providers</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive={page === "logs"} onClick={() => onSelectPage("logs")} tooltip="Hermes Logs">
+                  <ScrollText />
+                  <span>Logs</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive={page === "skills"} onClick={() => onSelectPage("skills")} tooltip="Skills">
+                  <Puzzle />
+                  <span>Skills</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive={page === "memory"} onClick={() => onSelectPage("memory")} tooltip="Memory">
+                  <Brain />
+                  <span>Memory</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

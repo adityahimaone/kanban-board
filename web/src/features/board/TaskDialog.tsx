@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sparkles, Loader2 } from "lucide-react"
 
 function isRemoteWorkspace(w: Workspace): boolean {
-  // Mirrors workspace_validate.go: Windows drive OR /Users/* OR explicit remote host
+  // Registered remote workspaces (host = mac-tailscale/windows-tailscale, path /Users/...)
+  // are routable via node-agent — no longer disabled.
   if (w.host && w.host !== "localhost" && w.host !== "127.0.0.1") return true
   if (/^[A-Za-z]:[\\/]/.test(w.path)) return true
   if (w.path.startsWith("/Users/")) return true
@@ -17,9 +18,11 @@ function isRemoteWorkspace(w: Workspace): boolean {
 }
 
 function defaultWorkspacePath(workspaces: Workspace[]): string {
-  // Prefer a local workspace; all current entries are Mac-remote so fallback to scratch ("").
+  // With node-agent, Mac workspaces are routable — prefer the first workspace
+  // (remote via node-agent) over scratch when something is registered.
+  if (workspaces.length === 0) return ""
   const local = workspaces.find((w) => !isRemoteWorkspace(w))
-  return local?.path ?? ""
+  return local?.path ?? workspaces[0].path
 }
 
 export default function TaskDialog({
@@ -121,8 +124,8 @@ export default function TaskDialog({
                 {workspaces.map((w) => {
                   const remote = isRemoteWorkspace(w)
                   return (
-                    <SelectItem key={w.id} value={w.path} disabled={remote} className="text-sm">
-                      {w.name} — {w.path}{remote ? " (Mac/remote — butuh node-agent)" : ""}
+                    <SelectItem key={w.id} value={w.path} className="text-sm">
+                      {w.name} — {w.path}{remote ? " (remote · node-agent)" : " (local)"}
                     </SelectItem>
                   )
                 })}

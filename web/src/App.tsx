@@ -12,6 +12,9 @@ import TaskDetail from "./features/board/TaskDetail"
 import WorkspacesPage from "./features/workspaces/WorkspacesPage"
 import ProfilesPage from "./features/profiles/ProfilesPage"
 import ProvidersPage from "./features/providers/ProvidersPage"
+import LogsPage from "./features/logs/LogsPage"
+import SkillsPage from "./features/skills/SkillsPage"
+import MemoryPage from "./features/memory/MemoryPage"
 import { Plus } from "lucide-react"
 
 export default function App() {
@@ -40,7 +43,14 @@ export default function App() {
 
   const active = (boards.data ?? []).filter((b) => !["default", "archived"].includes(b.slug))
   const byCol = (s: Status) => (tasks.data ?? []).filter((t) => t.status === s)
-  const pageTitle = page === "workspaces" ? "Workspaces" : page === "profiles" ? "Agent Profiles" : page === "providers" ? "Providers" : "Kanban Board"
+  const pageTitle =
+    page === "workspaces" ? "Workspaces"
+    : page === "profiles" ? "Agent Profiles"
+    : page === "providers" ? "Providers"
+    : page === "logs" ? "Logs"
+    : page === "skills" ? "Skills"
+    : page === "memory" ? "Memory"
+    : "Kanban Board"
 
   // header stays fixed, board scrolls horizontally, each column scrolls its cards internally
   const boardBody =
@@ -117,6 +127,9 @@ export default function App() {
           {page === "workspaces" && <div className="flex-1 overflow-y-auto"><WorkspacesPage /></div>}
           {page === "profiles" && <div className="flex-1 overflow-y-auto"><ProfilesPage /></div>}
           {page === "providers" && <div className="flex-1 overflow-y-auto"><ProvidersPage /></div>}
+          {page === "logs" && <LogsPage />}
+          {page === "skills" && <SkillsPage />}
+          {page === "memory" && <MemoryPage />}
           {page === "board" && boardBody}
         </div>
       </SidebarInset>
