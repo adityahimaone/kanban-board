@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
-import { Search, Volume2, VolumeX } from "lucide-react"
+import { Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download } from "lucide-react"
+import { setEnabled as setCuelumeEnabled, setVolume } from "cuelume"
 
 const TABS = [
   { id: "general", label: "General" },
@@ -15,26 +16,60 @@ type TabId = (typeof TABS)[number]["id"]
 
 // ponytail: localStorage-only settings. Add backend API + user table when multi-device sync needed.
 const SOUND_KEY = "kb-sound-enabled"
+const VOLUME_KEY = "kb-sound-volume"
+const REFRESH_KEY = "kb-refresh-interval"
+const COMPACT_KEY = "kb-compact-cards"
+const PING_KEY = "kb-ping-interval"
 
-function useSoundPref() {
-  const [enabled, setEnabled] = useState(() => {
-    try { return localStorage.getItem(SOUND_KEY) !== "false" } catch { return true }
+function useLocalStorage<T>(key: string, fallback: T) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = localStorage.getItem(key)
+      return raw !== null ? (JSON.parse(raw) as T) : fallback
+    } catch {
+      return fallback
+    }
   })
-  const toggle = (v: boolean) => {
-    setEnabled(v)
-    try { localStorage.setItem(SOUND_KEY, String(v)) } catch {}
-    // cuelume bind() already global; mute/unmute via setEnabled if needed later
+  const update = (v: T) => {
+    setValue(v)
+    try { localStorage.setItem(key, JSON.stringify(v)) } catch {}
   }
-  return { enabled, toggle }
+  return [value, update] as const
 }
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<TabId>("general")
   const [q, setQ] = useState("")
-  const sound = useSoundPref()
+
+  const [soundOn, setSoundOn] = useLocalStorage(SOUND_KEY, true)
+  const [volume, setVol] = useLocalStorage(VOLUME_KEY, 0.6)
+  const [refreshMs, setRefresh] = useLocalStorage(REFRESH_KEY, 15000)
+  const [compact, setCompact] = useLocalStorage(COMPACT_KEY, false)
+  const [pingMs, setPing] = useLocalStorage(PING_KEY, 30000)
+
+  // Sync cuelume engine with stored prefs on mount/change
+  useEffect(() => {
+    setCuelumeEnabled(soundOn)
+    setVolume(volume)
+  }, [soundOn, volume])
 
   const needle = q.trim().toLowerCase()
-  const show = (label: string) => !needle || label.toLowerCase().includes(needle)
+  const show = (...labels: string[]) => !needle || labels.some((l) => l.toLowerCase().includes(needle))
+
+  const refreshOpts = [
+    { label: "5s", value: 5000 },
+    { label: "10s", value: 10000 },
+    { label: "15s", value: 15000 },
+    { label: "30s", value: 30000 },
+    { label: "60s", value: 60000 },
+  ]
+
+  const pingOpts = [
+    { label: "10s", value: 10000 },
+    { label: "30s", value: 30000 },
+    { label: "60s", value: 60000 },
+    { label: "Off", value: 0 },
+  ]
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -65,31 +100,120 @@ export default function SettingsPage() {
             <TabsList className="hidden">{/* nav sidebar replaces visual tabs */}</TabsList>
 
             <TabsContent value="general" className="mt-0 space-y-6">
-              {show("Sound Effects") && (
-                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
-                  <div className="flex items-center gap-3">
-                    {sound.enabled ? <Volume2 className="size-4 text-[#10e0dd]" /> : <VolumeX className="size-4 text-neutral-500" />}
-                    <div>
-                      <p className="text-sm font-medium text-neutral-200">Sound Effects</p>
-                      <p className="text-xs text-neutral-500">Interaction feedback via cuelume</p>
+              {show("Sound Effects", "Audio") && (
+                <div className="space-y-4 rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {soundOn ? <Volume2 className="size-4 text-[#10e0dd]" /> : <VolumeX className="size-4 text-neutral-500" />}
+                      <div>
+                        <p className="text-sm font-medium text-neutral-200">Sound Effects</p>
+                        <p className="text-xs text-neutral-500">Interaction feedback via cuelume</p>
+                      </div>
                     </div>
+                    <Switch checked={soundOn} onCheckedChange={setSoundOn} />
                   </div>
-                  <Switch checked={sound.enabled} onCheckedChange={sound.toggle} />
+                  {soundOn && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-neutral-400">
+                        <span>Volume</span>
+                        <span>{Math.round(volume * 100)}%</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={volume}
+                        onChange={(e) => setVol(Number(e.target.value))}
+                        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#1e2430] accent-[#10e0dd]" />
+                    </div>
+                  )}
                 </div>
               )}
-              {!show("Sound Effects") && <p className="text-xs text-neutral-600">No match.</p>}
+
+              {show("Auto Refresh", "Polling", "Board") && (
+                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Board Auto-Refresh</p>
+                      <p className="text-xs text-neutral-500">Task polling interval</p>
+                    </div>
+                  </div>
+                  <select value={refreshMs} onChange={(e) => setRefresh(Number(e.target.value))}
+                    className="h-8 rounded border border-[#1e2430] bg-[#0b0e14] px-2 text-xs text-neutral-200 outline-none focus:border-[#10e0dd]">
+                    {refreshOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {!show("Sound Effects", "Audio", "Auto Refresh", "Polling", "Board") && (
+                <p className="text-xs text-neutral-600">No match.</p>
+              )}
             </TabsContent>
 
-            <TabsContent value="appearance" className="mt-0">
-              <p className="text-xs text-neutral-600">Theme & density settings coming soon.</p>
+            <TabsContent value="appearance" className="mt-0 space-y-6">
+              {show("Compact", "Card", "Density") && (
+                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <LayoutGrid className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Compact Task Cards</p>
+                      <p className="text-xs text-neutral-500">Reduce padding & font size for denser board</p>
+                    </div>
+                  </div>
+                  <Switch checked={compact} onCheckedChange={setCompact} />
+                </div>
+              )}
+
+              {!show("Compact", "Card", "Density") && (
+                <p className="text-xs text-neutral-600">No match.</p>
+              )}
             </TabsContent>
 
             <TabsContent value="notifications" className="mt-0">
               <p className="text-xs text-neutral-600">Notification preferences coming soon.</p>
             </TabsContent>
 
-            <TabsContent value="advanced" className="mt-0">
-              <p className="text-xs text-neutral-600">Debug & export tools coming soon.</p>
+            <TabsContent value="advanced" className="mt-0 space-y-6">
+              {show("Ping", "Workspace", "Heartbeat") && (
+                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <Activity className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Workspace Ping Interval</p>
+                      <p className="text-xs text-neutral-500">Auto-ping frequency for workspace health</p>
+                    </div>
+                  </div>
+                  <select value={pingMs} onChange={(e) => setPing(Number(e.target.value))}
+                    className="h-8 rounded border border-[#1e2430] bg-[#0b0e14] px-2 text-xs text-neutral-200 outline-none focus:border-[#10e0dd]">
+                    {pingOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {show("Export", "Backup", "Data") && (
+                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <Download className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Export Settings</p>
+                      <p className="text-xs text-neutral-500">Download all preferences as JSON</p>
+                    </div>
+                  </div>
+                  <button onClick={() => {
+                    const blob = new Blob([JSON.stringify({ soundOn, volume, refreshMs, compact, pingMs }, null, 2)], { type: "application/json" })
+                    const a = document.createElement("a")
+                    a.href = URL.createObjectURL(blob)
+                    a.download = "kanban-settings.json"
+                    a.click()
+                    URL.revokeObjectURL(a.href)
+                  }}
+                    data-cuelume-press data-cuelume-release
+                    className="rounded border border-[#1e2430] bg-[#0b0e14] px-3 py-1.5 text-xs text-neutral-300 hover:border-[#10e0dd] hover:text-[#10e0dd]">
+                    Export
+                  </button>
+                </div>
+              )}
+
+              {!show("Ping", "Workspace", "Heartbeat", "Export", "Backup", "Data") && (
+                <p className="text-xs text-neutral-600">No match.</p>
+              )}
             </TabsContent>
           </Tabs>
         </main>
