@@ -1,10 +1,9 @@
 import type { Profile, Status, Task, Workspace } from "../../api"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Apple, Laptop, Monitor, HardDrive } from "lucide-react"
+import { Apple, ExternalLink, HardDrive, Laptop } from "lucide-react"
 
 const STATUS_TARGETS: Record<Status, Status[]> = {
   triage: ["todo", "ready"],
@@ -22,34 +21,28 @@ function isSshPath(path: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("/Users/")
 }
 
-function OsBadge({ ws }: { ws?: Workspace }) {
+function OsInfo({ ws }: { ws?: Workspace }) {
   const os = (ws?.os || "").toLowerCase()
   const path = ws?.path || ""
   const host = (ws?.host || "").toLowerCase()
-  let label = ""
-  let Icon = Monitor
-  let tint = ""
   if (os === "windows" || host.includes("windows") || /^[A-Za-z]:[\\/]/.test(path)) {
-    label = "windows"; Icon = Laptop; tint = "border-sky-500/30 bg-sky-500/10 text-sky-300"
-  } else if (os === "mac" || host.includes("mac") || path.startsWith("/Users/")) {
-    label = "mac"; Icon = Apple; tint = "border-neutral-700 bg-[#0b0e14] text-neutral-300"
-  } else if (os === "linux" || ws) {
-    label = "linux"; Icon = HardDrive; tint = "border-amber-500/30 bg-amber-500/10 text-amber-300"
-  } else {
-    return null
+    return <span className="flex items-center gap-1"><Laptop className="size-3" />win</span>
   }
-  return (
-    <Badge variant="outline" className={`gap-0.5 px-1 py-0 text-[9px] leading-none ${tint}`}>
-      <Icon className="size-2.5" /> {label}
-    </Badge>
-  )
+  if (os === "mac" || host.includes("mac") || path.startsWith("/Users/")) {
+    return <span className="flex items-center gap-1"><Apple className="size-3" />mac</span>
+  }
+  if (os === "linux" || ws) {
+    return <span className="flex items-center gap-1"><HardDrive className="size-3" />linux</span>
+  }
+  return null
 }
 
-export default function TaskCard({ task, profiles, workspaces, onOpen, onMove, onReassign }: {
+export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPage, onMove, onReassign }: {
   task: Task
   profiles: Profile[]
   workspaces?: Workspace[]
   onOpen: () => void
+  onOpenPage: () => void
   onMove: (s: Status) => void
   onReassign: (a: string) => void
 }) {
@@ -57,21 +50,35 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onMove, o
   const profile = profiles.find((p) => p.name === task.assignee)
   const ws = (workspaces ?? []).find((w) => w.path === task.workspace_path)
   const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
+  const desc = task.result || task.body
   return (
-    <article className="rounded-md border border-[#1e2430] bg-[#0b0e14] p-2.5 text-sm hover:border-[#10e0dd]/40">
-      <button onClick={onOpen} className="block w-full text-left font-medium leading-snug">
-        {task.title}
-      </button>
-      {task.result && (
-        <p className="mt-1 line-clamp-2 text-xs text-neutral-400">{task.result}</p>
+    <article className="group relative rounded-lg border border-[#1e2430]/50 bg-[#0b0e14]/40 p-3.5 shadow-none transition-colors duration-150 hover:border-[#1e2430] hover:bg-[#161b27]/30">
+      {/* title + open-page icon */}
+      <div className="flex items-start justify-between gap-2">
+        <button onClick={onOpen} className="min-w-0 flex-1 text-left">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-neutral-100">{task.title}</h3>
+        </button>
+        <button
+          onClick={onOpenPage}
+          title="Buka detail page"
+          className="shrink-0 rounded p-1 text-neutral-600 opacity-0 transition-opacity hover:text-[#10e0dd] focus:opacity-100 group-hover:opacity-100"
+        >
+          <ExternalLink className="size-3.5" />
+        </button>
+      </div>
+
+      {/* description */}
+      {desc && (
+        <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-neutral-400">{desc}</p>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+
+      {/* metadata row: assignee primary, env secondary, os + id subtle */}
+      <div className="flex items-center gap-2 pt-2.5 text-xs text-neutral-500">
         <Select value={task.assignee || "__none"} onValueChange={(v) => onReassign(v === "__none" ? "" : v)}>
           <SelectTrigger
             size="sm"
             title={profile ? `${profile.name} — ${profile.model}` : "Agent profile"}
-            onClick={(e) => e.stopPropagation()}
-            className="h-6 w-28 gap-1 border-[#1e2430] bg-[#11151f] px-1.5 text-[11px] text-neutral-300"
+            className="h-7 w-auto max-w-28 gap-1 rounded-md border-none bg-transparent px-1.5 text-xs font-medium text-neutral-200 shadow-none hover:bg-[#161b27] focus-visible:ring-0"
           >
             <SelectValue />
           </SelectTrigger>
@@ -83,41 +90,40 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onMove, o
           </SelectContent>
         </Select>
         {profile && !profile.valid && (
-          <Badge variant="outline" className="border-red-500/30 bg-red-500/15 text-red-300" title={`provider ${profile.provider} invalid — worker crash`}>
-            broken config
-          </Badge>
+          <span className="text-[10px] text-red-400" title={`provider ${profile.provider} invalid — worker crash`}>broken</span>
         )}
         {task.workspace_path && (
-          <Badge
-            variant="outline"
-            className={`max-w-24 px-1 py-0 font-normal text-[9px] leading-none ${wsIsSsh ? "border-violet-500/30 bg-violet-500/10 text-violet-300" : "border-[#1e2430] bg-[#11151f] text-neutral-500"}`}
-            title={task.workspace_path}
-          >
-            {wsIsSsh && "ssh · "}<span className="truncate">{task.workspace_path.split(/[\\/]/).pop()}</span>
-          </Badge>
+          <span className="truncate text-xs text-neutral-500/70" title={task.workspace_path}>
+            {wsIsSsh && "ssh · "}{ws?.name ?? task.workspace_path.split(/[\\/]/).pop()}
+          </span>
         )}
-        <OsBadge ws={ws} />
         {task.priority > 0 && (
-          <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">
-            P{task.priority}
-          </Badge>
+          <span className="text-[10px] font-medium text-amber-300/90">P{task.priority}</span>
         )}
         {task.consecutive_failures > 0 && (
-          <Badge variant="outline" className="border-red-500/30 bg-red-500/15 text-red-300">
-            {task.consecutive_failures} fails
-          </Badge>
+          <span className="text-[10px] text-red-400">{task.consecutive_failures} fails</span>
         )}
-        {targets.map((s) => (
-          <Button
-            key={s}
-            variant="outline" size="sm"
-            onClick={() => onMove(s)}
-            className="ml-auto h-5 rounded border-[#1e2430] px-1.5 text-[10px] font-normal text-neutral-400 hover:border-[#10e0dd]/50 hover:text-[#10e0dd] first:ml-0"
-          >
-            → {s}
-          </Button>
-        ))}
+        <span className="ml-auto flex shrink-0 items-center gap-2 text-neutral-500/60">
+          <OsInfo ws={ws} />
+          <span className="font-mono text-[10px] text-neutral-500/50">{task.id}</span>
+        </span>
       </div>
+
+      {/* status moves — hover only */}
+      {targets.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          {targets.map((s) => (
+            <Button
+              key={s}
+              variant="ghost" size="sm"
+              onClick={() => onMove(s)}
+              className="h-5 rounded px-1.5 text-[10px] font-normal text-neutral-400 hover:bg-[#161b27] hover:text-[#10e0dd]"
+            >
+              → {s}
+            </Button>
+          ))}
+        </div>
+      )}
     </article>
   )
 }

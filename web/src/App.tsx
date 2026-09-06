@@ -5,7 +5,6 @@ import { AppSidebar, type Page } from "@/components/AppSidebar"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
@@ -18,7 +17,7 @@ import ProvidersPage from "./features/providers/ProvidersPage"
 import LogsPage from "./features/logs/LogsPage"
 import SkillsPage from "./features/skills/SkillsPage"
 import MemoryPage from "./features/memory/MemoryPage"
-import { Archive, Pencil, Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import { Archive, Pencil, Plus, Search, X } from "lucide-react"
 
 const BOARD_COLUMNS: Status[] = [...COLUMNS, "archived"]
 
@@ -117,8 +116,8 @@ export default function App() {
         {BOARD_COLUMNS.map((col) => {
           const cards = byCol(col)
           return (
-          <section key={col} className={`flex h-full shrink-0 flex-col rounded-lg border border-[#1e2430] bg-[#11151f] ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
-            <h2 className="flex shrink-0 items-center justify-between border-b border-[#1e2430] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <section key={col} className={`flex h-full shrink-0 flex-col rounded-xl bg-[#11151f]/40 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
+            <h2 className="flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               <span className="flex items-center gap-1.5">
                 {col === "archived" && <Archive className="size-3" />}
                 {col}
@@ -131,6 +130,7 @@ export default function App() {
                   key={t.id}
                   task={t}
                   onOpen={() => setDetail(t)}
+                  onOpenPage={() => setDetailPage(t)}
                   onMove={(s) => move.mutate({ id: t.id, status: s })}
                   onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
                   profiles={profiles.data ?? []}
@@ -147,20 +147,13 @@ export default function App() {
       </main>
     )
 
-  const filterRail = page === "board" && !detailPage && (
-    <aside className={`flex h-full shrink-0 flex-col border-r border-[#1e2430] bg-[#11151f] transition-all ${filtersOpen ? "w-72" : "w-10"}`}>
-      <div className="flex h-10 shrink-0 items-center justify-center border-b border-[#1e2430]">
-        <span className={`text-[11px] font-semibold uppercase tracking-wider text-neutral-400 ${filtersOpen ? "" : "hidden"}`}>Filters</span>
-        {!filtersOpen && (
-          <div className="relative">
-            <SlidersHorizontal className="size-4 text-neutral-500" />
-            {filtersActive && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-[#10e0dd]" />}
-          </div>
-        )}
-        {filtersOpen && filtersActive && <span className="ml-2 size-2 rounded-full bg-[#10e0dd]" />}
+  const filterRail = page === "board" && !detailPage && filtersOpen && (
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[#1e2430] bg-[#11151f]">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-[#1e2430] px-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Filters</span>
+        {filtersActive && <span className="size-2 rounded-full bg-[#10e0dd]" />}
       </div>
-      {filtersOpen ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-neutral-300">{filtered.length} / {tasks.data?.length ?? 0} match</span>
             {filtersActive && (
@@ -230,11 +223,6 @@ export default function App() {
             </Select>
           </div>
         </div>
-      ) : (
-        <div className="flex flex-col items-center gap-2 py-3 text-[10px] text-neutral-600">
-          {filtersActive && <Badge className="bg-[#10e0dd] text-black">on</Badge>}
-        </div>
-      )}
     </aside>
   )
 
@@ -344,6 +332,7 @@ export default function App() {
           slug={slug}
           task={detail}
           profiles={profiles.data ?? []}
+          workspaces={workspaces.data ?? []}
           onClose={() => setDetail(null)}
           onMove={(s) => move.mutateAsync({ id: detail.id, status: s }).then(() => setDetail({ ...detail, status: s }))}
           onReassign={(a) =>

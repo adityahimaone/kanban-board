@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent } from "../../api"
-import { ExternalLink } from "lucide-react"
+import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent, type Workspace } from "../../api"
+import { Apple, ExternalLink, HardDrive, Laptop, Monitor } from "lucide-react"
 
 const STATUS_CHIP: Record<string, string> = {
   done: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
@@ -12,10 +12,30 @@ const STATUS_CHIP: Record<string, string> = {
   review: "border-violet-500/40 bg-violet-500/10 text-violet-300",
 }
 
+function OsIcon({ ws }: { ws?: Workspace }) {
+  const os = (ws?.os || "").toLowerCase()
+  const path = ws?.path || ""
+  const host = (ws?.host || "").toLowerCase()
+  if (os === "windows" || host.includes("windows") || /^[A-Za-z]:[\\/]/.test(path)) return <Laptop className="size-3" />
+  if (os === "mac" || host.includes("mac") || path.startsWith("/Users/")) return <Apple className="size-3" />
+  if (os === "linux" || ws) return <HardDrive className="size-3" />
+  return <Monitor className="size-3" />
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <span className="shrink-0 text-[10px] uppercase tracking-wider text-neutral-500">{label}</span>
+      <span className="min-w-0 truncate text-right text-[11px] text-neutral-300">{children}</span>
+    </div>
+  )
+}
+
 export default function TaskDetail({
   slug,
   task,
   profiles,
+  workspaces,
   onClose,
   onMove,
   onReassign,
@@ -24,6 +44,7 @@ export default function TaskDetail({
   slug: string
   task: Task
   profiles: Profile[]
+  workspaces: Workspace[]
   onClose: () => void
   onMove: (s: Status) => Promise<void>
   onReassign: (a: string) => Promise<void>
@@ -34,27 +55,33 @@ export default function TaskDetail({
     queryFn: () => api<TaskEvent[]>(`/api/boards/${slug}/tasks/${task.id}/events`),
   })
   const profile = profiles.find((p) => p.name === task.assignee)
+  const ws = workspaces.find((w) => w.path === task.workspace_path)
+  const wsIsSsh = !!ws?.host && ws.host !== "localhost" && ws.host !== "127.0.0.1"
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
       <aside
-        className="flex h-full w-full max-w-md flex-col gap-3 border-l border-[#1e2430] bg-[#11151f] p-4"
+        className="flex h-full w-full max-w-md flex-col gap-3 overflow-y-auto border-l border-[#1e2430] bg-[#11151f] p-4"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* header */}
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-sm font-semibold leading-snug">{task.title}</h2>
+          <h2 className="text-sm font-semibold leading-snug text-neutral-100">{task.title}</h2>
           <Button variant="outline" size="sm" className="shrink-0 px-2" onClick={onClose}>✕</Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-500">
-          <Badge variant="outline" className="px-1.5 py-0 font-mono text-[9px] leading-none text-neutral-400">{task.id}</Badge>
           <Badge variant="outline" className={`px-1.5 py-0 text-[9px] leading-none ${STATUS_CHIP[task.status] ?? "border-[#1e2430] bg-[#161b27] text-neutral-300"}`}>{task.status}</Badge>
           {task.priority > 0 && (
             <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] leading-none text-amber-300">P{task.priority}</Badge>
           )}
-          <span>dibuat {new Date(task.created_at * 1000).toLocaleString()}</span>
+          <span className="font-mono text-[10px] text-neutral-500/60">{task.id}</span>
+          {task.consecutive_failures > 0 && (
+            <span className="text-[10px] text-red-400">{task.consecutive_failures} consecutive failures</span>
+          )}
         </div>
 
+        {/* agent */}
         <div className="rounded-lg border border-[#1e2430] bg-[#0b0e14] p-2.5">
           <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
           <Select
@@ -74,22 +101,55 @@ export default function TaskDetail({
               ))}
             </SelectContent>
           </Select>
+          {profile && (
+            <p className="mt-1 truncate text-[10px] text-neutral-500" title={`${profile.model || "—"} · ${profile.provider || "—"}`}>
+              {profile.model || "—"} · {profile.provider || "—"}
+            </p>
+          )}
           {profile && !profile.valid && (
-            <p className="mt-1 text-[10px] text-red-400">Provider invalid — worker bakal crash.</p>
+            <p className="mt-0.5 text-[10px] text-red-400">Provider invalid — worker bakal crash.</p>
           )}
         </div>
 
+        {/* meta rows */}
+        <div className="divide-y divide-[#1e2430]/60 rounded-lg border border-[#1e2430] bg-[#0b0e14] px-2.5">
+          <Row label="Workspace">
+            {task.workspace_path
+              ? <span className="flex items-center justify-end gap-1.5" title={task.workspace_path}>
+                  <OsIcon ws={ws} />
+                  {ws?.name ?? task.workspace_path.split(/[\\/]/).pop()}
+                  {wsIsSsh && <span className="text-neutral-500">· ssh</span>}
+                </span>
+              : "scratch"}
+          </Row>
+          <Row label="Kind">{task.workspace_kind || "dir"}</Row>
+          <Row label="Dibuat">{new Date(task.created_at * 1000).toLocaleString()}</Row>
+          {task.started_at && <Row label="Mulai">{new Date(task.started_at * 1000).toLocaleString()}</Row>}
+          {task.completed_at && <Row label="Selesai">{new Date(task.completed_at * 1000).toLocaleString()}</Row>}
+          <Row label="Creator">{task.created_by || "—"}</Row>
+          <Row label="Events">{events.data?.length ?? 0} tercatat</Row>
+        </div>
+
         {task.body && (
-          <div className="max-h-24 overflow-y-auto rounded-lg border border-[#1e2430] bg-[#0b0e14] p-2.5">
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-300">{task.body}</p>
+          <div className="rounded-lg border border-[#1e2430] bg-[#0b0e14] p-2.5">
+            <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Deskripsi</label>
+            <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-300">{task.body}</p>
+          </div>
+        )}
+        {task.last_failure_error && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-2.5">
+            <label className="block text-[10px] uppercase tracking-wider text-red-300">Last failure</label>
+            <p className="mt-1 max-h-20 overflow-y-auto break-words text-[11px] leading-relaxed text-red-300">{task.last_failure_error}</p>
           </div>
         )}
         {task.result && (
-          <div className="max-h-28 overflow-y-auto rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2.5">
-            <p className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-emerald-100/90">{task.result}</p>
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2.5">
+            <label className="block text-[10px] uppercase tracking-wider text-emerald-300">Result</label>
+            <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-emerald-100/90">{task.result}</p>
           </div>
         )}
 
+        {/* status moves */}
         <div className="flex flex-wrap gap-1.5">
           {COLUMNS.filter((s) => s !== task.status).map((s) => (
             <Button
@@ -104,8 +164,7 @@ export default function TaskDetail({
           ))}
         </div>
 
-        <div className="mt-auto space-y-1.5">
-          <p className="text-[10px] text-neutral-600">{events.data?.length ?? 0} events tercatat — lihat lengkapnya di halaman detail.</p>
+        <div className="mt-auto pt-1">
           <Button onClick={onOpenPage} className="w-full gap-1.5 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
             <ExternalLink className="size-3.5" /> Buka detail page
           </Button>
