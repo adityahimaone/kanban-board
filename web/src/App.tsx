@@ -57,7 +57,7 @@ export default function App() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
   })
 
-  const active = (boards.data ?? []).filter((b) => !["default", "archived"].includes(b.slug))
+  const active = (boards.data ?? []).filter((b) => b.slug !== "archived")
   const currentBoard = active.find((b) => b.slug === slug) ?? null
 
   const filtered = useMemo(() => {

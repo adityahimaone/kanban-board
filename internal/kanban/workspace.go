@@ -113,7 +113,9 @@ func saveWorkspaces(f *workspaceFile) error {
 	return os.Rename(tmp, workspacesPath())
 }
 
-// ListWorkspaces reads + annotates each entry with a cheap static status.
+// ListWorkspaces reads + hydrates status from ping history so the list
+// doesn't flicker to "unknown" after a restart — last known status wins.
+// Local hosts stay "local".
 func ListWorkspaces() ([]Workspace, error) {
 	wsMu.Lock()
 	defer wsMu.Unlock()
@@ -124,12 +126,46 @@ func ListWorkspaces() ([]Workspace, error) {
 		}
 		return nil, err
 	}
+	// hydrate from history (best-effort, ignore errors)
+	hist, _ := loadPingMap()
 	out := f.Workspaces
 	for i := range out {
 		w := &out[i]
-		w.Status = "unknown"
 		if w.Host == "" || w.Host == "localhost" || w.Host == "127.0.0.1" {
 			w.Status = "local"
+			continue
+		}
+		if pts := hist[w.ID]; len(pts) > 0 {
+			last := pts[len(pts)-1]
+			if last.Ok {
+				w.Status = "connected"
+				if last.Ms != nil {
+					w.PingMs = last.Ms
+				}
+				w.StatusMsg = last.Msg
+			} else {
+				// debounce: need 3 consecutive fails to flip offline
+				c := 1
+				for j := len(pts) - 2; j >= 0 && c < 3; j-- {
+					if !pts[j].Ok {
+						c++
+					} else {
+						break
+					}
+				}
+				if c >= 3 {
+					w.Status = "unreachable"
+					w.StatusMsg = last.Msg
+				} else {
+					w.Status = "connected"
+					w.StatusMsg = fmt.Sprintf("connected (retry %d/3) — %s", c, last.Msg)
+					if last.Ms != nil {
+						w.PingMs = last.Ms
+					}
+				}
+			}
+		} else {
+			w.Status = "unknown"
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
@@ -219,16 +255,26 @@ func PingWorkspace(w *Workspace) Workspace {
 			res.Status, res.StatusMsg = "unreachable", trimErr(err)
 		}
 	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, "ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes", res.Host,
-			"test -d "+shellQuote(res.Path)+" && echo ok")
-		out, err := cmd.Output()
+		// two attempts: ssh over tailscale occasionally stalls one probe;
+		// a single retry kills most false "unreachable" reports.
+		var out []byte
+		var err error
+		for attempt := 0; attempt < 2; attempt++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			cmd := exec.CommandContext(ctx, "ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes", res.Host,
+				"test -d "+shellQuote(res.Path)+" && echo ok")
+			out, err = cmd.Output()
+			cancel()
+			if err == nil && strings.TrimSpace(string(out)) == "ok" {
+				break
+			}
+			if attempt == 0 {
+				time.Sleep(1200 * time.Millisecond)
+			}
+		}
 		ms := float64(time.Since(start).Microseconds()) / 1000.0
 		res.PingMs = &ms
-		if ctx.Err() == context.DeadlineExceeded {
-			res.Status, res.StatusMsg = "unreachable", "timeout >8s"
-		} else if err != nil {
+		if err != nil {
 			res.Status, res.StatusMsg = "unreachable", trimErr(err)
 		} else if strings.TrimSpace(string(out)) == "ok" {
 			res.Status, res.StatusMsg = "connected", fmt.Sprintf("path ok via %s", res.Host)

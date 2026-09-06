@@ -77,15 +77,19 @@ function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | und
   const good = pts.filter((p) => p.ok && p.ms != null).map((p) => p.ms!)
   const min = good.length ? Math.min(...good) : 0
   const max = good.length ? Math.max(...good) : 0
+  const MID = (BASE + TOP) / 2
   const yOf = (p: PingPoint | null) => {
-    if (!p) return BASE // empty slot -> baseline (quiet left tail)
-    if (!p.ok || p.ms == null) return BASE // fail -> flatline
-    if (max - min < 1) return BASE - (BASE - TOP) / 2 // flat data -> mid line
-    return BASE - ((p.ms - min) / (max - min)) * (BASE - TOP)
+    // no good data at all -> dead-flat center line (never touching edges)
+    if (!good.length) return MID
+    if (!p) return MID // empty slot -> center
+    if (!p.ok || p.ms == null) return MID // fail -> flatline center, not bottom
+    if (max - min < 1) return MID // flat data -> center
+    // clamp inside with a little head/foot margin so the line never clips
+    const y = BASE - ((p.ms - min) / (max - min)) * (BASE - TOP)
+    return Math.min(BASE - 2, Math.max(TOP + 2, y))
   }
-  // latest point lands at right edge; older ones step left by slot width.
-  // drift left by one slot over the 30s window so the trace feels live
-  // between pings, then snaps on next data arrival.
+  // drift left smoothly over the 30s window but clamp so the trace never
+  // runs past the right edge (line cut off) — last point stays at x <= w.
   const slot = w / 29
   const [frac, setFrac] = useState(0)
   const lastAt = last?.at ?? 0
@@ -99,10 +103,14 @@ function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | und
     return () => clearInterval(iv)
   }, [lastAt])
 
-  const xOf = (i: number) => i * slot - frac * slot
-  const d = padded
-    .map((p, i) => `${i ? "L" : "M"}${xOf(i).toFixed(1)} ${yOf(p).toFixed(1)}`)
-    .join(" ")
+  const xOf = (i: number) => Math.min(w, i * slot + (1 - frac) * slot)
+  // flat line when there's nothing interesting to draw (empty/quiet/failed)
+  const allFlat = !good.length || (max - min < 1 && pts.every((p) => !p.ok))
+  const d = allFlat
+    ? `M0 ${MID.toFixed(1)} H${w.toFixed(1)}`
+    : padded
+        .map((p, i) => `${i ? "L" : "M"}${xOf(i).toFixed(1)} ${yOf(p).toFixed(1)}`)
+        .join(" ")
 
   return (
     <div
