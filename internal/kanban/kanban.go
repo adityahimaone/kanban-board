@@ -164,7 +164,10 @@ func CreateTask(slug string, t *Task) error {
 	if t.Status == "running" { return fmt.Errorf("status 'running' is dispatcher-owned; use todo/ready/triage") }
 	if t.ID == "" { t.ID = newTaskID() }
 	if t.CreatedBy == "" { t.CreatedBy = "board-ui" }
-	if t.WorkspaceKind == "" { t.WorkspaceKind = "scratch" }
+	if t.WorkspaceKind == "" { t.WorkspaceKind = "dir" }
+	// Explicit workspace_path selected (existing behavior: dir workspace). Only
+	// board tasks without a path fall back to a managed scratch dir.
+	if t.WorkspacePath == "" { t.WorkspaceKind = "scratch" }
 	t.Title = strings.TrimSpace(t.Title)
 	t.CreatedAt = time.Now().Unix()
 	db, err := openDB(slug)
