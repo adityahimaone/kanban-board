@@ -248,8 +248,8 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// WorkspaceLogs greps board dispatcher logs for this workspace's id/path —
-// a cheap stand-in for hermes-webui's workspace activity view.
+// WorkspaceLogs greps board dispatcher logs + the unified workspace-ping.log for this
+// workspace's id — a cheap stand-in for hermes-webui's workspace activity view.
 func WorkspaceLogs(w *Workspace, n int) ([]string, error) {
 	if n <= 0 || n > 500 {
 		n = 50
@@ -276,6 +276,20 @@ func WorkspaceLogs(w *Workspace, n int) ([]string, error) {
 			f.Close()
 		}
 	}
+	// unified ping log — one line per PingWorkspace probe, filtered by workspace id
+	if pf, err := os.Open(pingLogPath()); err == nil {
+		sc := bufio.NewScanner(pf)
+		for sc.Scan() {
+			t := sc.Text()
+			if strings.Contains(t, "["+w.ID+"]") {
+				lines = append(lines, "ping | "+t)
+			}
+		}
+		pf.Close()
+	}
+	// dispatcher + ping lines interleave chronologically because both use RFC3339
+	// prefix; but we emitted pings sequentially, so appending is already ~sorted.
+	// Cap to last n rather than doing a full sort/merge.
 	if len(lines) > n {
 		lines = lines[len(lines)-n:]
 	}

@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api, type Workspace } from "@/api"
+import { api, type PingPoint, type Workspace } from "@/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { FolderGit2, Plus, RefreshCw, ScrollText, Trash2, Pencil, Loader2, Monitor, Apple, Laptop, HardDrive } from "lucide-react"
+import { FolderGit2, Plus, RefreshCw, ScrollText, Trash2, Pencil, Loader2, Monitor, Apple, Laptop, HardDrive, Radio } from "lucide-react"
 
 type WsStatus = "connected" | "unreachable" | "unknown" | "local"
 
@@ -17,6 +17,12 @@ const STATUS_STYLE: Record<WsStatus, { dot: string; text: string; label: string 
   unreachable: { dot: "bg-red-400", text: "text-red-300", label: "unreachable" },
   unknown: { dot: "bg-neutral-500", text: "text-neutral-400", label: "not pinged" },
   local: { dot: "bg-sky-400", text: "text-sky-300", label: "local" },
+}
+
+// known SSH hosts for the transport select in the form
+const SSH_PRESETS: Record<string, { path: string; name: string }> = {
+  "mac-tailscale": { path: "/Users/adityahimawan/Development", name: "Mac Dev" },
+  "windows-tailscale": { path: "C:\\Users\\user", name: "Windows Dev" },
 }
 
 function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tint: string } {
@@ -31,11 +37,29 @@ function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tin
   if (!host || host === "localhost" || host === "127.0.0.1") {
     return { label: "vps", Icon: Monitor, tint: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" }
   }
-  // non-empty remote host that isn't mac → assume linux box (or generic SSH)
   return { label: "linux", Icon: HardDrive, tint: "border-amber-500/30 bg-amber-500/10 text-amber-300" }
 }
 
-function StatusChip({ ws }: { ws: Workspace }) {
+// PingWave: mini bar spectrum of the last N ping results. Green bar = ok
+// (height ~latency), red bar = fail. Newest on the right.
+function PingWave({ points }: { points: PingPoint[] | undefined }) {
+  const pts = (points ?? []).slice(-24)
+  if (!pts.length) return <span className="text-[10px] text-neutral-600">no pings yet</span>
+  const maxMs = Math.max(...pts.map((p) => p.ms ?? 0), 100)
+  return (
+    <span className="flex h-4 items-end gap-[2px]" title={pts.map((p) => `${p.ok ? "ok" : "fail"} ${p.ms != null ? Math.round(p.ms) + "ms" : ""}`).join(" | ")}>
+      {pts.map((p, i) => (
+        <span
+          key={i}
+          className={`w-[3px] rounded-sm ${p.ok ? "bg-emerald-400/80" : "bg-red-400/90"}`}
+          style={{ height: `${Math.max(3, Math.round(((p.ms ?? maxMs) / maxMs) * 16))}px` }}
+        />
+      ))}
+    </span>
+  )
+}
+
+function StatusChip({ ws, points }: { ws: Workspace; points?: PingPoint[] }) {
   const s = STATUS_STYLE[(ws.status as WsStatus) ?? "unknown"] ?? STATUS_STYLE.unknown
   const live = ws.status === "connected" || ws.status === "local"
   return (
@@ -44,6 +68,7 @@ function StatusChip({ ws }: { ws: Workspace }) {
       <span className={`size-2 rounded-full ${s.dot} ${live ? "animate-pulse" : ""}`} />
       {s.label}
       {ws.ping_ms != null && <span className="text-neutral-500">{Math.round(ws.ping_ms)}ms</span>}
+      {points && points.length > 0 && <PingWave points={points} />}
     </span>
   )
 }
@@ -57,6 +82,8 @@ function WorkspaceForm({
   onClose: () => void
   onSave: (ws: Workspace) => Promise<unknown>
 }) {
+  const initialTransport = initial ? (initial.host ? "ssh" : "local") : "local"
+  const [transport, setTransport] = useState(initialTransport)
   const [id, setId] = useState(initial?.id ?? "")
   const [name, setName] = useState(initial?.name ?? "")
   const [path, setPath] = useState(initial?.path ?? "")
@@ -66,15 +93,36 @@ function WorkspaceForm({
   const [err, setErr] = useState<string | null>(null)
   const editing = !!initial
 
+  function pickTransport(v: string) {
+    setTransport(v)
+    if (v === "local") {
+      setHost("")
+    } else if (!editing) {
+      // prefill first preset host + its default path
+      const first = Object.entries(SSH_PRESETS)[0]
+      setHost(first[0])
+      if (!path.trim()) setPath(first[1].path)
+    }
+  }
+
+  function pickHost(v: string) {
+    setHost(v)
+    const preset = SSH_PRESETS[v]
+    if (preset && !editing && !path.trim()) setPath(preset.path)
+  }
+
   async function submit() {
     if (!id.trim()) { setErr("ID required"); return }
     if (!path.trim()) { setErr("Path required"); return }
+    if (transport === "ssh" && !host.trim()) { setErr("SSH host required"); return }
     setBusy(true); setErr(null)
     try {
-      await onSave({ id: id.trim().toLowerCase(), name: name.trim() || id.trim(), path: path.trim(), host: host.trim(), kind } as Workspace)
+      await onSave({ id: id.trim().toLowerCase(), name: name.trim() || id.trim(), path: path.trim(), host: transport === "ssh" ? host.trim() : "", kind } as Workspace)
       onClose()
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
+
+  const inpCls = "border-[#1e2430] bg-[#0b0e14]"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -83,18 +131,44 @@ function WorkspaceForm({
         {!editing && (
           <>
             <Label className="mt-3 block text-xs text-neutral-400">ID</Label>
-            <Input value={id} onChange={(e) => setId(e.target.value)} placeholder="mac-dev" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+            <Input value={id} onChange={(e) => setId(e.target.value)} placeholder="mac-dev" className={`mt-1 ${inpCls}`} />
+          </>
+        )}
+        <Label className="mt-3 block text-xs text-neutral-400">Transport</Label>
+        <Select value={transport} onValueChange={pickTransport}>
+          <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+            <SelectItem value="local" className="text-sm">Local (VPS ini)</SelectItem>
+            <SelectItem value="ssh" className="text-sm">SSH (remote host)</SelectItem>
+          </SelectContent>
+        </Select>
+        {transport === "ssh" && (
+          <>
+            <Label className="mt-3 block text-xs text-neutral-400">SSH host</Label>
+            <Select value={host} onValueChange={pickHost}>
+              <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
+                <SelectValue placeholder="pilih host" />
+              </SelectTrigger>
+              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+                {Object.keys(SSH_PRESETS).map((h) => (
+                  <SelectItem key={h} value={h} className="text-sm">{h}</SelectItem>
+                ))}
+                {host && !SSH_PRESETS[host] && <SelectItem value={host} className="text-sm">{host}</SelectItem>}
+              </SelectContent>
+            </Select>
           </>
         )}
         <Label className="mt-3 block text-xs text-neutral-400">Name</Label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mac Dev" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mac Dev" className={`mt-1 ${inpCls}`} />
         <Label className="mt-3 block text-xs text-neutral-400">Path (di host)</Label>
-        <Input value={path} onChange={(e) => setPath(e.target.value)} placeholder="/Users/adityahimawan/Development" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
-        <Label className="mt-3 block text-xs text-neutral-400">SSH host (kosong = lokal VPS)</Label>
-        <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="mac-tailscale" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+        <Input value={path} onChange={(e) => setPath(e.target.value)}
+          placeholder={transport === "ssh" ? SSH_PRESETS[host]?.path ?? "/Users/... atau C:\\..." : "/home/adityahimaone/apps"}
+          className={`mt-1 ${inpCls}`} />
         <Label className="mt-3 block text-xs text-neutral-400">Kind</Label>
         <Select value={kind} onValueChange={setKind}>
-          <SelectTrigger className="mt-1 w-full border-[#1e2430] bg-[#0b0e14] text-sm data-[size=default]:h-9">
+          <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="border-[#1e2430] bg-[#11151f]">
@@ -136,15 +210,51 @@ function LogsDialog({ ws, onClose }: { ws: Workspace; onClose: () => void }) {
   )
 }
 
+const AUTO_PING_MS = 30_000
+
 export default function WorkspacesPage() {
   const qc = useQueryClient()
   const [form, setForm] = useState<{ open: boolean; edit: Workspace | null }>({ open: false, edit: null })
   const [logsFor, setLogsFor] = useState<Workspace | null>(null)
   const [pinging, setPinging] = useState<string | null>(null)
+  const [autoPing, setAutoPing] = useState(true)
+  const pingingRef = useRef(false)
 
   const workspaces = useQuery({
     queryKey: ["workspaces"],
     queryFn: () => api<Workspace[]>("/api/workspaces"),
+    refetchInterval: 60_000,
+  })
+
+  // background auto-ping: probe all workspaces every 30s without user trigger,
+  // then merge statuses into the query cache
+  useEffect(() => {
+    if (!autoPing) return
+    let stop = false
+    const tick = async () => {
+      if (stop || pingingRef.current || document.hidden) return
+      pingingRef.current = true
+      try {
+        const updated = await api<Workspace[]>("/api/workspaces/ping", { method: "POST" })
+        if (!stop) qc.setQueryData<Workspace[]>(["workspaces"], updated)
+      } catch { /* keep stale */ }
+      pingingRef.current = false
+    }
+    tick()
+    const iv = setInterval(tick, AUTO_PING_MS)
+    return () => { stop = true; clearInterval(iv); pingingRef.current = false }
+  }, [autoPing, qc])
+
+  const pingHistories = useQuery({
+    queryKey: ["ws-ping-history"],
+    queryFn: async () => {
+      const ids = (workspaces.data ?? []).map((w) => w.id)
+      const entries = await Promise.all(
+        ids.map(async (id) => [id, await api<PingPoint[]>(`/api/workspaces/${id}/history`)] as const),
+      )
+      return Object.fromEntries(entries) as Record<string, PingPoint[]>
+    },
+    enabled: (workspaces.data?.length ?? 0) > 0,
     refetchInterval: 30_000,
   })
 
@@ -166,15 +276,19 @@ export default function WorkspacesPage() {
       const updated = await api<Workspace>(`/api/workspaces/${ws.id}/ping`)
       qc.setQueryData<Workspace[]>(["workspaces"], (old) =>
         old ? old.map((w) => (w.id === ws.id ? { ...w, ...updated } : w)) : old)
+      qc.invalidateQueries({ queryKey: ["ws-ping-history"] })
     } catch { /* leave stale */ }
     setPinging(null)
   }
 
   async function pingAll() {
-    const list = workspaces.data ?? []
-    for (const ws of list) {
-      await pingOne(ws)
-    }
+    setPinging("__all__")
+    try {
+      const updated = await api<Workspace[]>("/api/workspaces/ping", { method: "POST" })
+      qc.setQueryData<Workspace[]>(["workspaces"], updated)
+      qc.invalidateQueries({ queryKey: ["ws-ping-history"] })
+    } catch { /* keep stale */ }
+    setPinging(null)
   }
 
   return (
@@ -185,8 +299,16 @@ export default function WorkspacesPage() {
           {workspaces.data?.length ?? 0}
         </span>
         <div className="ml-auto flex gap-2">
+          <Button
+            variant={autoPing ? "default" : "outline"} size="sm"
+            onClick={() => setAutoPing((v) => !v)}
+            className={autoPing ? "bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90" : ""}
+            title="Auto ping semua workspace tiap 30 detik"
+          >
+            <Radio className={`size-3.5 ${autoPing ? "animate-pulse" : ""}`} /> Auto 30s
+          </Button>
           <Button variant="outline" size="sm" onClick={pingAll} disabled={pinging != null}>
-            <RefreshCw className={`size-3.5 ${pinging ? "animate-spin" : ""}`} /> Ping all
+            <RefreshCw className={`size-3.5 ${pinging === "__all__" ? "animate-spin" : ""}`} /> Ping all
           </Button>
           <Button size="sm" onClick={() => setForm({ open: true, edit: null })} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
             <Plus className="size-3.5" /> New workspace
@@ -194,7 +316,7 @@ export default function WorkspacesPage() {
         </div>
       </div>
       <p className="mt-1 text-xs text-neutral-500">
-        Shared source of truth: <code className="text-neutral-400">~/.hermes/workspaces.json</code> — host kosong berarti lokal VPS.
+        Shared source of truth: <code className="text-neutral-400">~/.hermes/workspaces.json</code> — tiap ping tersimpan di history (wave) + workspace logs.
       </p>
 
       {workspaces.isLoading ? (
@@ -203,6 +325,8 @@ export default function WorkspacesPage() {
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(workspaces.data ?? []).map((ws) => {
             const plat = platformBadge(ws)
+            const isSsh = !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1"
+            const live = ws.status === "connected" || ws.status === "local"
             return (
             <Card key={ws.id} className="border-[#1e2430] bg-[#11151f]">
               <CardContent className="p-3.5">
@@ -214,6 +338,11 @@ export default function WorkspacesPage() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <h3 className="truncate text-sm font-semibold">{ws.name}</h3>
                       <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-500">{ws.id}</span>
+                      {isSsh && (
+                        <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-300">
+                          ssh
+                        </Badge>
+                      )}
                       <Badge variant="outline" className={`gap-1 text-[10px] ${plat.tint}`}>
                         <plat.Icon className="size-3" /> {plat.label}
                       </Badge>
@@ -226,7 +355,7 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <StatusChip ws={ws} />
+                  <StatusChip ws={ws} points={pingHistories.data?.[ws.id]} />
                   {ws.status_message && (
                     <span className="max-w-48 truncate text-[10px] text-neutral-500" title={ws.status_message}>
                       {ws.status_message}
@@ -235,7 +364,7 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => pingOne(ws)} disabled={pinging === ws.id}>
+                  <Button variant="outline" size="sm" onClick={() => pingOne(ws)} disabled={pinging != null}>
                     {pinging === ws.id ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Ping
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setLogsFor(ws)}>
@@ -253,6 +382,8 @@ export default function WorkspacesPage() {
                   </Button>
                 </div>
                 {del.isError && <p className="mt-2 text-xs text-red-400">{(del.error as Error).message}</p>}
+                {/* green pulse ring on the whole card when connected */}
+                <span className={`pointer-events-none absolute inset-0 rounded-lg ${live ? "ring-1 ring-emerald-400/20" : ""}`} />
               </CardContent>
             </Card>
             )

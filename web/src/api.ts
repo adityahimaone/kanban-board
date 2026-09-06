@@ -44,6 +44,13 @@ export interface Workspace {
   ping_ms?: number | null
 }
 
+export interface PingPoint {
+  at: number
+  ms?: number | null
+  ok: boolean
+  msg?: string
+}
+
 export interface Profile {
   name: string
   model: string

@@ -92,18 +92,28 @@ func main() {
 		if err := kanban.DeleteWorkspace(r.PathValue("id")); err != nil { fail(w, err, 404); return }
 		writeJSON(w, http.StatusOK, map[string]string{"deleted": r.PathValue("id")})
 	})
+	mux.HandleFunc("POST /api/workspaces/ping", func(w http.ResponseWriter, r *http.Request) {
+		out, err := kanban.PingAll()
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, out)
+	})
 	mux.HandleFunc("GET /api/workspaces/{id}/ping", func(w http.ResponseWriter, r *http.Request) {
-		// find workspace, then probe ssh/local
 		ws, err := kanban.ListWorkspaces()
 		if err != nil { fail(w, err, 500); return }
 		for _, e := range ws {
 			if e.ID == r.PathValue("id") {
 				p := kanban.PingWorkspace(&e)
+				kanban.AppendPingHistory(p.ID, p)
 				writeJSON(w, http.StatusOK, p)
 				return
 			}
 		}
 		fail(w, http.ErrMissingFile, 404)
+	})
+	mux.HandleFunc("GET /api/workspaces/{id}/history", func(w http.ResponseWriter, r *http.Request) {
+		pts, err := kanban.GetPingHistory(r.PathValue("id"))
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, pts)
 	})
 	mux.HandleFunc("GET /api/workspaces/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
 		ws, err := kanban.ListWorkspaces()

@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { Profile, Workspace } from "../../api"
 import { api } from "../../api"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,17 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sparkles, Loader2 } from "lucide-react"
 
 function isRemoteWorkspace(w: Workspace): boolean {
-  // Registered remote workspaces (host = mac-tailscale/windows-tailscale, path /Users/...)
-  // are routable via node-agent — no longer disabled.
   if (w.host && w.host !== "localhost" && w.host !== "127.0.0.1") return true
   if (/^[A-Za-z]:[\\/]/.test(w.path)) return true
   if (w.path.startsWith("/Users/")) return true
   return false
 }
 
+function isSshWorkspace(w: Workspace): boolean {
+  return !!w.host && w.host !== "localhost" && w.host !== "127.0.0.1"
+}
+
+function isLive(w: Workspace): boolean {
+  return w.status === "connected" || w.status === "local"
+}
+
 function defaultWorkspacePath(workspaces: Workspace[]): string {
-  // With node-agent, Mac workspaces are routable — prefer the first workspace
-  // (remote via node-agent) over scratch when something is registered.
   if (workspaces.length === 0) return ""
   const local = workspaces.find((w) => !isRemoteWorkspace(w))
   return local?.path ?? workspaces[0].path
@@ -114,18 +119,24 @@ export default function TaskDialog({
           </SelectContent>
         </Select>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
+          <div className="min-w-0">
             <Label className="block text-xs text-neutral-400">Workspace</Label>
             <Select value={ws || "__scratch"} onValueChange={(v) => setWs(v === "__scratch" ? "" : v)}>
-              <SelectTrigger className={`mt-1 ${selCls}`}>
+              <SelectTrigger className={`mt-1 ${selCls} min-w-0 [&>span]:truncate`}>
                 <SelectValue placeholder="workspace" />
               </SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectContent className="max-w-[22rem] border-[#1e2430] bg-[#11151f]">
                 {workspaces.map((w) => {
-                  const remote = isRemoteWorkspace(w)
+                  const ssh = isSshWorkspace(w)
+                  const live = isLive(w)
                   return (
-                    <SelectItem key={w.id} value={w.path} className="text-sm">
-                      {w.name} — {w.path}{remote ? " (remote · node-agent)" : " (local)"}
+                    <SelectItem key={w.id} value={w.path} className="text-sm" title={`${w.name} — ${w.path}${w.host ? ` (${w.host})` : ""}${w.status ? ` · ${w.status}` : ""}`}>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {live && <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400" />}
+                        <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-neutral-500">{w.path}</span>
+                        {ssh && <Badge variant="outline" className="shrink-0 border-violet-500/30 bg-violet-500/10 px-1 py-0 text-[9px] leading-none text-violet-300">ssh</Badge>}
+                      </span>
                     </SelectItem>
                   )
                 })}
