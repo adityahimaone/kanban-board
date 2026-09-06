@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { FolderGit2, Plus, RefreshCw, ScrollText, Trash2, Pencil, Loader2, Monitor, Apple, Laptop, HardDrive, Radio } from "lucide-react"
 
 type WsStatus = "connected" | "unreachable" | "unknown" | "local"
@@ -47,30 +48,39 @@ function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tin
   return { label: "linux", Icon: HardDrive, tint: "border-amber-500/30 bg-amber-500/10 text-amber-300" }
 }
 
-// PingWave: standalone bar spectrum of the last N ping results — own row, not
-// stuffed inside the status badge. Green bar = ok (height ~latency), red = fail.
-function PingWave({ points, live }: { points: PingPoint[] | undefined; live: boolean }) {
-  const pts = (points ?? []).slice(-30)
-  if (!pts.length) {
-    return (
-      <div className="flex h-9 w-full items-center justify-center rounded-md border border-[#1e2430] bg-[#0b0e14] text-[10px] text-neutral-600">
-        no pings yet
-      </div>
-    )
-  }
-  const maxMs = Math.max(...pts.map((p) => p.ms ?? 0), 100)
+// EkgTrace: heart-rate monitor style ping indicator. Faint SVG line
+// (flat - QRS spike - flat - small bump - flat), glowing accent dot rides
+// the same path via CSS offset-path, 2.4s linear infinite sweep.
+function EkgTrace({ points, live, ok }: { points: PingPoint[] | undefined; live: boolean; ok: boolean }) {
+  const pts = points ?? []
+  const last = pts[pts.length - 1]
+  const accent = ok ? "#10e0dd" : "#f87171"
+  const trace = "M0 18 H28 L34 4 L40 30 L46 18 H62 Q66 10 70 18 H96"
   return (
     <div
-      className={`flex h-9 w-full items-end justify-center gap-[3px] rounded-md border border-[#1e2430] bg-[#0b0e14] px-2 py-1 ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
-      title={pts.map((p) => `${p.ok ? "ok" : "fail"} ${p.ms != null ? Math.round(p.ms) + "ms" : ""}`).join(" | ")}
+      className={`relative h-9 w-full overflow-hidden rounded-md border border-[#1e2430] bg-[#0b0e14] ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
+      title={last ? `${last.ok ? "ok" : "fail"} ${last.ms != null ? Math.round(last.ms) + "ms" : ""}` : "no pings yet"}
     >
-      {pts.map((p, i) => (
+      <svg viewBox="0 0 96 36" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+        <path d={trace} fill="none" stroke={accent} strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {live && (
         <span
-          key={i}
-          className={`w-[5px] rounded-sm ${p.ok ? "bg-emerald-400/80" : "bg-red-400/90"} ${i === pts.length - 1 && live ? "animate-pulse" : ""}`}
-          style={{ height: `${Math.max(4, Math.round(((p.ms ?? maxMs) / maxMs) * 26))}px` }}
+          className="absolute left-0 top-0 size-[7px] rounded-full"
+          style={{
+            offsetPath: `path("M0 18 H28 L34 4 L40 30 L46 18 H62 Q66 10 70 18 H96")`,
+            offsetRotate: "0deg",
+            background: accent,
+            boxShadow: `0 0 6px 2px ${accent}99, 0 0 12px 4px ${accent}44`,
+            animation: "ekg-sweep 2.4s linear infinite",
+          }}
         />
-      ))}
+      )}
+      {!live && (
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-600">
+          {pts.length ? "offline" : "no pings yet"}
+        </span>
+      )}
     </div>
   )
 }
@@ -105,6 +115,7 @@ function WorkspaceForm({
   const [host, setHost] = useState(initial?.host ?? "")
   const [os, setOs] = useState(initial?.os ?? "")
   const [kind, setKind] = useState(initial?.kind ?? "dir")
+  const [note, setNote] = useState(initial?.note ?? "")
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const editing = !!initial
@@ -138,7 +149,7 @@ function WorkspaceForm({
     if (transport === "ssh" && !host.trim()) { setErr("SSH host required"); return }
     setBusy(true); setErr(null)
     try {
-      await onSave({ id: id.trim().toLowerCase(), name: name.trim() || id.trim(), path: path.trim(), host: transport === "ssh" ? host.trim() : "", os, kind } as Workspace)
+      await onSave({ id: id.trim().toLowerCase(), name: name.trim() || id.trim(), path: path.trim(), host: transport === "ssh" ? host.trim() : "", os, kind, note: note.trim() } as Workspace)
       onClose()
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
@@ -199,6 +210,14 @@ function WorkspaceForm({
         <Input value={path} onChange={(e) => setPath(e.target.value)}
           placeholder={transport === "ssh" ? SSH_PRESETS[host]?.path ?? "/Users/... atau C:\\..." : "/home/adityahimaone/apps"}
           className={`mt-1 ${inpCls}`} />
+        <Label className="mt-3 block text-xs text-neutral-400">Prequest / constraints</Label>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder="Tech stack, requirements, limitasi agent di workspace ini… (mis. 'Next.js 15 + Tailwind, no new deps, pnpm only')"
+          className={`mt-1 min-h-0 resize-y text-sm ${inpCls}`}
+        />
         <Label className="mt-3 block text-xs text-neutral-400">Kind</Label>
         <Select value={kind} onValueChange={setKind}>
           <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
@@ -384,6 +403,11 @@ export default function WorkspacesPage() {
                     <p className="mt-0.5 text-[11px] text-neutral-500">
                       host: <span className="font-mono">{ws.host || "localhost"}</span> · kind: {ws.kind}
                     </p>
+                    {ws.note && (
+                      <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words rounded border border-[#1e2430]/60 bg-[#0b0e14] px-2 py-1 text-[10px] leading-relaxed text-neutral-400" title={ws.note}>
+                        {ws.note}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -397,7 +421,7 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-3">
-                  <PingWave points={pingHistories.data?.[ws.id]} live={live} />
+                  <EkgTrace points={pingHistories.data?.[ws.id]} live={live} ok={ws.status === "connected"} />
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">

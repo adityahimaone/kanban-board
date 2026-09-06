@@ -67,3 +67,8 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 4px; }
 *::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes ekg-sweep {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
