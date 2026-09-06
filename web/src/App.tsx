@@ -17,6 +17,7 @@ import ProvidersPage from "./features/providers/ProvidersPage"
 import LogsPage from "./features/logs/LogsPage"
 import SkillsPage from "./features/skills/SkillsPage"
 import MemoryPage from "./features/memory/MemoryPage"
+import SettingsPage from "./features/settings/SettingsPage"
 import { Archive, Pencil, Plus, Search, X } from "lucide-react"
 
 const BOARD_COLUMNS: Status[] = [...COLUMNS, "archived"]
@@ -92,6 +93,7 @@ export default function App() {
     : page === "logs" ? "Logs"
     : page === "skills" ? "Skills"
     : page === "memory" ? "Memory"
+    : page === "settings" ? "Settings"
     : detailPage ? detailPage.title
     : "Kanban Board"
 
@@ -278,6 +280,7 @@ export default function App() {
             {page === "logs" && <div className="flex min-h-0 flex-1 flex-col"><LogsPage /></div>}
             {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
             {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
+            {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
             {page === "board" && detailPage && (
               <TaskDetailPage
                 slug={slug}

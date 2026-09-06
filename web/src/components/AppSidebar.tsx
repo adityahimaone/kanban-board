@@ -10,9 +10,10 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, ScrollText, Puzzle, Brain } from "lucide-react"
+import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, ScrollText, Puzzle, Brain, Settings } from "lucide-react"
+import { SidebarFooter } from "@/components/ui/sidebar"
 
-export type Page = "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory"
+export type Page = "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory" | "settings"
 
 export function AppSidebar({
   page,
@@ -90,6 +91,21 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive={page === "settings"} onClick={() => onSelectPage("settings")} tooltip="Settings" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
+                  <Settings />
+                  <span>Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
