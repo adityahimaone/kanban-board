@@ -8,6 +8,20 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sparkles, Loader2 } from "lucide-react"
 
+function isRemoteWorkspace(w: Workspace): boolean {
+  // Mirrors workspace_validate.go: Windows drive OR /Users/* OR explicit remote host
+  if (w.host && w.host !== "localhost" && w.host !== "127.0.0.1") return true
+  if (/^[A-Za-z]:[\\/]/.test(w.path)) return true
+  if (w.path.startsWith("/Users/")) return true
+  return false
+}
+
+function defaultWorkspacePath(workspaces: Workspace[]): string {
+  // Prefer a local workspace; all current entries are Mac-remote so fallback to scratch ("").
+  const local = workspaces.find((w) => !isRemoteWorkspace(w))
+  return local?.path ?? ""
+}
+
 export default function TaskDialog({
   workspaces,
   profiles,
@@ -21,7 +35,7 @@ export default function TaskDialog({
 }) {
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
-  const [ws, setWs] = useState(workspaces[0]?.path ?? "")
+  const [ws, setWs] = useState(() => defaultWorkspacePath(workspaces))
   const [assignee, setAssignee] = useState(profiles[0]?.name ?? "default")
   const [priority, setPriority] = useState("0")
   const [busy, setBusy] = useState(false)
@@ -104,9 +118,14 @@ export default function TaskDialog({
                 <SelectValue placeholder="workspace" />
               </SelectTrigger>
               <SelectContent className="border-[#1e2430] bg-[#11151f]">
-                {workspaces.map((w) => (
-                  <SelectItem key={w.id} value={w.path} className="text-sm">{w.name} — {w.path}</SelectItem>
-                ))}
+                {workspaces.map((w) => {
+                  const remote = isRemoteWorkspace(w)
+                  return (
+                    <SelectItem key={w.id} value={w.path} disabled={remote} className="text-sm">
+                      {w.name} — {w.path}{remote ? " (Mac/remote — butuh node-agent)" : ""}
+                    </SelectItem>
+                  )
+                })}
                 <SelectItem value="__scratch" className="text-sm">(no workspace — scratch)</SelectItem>
               </SelectContent>
             </Select>

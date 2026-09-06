@@ -186,6 +186,18 @@ func CreateTask(slug string, t *Task) error {
 	// Explicit workspace_path selected (existing behavior: dir workspace). Only
 	// board tasks without a path fall back to a managed scratch dir.
 	if t.WorkspacePath == "" { t.WorkspaceKind = "scratch" }
+	// Fail closed for remote paths: hermes dispatcher on this VPS runs `mkdir`
+	// on workspace_path locally. A Mac path like /Users/... does not exist here
+	// and `mkdir /Users` fails with Permission denied (t_0b6b086c, t_03ede921).
+	// The canonical stores for remote workspaces live in workspaces.json +
+	// board.json default_workdir (both may point at /Users/...). Until the
+	// dispatcher speaks SSH/node-agent, remote workspaces must be refused at
+	// creation so the card never enters the respawn loop.
+	if t.WorkspacePath != "" {
+		if err := validateWorkspacePath(t.WorkspacePath); err != nil {
+			return err
+		}
+	}
 	t.Title = strings.TrimSpace(t.Title)
 	t.CreatedAt = time.Now().Unix()
 	db, err := openDB(slug)
