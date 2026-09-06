@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0e14;
+  --color-panel: #11151f;
+  --color-border: #1e2430;
+  --color-accent: #10e0dd;
+}
+
+html, body, #root { height: 100%; }
+body { background: var(--color-bg); color: #e6e9ef; }
