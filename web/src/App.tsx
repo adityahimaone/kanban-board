@@ -18,6 +18,7 @@ import LogsPage from "./features/logs/LogsPage"
 import SkillsPage from "./features/skills/SkillsPage"
 import MemoryPage from "./features/memory/MemoryPage"
 import SettingsPage from "./features/settings/SettingsPage"
+import AgentFlowGraph from "./features/flow/AgentFlowGraph"
 import { Archive, Pencil, Plus, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 
@@ -95,6 +96,7 @@ export default function App() {
     : page === "logs" ? "Logs"
     : page === "skills" ? "Skills"
     : page === "memory" ? "Memory"
+    : page === "flow" ? "Agent Flow"
     : page === "settings" ? "Settings"
     : detailPage ? detailPage.title
     : "Kanban Board"
@@ -283,6 +285,7 @@ export default function App() {
             {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
             {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
             {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
+            {page === "flow" && <div className="flex-1 overflow-y-auto p-6"><AgentFlowGraph nodes={[]} edges={[]} /></div>}
             {page === "board" && detailPage && (
               <TaskDetailPage
                 slug={slug}
