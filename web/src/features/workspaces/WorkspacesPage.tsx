@@ -48,27 +48,67 @@ function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tin
   return { label: "linux", Icon: HardDrive, tint: "border-amber-500/30 bg-amber-500/10 text-amber-300" }
 }
 
-// EkgTrace: heart-rate monitor style ping indicator. Faint SVG line
-// (flat - QRS spike - flat - small bump - flat), glowing accent dot rides
-// the same path via CSS offset-path, 2.4s linear infinite sweep.
+// EkgTrace: heart-rate monitor style ping indicator driven by REAL ping data.
+// The trace is a polyline of the last N ping latencies (ms), min-max normalized
+// per window so variation reads like a heartbeat. Failing pings flatline at the
+// baseline. A glowing accent dot rides the same generated path via CSS
+// offset-path, 2.4s linear infinite sweep (ekg-sweep keyframes in index.css).
 function EkgTrace({ points, live, ok }: { points: PingPoint[] | undefined; live: boolean; ok: boolean }) {
-  const pts = points ?? []
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    setW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+
+  const pts = (points ?? []).slice(-30)
   const last = pts[pts.length - 1]
   const accent = ok ? "#10e0dd" : "#f87171"
-  const trace = "M0 18 H28 L34 4 L40 30 L46 18 H62 Q66 10 70 18 H96"
+  const H = 36, BASE = 30, TOP = 6
+
+  const good = pts.filter((p) => p.ok && p.ms != null).map((p) => p.ms!)
+  const min = good.length ? Math.min(...good) : 0
+  const max = good.length ? Math.max(...good) : 0
+  const yOf = (p: PingPoint) => {
+    if (!p.ok || p.ms == null) return BASE // fail -> flatline
+    if (max - min < 1) return BASE - (BASE - TOP) / 2 // flat data -> mid line
+    return BASE - ((p.ms - min) / (max - min)) * (BASE - TOP)
+  }
+
+  let d = ""
+  if (w > 0 && pts.length >= 2) {
+    d = pts
+      .map((p, i) => {
+        const x = (i / (pts.length - 1)) * (w - 2) + 1
+        return `${i ? "L" : "M"}${x.toFixed(1)} ${yOf(p).toFixed(1)}`
+      })
+      .join(" ")
+  } else if (w > 0) {
+    d = `M1 ${BASE} H${w - 1}`
+  }
+
   return (
     <div
+      ref={boxRef}
       className={`relative h-9 w-full overflow-hidden rounded-md border border-[#1e2430] bg-[#0b0e14] ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
-      title={last ? `${last.ok ? "ok" : "fail"} ${last.ms != null ? Math.round(last.ms) + "ms" : ""}` : "no pings yet"}
+      title={last
+        ? `${last.ok ? "ok" : "fail"} ${last.ms != null ? Math.round(last.ms) + "ms" : ""} · ${good.length ? `${Math.round(min)}–${Math.round(max)}ms` : ""}`
+        : "no pings yet"}
     >
-      <svg viewBox="0 0 96 36" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <path d={trace} fill="none" stroke={accent} strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-      </svg>
-      {live && (
+      {w > 0 && (
+        <svg viewBox={`0 0 ${w} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <path d={d} fill="none" stroke={accent} strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
+      {live && d && (
         <span
           className="absolute left-0 top-0 size-[7px] rounded-full"
           style={{
-            offsetPath: `path("M0 18 H28 L34 4 L40 30 L46 18 H62 Q66 10 70 18 H96")`,
+            offsetPath: `path("${d}")`,
             offsetRotate: "0deg",
             background: accent,
             boxShadow: `0 0 6px 2px ${accent}99, 0 0 12px 4px ${accent}44`,
