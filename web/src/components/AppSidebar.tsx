@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import type { Board } from "@/api"
-import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, Layers, ScrollText, Puzzle, Brain } from "lucide-react"
+import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, Layers, ScrollText, Puzzle, Brain, Plus } from "lucide-react"
 
 export type Page = "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory"
 
@@ -22,12 +22,14 @@ export function AppSidebar({
   slug,
   onSelectPage,
   onSelectBoard,
+  onNewBoard,
 }: {
   page: Page
   boards: Board[]
   slug: string
   onSelectPage: (p: Page) => void
   onSelectBoard: (s: string) => void
+  onNewBoard?: () => void
 }) {
   return (
     <Sidebar collapsible="icon" variant="sidebar">
@@ -118,6 +120,14 @@ export function AppSidebar({
               ))}
               {!boards.length && (
                 <p className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">No boards</p>
+              )}
+              {onNewBoard && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={onNewBoard} tooltip="New Board">
+                    <Plus />
+                    <span>New Board</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               )}
             </SidebarMenu>
           </SidebarGroupContent>

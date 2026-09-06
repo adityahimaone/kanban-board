@@ -79,6 +79,14 @@ export interface ProviderModel {
   api_key_set: boolean
 }
 
+export interface TaskComment {
+  id: number
+  task_id: string
+  author: string
+  body: string
+  created_at: number
+}
+
 export type Status =
   | "triage" | "todo" | "scheduled" | "ready" | "running"
   | "blocked" | "review" | "done" | "archived"

@@ -62,10 +62,37 @@ func main() {
 		if err := kanban.ArchiveTask(r.PathValue("slug"), r.PathValue("id")); err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusOK, map[string]string{"status": "archived"})
 	})
+	mux.HandleFunc("POST /api/boards", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Slug  string `json:"slug"`
+			Name  string `json:"name"`
+			Icon  string `json:"icon"`
+			Color string `json:"color"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
+		b, err := kanban.CreateBoard(req.Slug, req.Name, req.Icon, req.Color)
+		if err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusCreated, b)
+	})
 	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/events", func(w http.ResponseWriter, r *http.Request) {
 		events, err := kanban.TaskEvents(r.PathValue("slug"), r.PathValue("id"))
 		if err != nil { fail(w, err, 500); return }
 		writeJSON(w, http.StatusOK, events)
+	})
+	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/comments", func(w http.ResponseWriter, r *http.Request) {
+		comments, err := kanban.ListComments(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, comments)
+	})
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/comments", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Author string `json:"author,omitempty"`
+			Body   string `json:"body"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
+		c, err := kanban.AddComment(r.PathValue("slug"), r.PathValue("id"), req.Author, req.Body)
+		if err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusCreated, c)
 	})
 
 	// workspaces (shared source of truth: ~/.hermes/workspaces.json)

@@ -129,13 +129,15 @@ export default function TaskDialog({
                 {workspaces.map((w) => {
                   const ssh = isSshWorkspace(w)
                   const live = isLive(w)
+                  const os = (w.os || "").toLowerCase()
+                  const osLabel = os === "mac" ? "mac" : os === "windows" ? "win" : os === "linux" ? "linux" : ""
                   return (
                     <SelectItem key={w.id} value={w.path} className="text-sm" title={`${w.name} — ${w.path}${w.host ? ` (${w.host})` : ""}${w.status ? ` · ${w.status}` : ""}`}>
                       <span className="flex min-w-0 items-center gap-1.5">
-                        {live && <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400" />}
+                        {live && <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400" title={w.status === "local" ? "local" : `connected ${w.ping_ms != null ? Math.round(w.ping_ms) + "ms" : ""}`} />}
                         <span className="min-w-0 flex-1 truncate">{w.name}</span>
-                        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-neutral-500">{w.path}</span>
                         {ssh && <Badge variant="outline" className="shrink-0 border-violet-500/30 bg-violet-500/10 px-1 py-0 text-[9px] leading-none text-violet-300">ssh</Badge>}
+                        {osLabel && <Badge variant="outline" className="shrink-0 border-[#1e2430] bg-[#0b0e14] px-1 py-0 text-[9px] leading-none text-neutral-400">{osLabel}</Badge>}
                       </span>
                     </SelectItem>
                   )
