@@ -19,6 +19,7 @@ import SkillsPage from "./features/skills/SkillsPage"
 import MemoryPage from "./features/memory/MemoryPage"
 import SettingsPage from "./features/settings/SettingsPage"
 import { Archive, Pencil, Plus, Search, X } from "lucide-react"
+import { useSettings } from "./hooks/useSettings"
 
 const BOARD_COLUMNS: Status[] = [...COLUMNS, "archived"]
 
@@ -39,10 +40,11 @@ export default function App() {
   const [fAgent, setFAgent] = useState("__all")
   const [fWorkspace, setFWorkspace] = useState("__all")
   const [fPriority, setFPriority] = useState("__all")
+  const { refreshMs } = useSettings()
   const qc = useQueryClient()
 
   const boards = useQuery({ queryKey: ["boards"], queryFn: () => api<Board[]>("/api/boards") })
-  const tasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`), enabled: page === "board" })
+  const tasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`), enabled: page === "board", refetchInterval: refreshMs > 0 ? refreshMs : false })
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => api<Workspace[]>("/api/workspaces") })
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: () => api<Profile[]>("/api/profiles") })
 

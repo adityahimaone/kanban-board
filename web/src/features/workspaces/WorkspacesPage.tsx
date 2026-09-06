@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useSettings } from "@/hooks/useSettings"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { FolderGit2, Plus, RefreshCw, ScrollText, Trash2, Pencil, Loader2, Monitor, Apple, Laptop, HardDrive, Radio } from "lucide-react"
@@ -323,13 +324,13 @@ function LogsDialog({ ws, onClose }: { ws: Workspace; onClose: () => void }) {
   )
 }
 
-const AUTO_PING_MS = 30_000
 
 export default function WorkspacesPage() {
   const qc = useQueryClient()
   const [form, setForm] = useState<{ open: boolean; edit: Workspace | null }>({ open: false, edit: null })
   const [logsFor, setLogsFor] = useState<Workspace | null>(null)
   const [pinging, setPinging] = useState<string | null>(null)
+  const { pingMs } = useSettings()
   const [autoPing, setAutoPing] = useState(true)
   const pingingRef = useRef(false)
 
@@ -354,9 +355,9 @@ export default function WorkspacesPage() {
       pingingRef.current = false
     }
     tick()
-    const iv = setInterval(tick, AUTO_PING_MS)
+    const iv = setInterval(tick, pingMs > 0 ? pingMs : 60_000)
     return () => { stop = true; clearInterval(iv); pingingRef.current = false }
-  }, [autoPing, qc])
+  }, [autoPing, pingMs, qc])
 
   const pingHistories = useQuery({
     queryKey: ["ws-ping-history"],
