@@ -52,9 +52,7 @@ func main() {
 		writeJSON(w, http.StatusCreated, t)
 	})
 	mux.HandleFunc("PATCH /api/boards/{slug}/tasks/{id}/status", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Status string `json:"status"`
-		}
+		var req struct{ Status string `json:"status"` }
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
 		if err := kanban.StatusTransition(r.PathValue("slug"), r.PathValue("id"), req.Status); err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
@@ -68,27 +66,114 @@ func main() {
 		if err != nil { fail(w, err, 500); return }
 		writeJSON(w, http.StatusOK, events)
 	})
+
+	// workspaces (shared source of truth: ~/.hermes/workspaces.json)
+	mux.HandleFunc("GET /api/workspaces", func(w http.ResponseWriter, r *http.Request) {
+		ws, err := kanban.ListWorkspaces()
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, ws)
+	})
+	mux.HandleFunc("POST /api/workspaces", func(w http.ResponseWriter, r *http.Request) {
+		var ws kanban.Workspace
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&ws); err != nil { fail(w, err, 400); return }
+		if err := kanban.SaveWorkspace(&ws); err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusCreated, ws)
+	})
+	mux.HandleFunc("PUT /api/workspaces/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var ws kanban.Workspace
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&ws); err != nil { fail(w, err, 400); return }
+		ws.ID = id
+		if err := kanban.SaveWorkspace(&ws); err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusOK, ws)
+	})
+	mux.HandleFunc("DELETE /api/workspaces/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if err := kanban.DeleteWorkspace(r.PathValue("id")); err != nil { fail(w, err, 404); return }
+		writeJSON(w, http.StatusOK, map[string]string{"deleted": r.PathValue("id")})
+	})
+	mux.HandleFunc("GET /api/workspaces/{id}/ping", func(w http.ResponseWriter, r *http.Request) {
+		// find workspace, then probe ssh/local
+		ws, err := kanban.ListWorkspaces()
+		if err != nil { fail(w, err, 500); return }
+		for _, e := range ws {
+			if e.ID == r.PathValue("id") {
+				p := kanban.PingWorkspace(&e)
+				writeJSON(w, http.StatusOK, p)
+				return
+			}
+		}
+		fail(w, http.ErrMissingFile, 404)
+	})
+	mux.HandleFunc("GET /api/workspaces/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
+		ws, err := kanban.ListWorkspaces()
+		if err != nil { fail(w, err, 500); return }
+		for _, e := range ws {
+			if e.ID == r.PathValue("id") {
+				logs, err := kanban.WorkspaceLogs(&e, 80)
+				if err != nil { fail(w, err, 500); return }
+				writeJSON(w, http.StatusOK, logs)
+				return
+			}
+		}
+		fail(w, http.ErrMissingFile, 404)
+	})
+
 	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, r *http.Request) {
 		profiles, err := kanban.ListProfiles()
 		if err != nil { fail(w, err, 500); return }
 		writeJSON(w, http.StatusOK, profiles)
 	})
 	mux.HandleFunc("PATCH /api/boards/{slug}/tasks/{id}/assignee", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Assignee string `json:"assignee"`
-		}
+		var req struct{ Assignee string `json:"assignee"` }
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
 		if err := kanban.Assign(r.PathValue("slug"), r.PathValue("id"), req.Assignee); err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusOK, map[string]string{"assignee": req.Assignee})
 	})
-	mux.HandleFunc("GET /api/workspaces", func(w http.ResponseWriter, r *http.Request) {
-		raw, err := os.ReadFile(filepath.Join(kanban.HermesHome(), "workspaces.json"))
+	// profiles: full CRUD (mirrors hermes-webui spaces/profile UI)
+	mux.HandleFunc("GET /api/profiles-full", func(w http.ResponseWriter, r *http.Request) {
+		profiles, err := kanban.ListProfilesFull()
 		if err != nil { fail(w, err, 500); return }
-		var f struct {
-			Workspaces []kanban.Workspace `json:"workspaces"`
+		writeJSON(w, http.StatusOK, profiles)
+	})
+	mux.HandleFunc("GET /api/profiles/{name}", func(w http.ResponseWriter, r *http.Request) {
+		p, err := kanban.GetProfile(r.PathValue("name"))
+		if err != nil { fail(w, err, 404); return }
+		writeJSON(w, http.StatusOK, p)
+	})
+	mux.HandleFunc("POST /api/profiles", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name         string `json:"name"`
+			Model        string `json:"model"`
+			Provider     string `json:"provider"`
+			SystemPrompt string `json:"system_prompt"`
 		}
-		if err := json.Unmarshal(raw, &f); err != nil { fail(w, err, 500); return }
-		writeJSON(w, http.StatusOK, f.Workspaces)
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil { fail(w, err, 400); return }
+		in := kanban.ProfileInput{Model: req.Model, Provider: req.Provider}
+		sp := req.SystemPrompt
+		// treat empty string as "no prompt" only if key missing; JSON can't tell — assume always present
+		in.SystemPrompt = &sp
+		if err := kanban.CreateProfile(req.Name, in); err != nil { fail(w, err, 400); return }
+		p, _ := kanban.GetProfile(req.Name)
+		writeJSON(w, http.StatusCreated, p)
+	})
+	mux.HandleFunc("PUT /api/profiles/{name}", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Model        *string `json:"model"`
+			Provider     *string `json:"provider"`
+			SystemPrompt *string `json:"system_prompt"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil { fail(w, err, 400); return }
+		in := kanban.ProfileInput{}
+		if req.Model != nil { in.Model = *req.Model }
+		if req.Provider != nil { in.Provider = *req.Provider }
+		in.SystemPrompt = req.SystemPrompt
+		if err := kanban.PatchProfile(r.PathValue("name"), in); err != nil { fail(w, err, 400); return }
+		p, _ := kanban.GetProfile(r.PathValue("name"))
+		writeJSON(w, http.StatusOK, p)
+	})
+	mux.HandleFunc("DELETE /api/profiles/{name}", func(w http.ResponseWriter, r *http.Request) {
+		if err := kanban.DeleteProfile(r.PathValue("name")); err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusOK, map[string]string{"deleted": r.PathValue("name")})
 	})
 	mux.HandleFunc("GET /api/nodes", func(w http.ResponseWriter, r *http.Request) {
 		c := &http.Client{Timeout: 2 * time.Second}

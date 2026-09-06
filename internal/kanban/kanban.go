@@ -71,12 +71,21 @@ func boardDir(slug string) string {
 
 func BoardDBPath(slug string) string { return filepath.Join(boardDir(slug), "kanban.db") }
 
+// Workspace lives in ~/.hermes/workspaces.json (shared with hermes CLI /
+// node-agent). Extra on-disk keys (luvus_workspace_id, remote, ...) are
+// preserved by workspace.go's merge on save. Runtime-only fields are
+// populated by PingWorkspace/ListWorkspaces only.
 type Workspace struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Path string `json:"path"`
-	Host string `json:"host"`
-	Kind string `json:"kind"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Path      string   `json:"path"`
+	Host      string   `json:"host"`
+	Kind      string   `json:"kind"`
+	Note      string   `json:"note,omitempty"`
+	Apps      []string `json:"apps,omitempty"`
+	Status    string   `json:"status,omitempty"`
+	StatusMsg string   `json:"status_message,omitempty"`
+	PingMs    *float64 `json:"ping_ms,omitempty"`
 }
 
 type Profile struct {

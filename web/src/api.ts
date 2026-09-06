@@ -38,6 +38,10 @@ export interface Workspace {
   path: string
   host: string
   kind: string
+  note?: string
+  status?: string
+  status_message?: string
+  ping_ms?: number | null
 }
 
 export interface Profile {
@@ -46,6 +50,16 @@ export interface Profile {
   provider: string
   active: boolean
   valid: boolean
+}
+
+export interface ProfileDetail {
+  name: string
+  model: string
+  provider: string
+  active: boolean
+  valid: boolean
+  system_prompt: string
+  skills: string[]
 }
 
 export type Status =
