@@ -117,7 +117,7 @@ export default function App() {
           const cards = byCol(col)
           return (
           <section key={col} className={`flex h-full shrink-0 flex-col rounded-xl bg-[#11151f]/40 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
-            <h2 className="flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <h2 className="flex shrink-0 items-center justify-between border-b border-[#1e2430]/60 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               <span className="flex items-center gap-1.5">
                 {col === "archived" && <Archive className="size-3" />}
                 {col}

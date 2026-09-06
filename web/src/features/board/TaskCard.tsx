@@ -1,9 +1,8 @@
 import type { Profile, Status, Task, Workspace } from "../../api"
-import { Button } from "@/components/ui/button"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Apple, ExternalLink, HardDrive, Laptop } from "lucide-react"
+import { Apple, ExternalLink, HardDrive, Laptop, X } from "lucide-react"
 
 const STATUS_TARGETS: Record<Status, Status[]> = {
   triage: ["todo", "ready"],
@@ -26,13 +25,13 @@ function OsInfo({ ws }: { ws?: Workspace }) {
   const path = ws?.path || ""
   const host = (ws?.host || "").toLowerCase()
   if (os === "windows" || host.includes("windows") || /^[A-Za-z]:[\\/]/.test(path)) {
-    return <span className="flex items-center gap-1"><Laptop className="size-3" />win</span>
+    return <span className="flex shrink-0 items-center gap-1 text-xs text-neutral-500/70"><Laptop className="size-3" />win</span>
   }
   if (os === "mac" || host.includes("mac") || path.startsWith("/Users/")) {
-    return <span className="flex items-center gap-1"><Apple className="size-3" />mac</span>
+    return <span className="flex shrink-0 items-center gap-1 text-xs text-neutral-500/70"><Apple className="size-3" />mac</span>
   }
   if (os === "linux" || ws) {
-    return <span className="flex items-center gap-1"><HardDrive className="size-3" />linux</span>
+    return <span className="flex shrink-0 items-center gap-1 text-xs text-neutral-500/70"><HardDrive className="size-3" />linux</span>
   }
   return null
 }
@@ -72,55 +71,58 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
         <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-neutral-400">{desc}</p>
       )}
 
-      {/* metadata row: assignee primary, env secondary, os + id subtle */}
-      <div className="flex items-center gap-2 pt-2.5 text-xs text-neutral-500">
-        <Select value={task.assignee || "__none"} onValueChange={(v) => onReassign(v === "__none" ? "" : v)}>
-          <SelectTrigger
-            size="sm"
-            title={profile ? `${profile.name} — ${profile.model}` : "Agent profile"}
-            className="h-7 w-auto max-w-28 gap-1 rounded-md border-none bg-transparent px-1.5 text-xs font-medium text-neutral-200 shadow-none hover:bg-[#161b27] focus-visible:ring-0"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="border-[#1e2430] bg-[#11151f]">
-            <SelectItem value="__none" className="text-[11px]">unassigned</SelectItem>
-            {profiles.map((p) => (
-              <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-[11px]">{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {profile && !profile.valid && (
-          <span className="text-[10px] text-red-400" title={`provider ${profile.provider} invalid — worker crash`}>broken</span>
-        )}
-        {task.workspace_path && (
-          <span className="truncate text-xs text-neutral-500/70" title={task.workspace_path}>
-            {wsIsSsh && "ssh · "}{ws?.name ?? task.workspace_path.split(/[\\/]/).pop()}
-          </span>
-        )}
-        {task.priority > 0 && (
-          <span className="text-[10px] font-medium text-amber-300/90">P{task.priority}</span>
-        )}
-        {task.consecutive_failures > 0 && (
-          <span className="text-[10px] text-red-400">{task.consecutive_failures} fails</span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-2 text-neutral-500/60">
+      {/* metadata — 2-row hierarchy */}
+      <div className="space-y-2 pt-2">
+        {/* primary: agent + failure */}
+        <div className="flex items-center justify-between gap-2">
+          <Select value={task.assignee || "__none"} onValueChange={(v) => onReassign(v === "__none" ? "" : v)}>
+            <SelectTrigger
+              size="sm"
+              title={profile ? `${profile.name} — ${profile.model}` : "Agent profile"}
+              className="h-7 w-auto max-w-32 gap-1 rounded-md border-none bg-[#161b27] px-2.5 text-xs font-medium text-neutral-200 shadow-none hover:bg-[#1e2430] focus-visible:ring-0"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectItem value="__none" className="text-[11px]">unassigned</SelectItem>
+              {profiles.map((p) => (
+                <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-[11px]">{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {profile && !profile.valid && (
+            <span className="shrink-0 text-[11px] font-medium text-red-400" title={`provider ${profile.provider} invalid — worker crash`}>broken</span>
+          )}
+          {task.consecutive_failures > 0 && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-red-400">
+              <X className="size-3" /> {task.consecutive_failures} fail{task.consecutive_failures > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        {/* secondary: env · os · id */}
+        <div className="flex min-w-0 items-center gap-2 text-xs text-neutral-500">
+          {(task.workspace_path || task.priority > 0) && (
+            <span className="min-w-0 truncate" title={task.workspace_path}>
+              {wsIsSsh && "ssh · "}{ws?.name ?? (task.workspace_path ? task.workspace_path.split(/[\\/]/).pop() : "")}
+              {task.priority > 0 && <span className="ml-1.5 font-medium text-amber-300/90">P{task.priority}</span>}
+            </span>
+          )}
           <OsInfo ws={ws} />
-          <span className="font-mono text-[10px] text-neutral-500/50">{task.id}</span>
-        </span>
+          <span className="ml-auto shrink-0 font-mono text-[10px] text-neutral-500/40">{task.id}</span>
+        </div>
       </div>
 
       {/* status moves — hover only */}
       {targets.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-[#1e2430]/40 pt-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           {targets.map((s) => (
-            <Button
+            <button
               key={s}
-              variant="ghost" size="sm"
               onClick={() => onMove(s)}
-              className="h-5 rounded px-1.5 text-[10px] font-normal text-neutral-400 hover:bg-[#161b27] hover:text-[#10e0dd]"
+              className="rounded px-1.5 py-0.5 text-[10px] text-neutral-400 transition-colors hover:bg-[#1e2430] hover:text-[#10e0dd]"
             >
               → {s}
-            </Button>
+            </button>
           ))}
         </div>
       )}
