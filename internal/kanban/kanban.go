@@ -84,6 +84,7 @@ type Profile struct {
 	Model    string `json:"model"`
 	Provider string `json:"provider"`
 	Active   bool   `json:"active"`
+	Valid    bool   `json:"valid"`
 }
 
 func openDB(slug string) (*sql.DB, error) {
@@ -279,6 +280,9 @@ func newTaskID() string {
 
 // ListProfiles enumerates agent profiles: ~/.hermes/profiles/*/config.yaml plus
 // the implicit "default" profile. Model name is parsed out of config.yaml.
+// Valid marks whether the worker CLI would actually start with this profile —
+// an unrecognized provider (e.g. "custom:host.name" typo) means every spawned
+// task crashes with "Unknown provider" (protocol_violation loop).
 func ListProfiles() ([]Profile, error) {
 	out := []Profile{}
 	root := filepath.Join(hermesHome(), "profiles")
@@ -291,6 +295,7 @@ func ListProfiles() ([]Profile, error) {
 			if err == nil {
 				p.Model, p.Provider = parseModelYAML(string(raw))
 			}
+			p.Valid = profileValid(p.Provider)
 			out = append(out, p)
 		}
 	}
@@ -299,9 +304,21 @@ func ListProfiles() ([]Profile, error) {
 	if raw, err := os.ReadFile(filepath.Join(hermesHome(), "config.yaml")); err == nil {
 		def.Model, def.Provider = parseModelYAML(string(raw))
 	}
+	def.Valid = profileValid(def.Provider)
 	out = append(out, def)
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
+}
+
+// profileValid mirrors hermes_cli provider registry: "custom" (base_url keyed),
+// "auto", and the builtin names are accepted; anything else fails at worker
+// startup with "Unknown provider".
+func profileValid(provider string) bool {
+	switch strings.TrimSpace(provider) {
+	case "", "auto", "custom", "anthropic", "openai", "openrouter", "google", "groq", "deepseek", "mistral", "xai", "ollama":
+		return true
+	}
+	return false
 }
 
 // parseModelYAML is a deliberately tiny `model: {default, provider}` reader —
@@ -331,7 +348,8 @@ func parseModelYAML(src string) (model, provider string) {
 }
 
 // Assign sets a task's assignee (agent profile). Refuses running tasks —
-// the dispatcher owns claims on in-flight work.
+// the dispatcher owns claims on in-flight work — and profiles whose config
+// would crash the worker at startup (invalid provider).
 func Assign(slug, taskID, profile string) error {
 	db, err := openDB(slug)
 	if err != nil { return err }
@@ -343,7 +361,25 @@ func Assign(slug, taskID, profile string) error {
 	if current == "running" {
 		return fmt.Errorf("task is running (dispatcher-owned); reclaim before reassigning")
 	}
-	if _, err := db.Exec(`UPDATE tasks SET assignee=? WHERE id=?`, strings.TrimSpace(profile), taskID); err != nil {
+	profile = strings.TrimSpace(profile)
+	if profile != "" {
+		profiles, err := ListProfiles()
+		if err != nil { return err }
+		found := false
+		for _, p := range profiles {
+			if p.Name == profile {
+				found = true
+				if !p.Valid {
+					return fmt.Errorf("profile %q has invalid provider %q — worker would crash (Unknown provider); fix the profile config first", p.Name, p.Provider)
+				}
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("unknown profile %q", profile)
+		}
+	}
+	if _, err := db.Exec(`UPDATE tasks SET assignee=? WHERE id=?`, profile, taskID); err != nil {
 		return err
 	}
 	return insertEvent(db, taskID, "assigned", map[string]any{"source": "board-ui", "assignee": profile})

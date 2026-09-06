@@ -44,13 +44,18 @@ export default function TaskDetail({
           >
             <option value="">unassigned</option>
             {profiles.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}
+              <option key={p.name} value={p.name} disabled={!p.valid}>
+                {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}
               </option>
             ))}
           </select>
           {task.status === "running" && (
             <p className="mt-1 text-[11px] text-amber-400/80">Running — reclaim dulu buat reassign.</p>
+          )}
+          {profile && !profile.valid && (
+            <p className="mt-1 text-[11px] text-red-400">
+              Provider invalid: {profile.provider || "—"} — worker bakal crash. Fix profile config dulu.
+            </p>
           )}
           {profile && <p className="mt-1 text-[11px] text-neutral-500">model: {profile.model || "—"} · provider: {profile.provider || "—"}</p>}
         </div>

@@ -194,3 +194,67 @@ func TestBoardNotFound(t *testing.T) {
 		t.Error("missing board accepted")
 	}
 }
+
+func TestProfileValidation(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HERMES_HOME", home)
+	// broken profile: provider "custom:host" (the exact historical failure)
+	os.MkdirAll(filepath.Join(home, "profiles", "broken"), 0o755)
+	os.WriteFile(filepath.Join(home, "profiles", "broken", "config.yaml"),
+		[]byte("model:\n  default: codex\n  provider: custom:9router.example\n"), 0o644)
+	// healthy profile
+	os.MkdirAll(filepath.Join(home, "profiles", "healthy"), 0o755)
+	os.WriteFile(filepath.Join(home, "profiles", "healthy", "config.yaml"),
+		[]byte("model:\n  default: codex\n  provider: custom\n"), 0o644)
+
+	profiles, err := ListProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]Profile{}
+	for _, p := range profiles {
+		byName[p.Name] = p
+	}
+	if p, ok := byName["broken"]; !ok || p.Valid {
+		t.Errorf("broken profile should exist and be invalid, got %+v (found=%v)", p, ok)
+	}
+	if p, ok := byName["healthy"]; !ok || !p.Valid {
+		t.Errorf("healthy profile should exist and be valid, got %+v (found=%v)", p, ok)
+	}
+	if p, ok := byName["default"]; !ok || !p.Valid {
+		t.Errorf("implicit default should be valid, got %+v (found=%v)", p, ok)
+	}
+}
+
+func TestAssignValidatesProfile(t *testing.T) {
+	slug := testBoard(t)
+	// testBoard sets HERMES_HOME to a tempdir with no profiles → every named
+	// profile is unknown; only "" (unassign) passes.
+	var task Task
+	task.Title = "target"
+	if err := CreateTask(slug, &task); err != nil {
+		t.Fatal(err)
+	}
+	if err := Assign(slug, task.ID, "ghost"); err == nil {
+		t.Error("unknown profile accepted, want error")
+	}
+	if err := Assign(slug, task.ID, ""); err != nil {
+		t.Errorf("unassign refused: %v", err)
+	}
+	tasks, _ := ListTasks(slug)
+	if tasks[0].Assignee != "" {
+		t.Errorf("assignee = %q, want empty", tasks[0].Assignee)
+	}
+	// valid named profile with a real config on disk
+	home := hermesHome()
+	os.MkdirAll(filepath.Join(home, "profiles", "good"), 0o755)
+	os.WriteFile(filepath.Join(home, "profiles", "good", "config.yaml"),
+		[]byte("model:\n  default: m\n  provider: custom\n"), 0o644)
+	if err := Assign(slug, task.ID, "good"); err != nil {
+		t.Errorf("valid profile refused: %v", err)
+	}
+	tasks, _ = ListTasks(slug)
+	if tasks[0].Assignee != "good" {
+		t.Errorf("assignee = %q, want good", tasks[0].Assignee)
+	}
+}

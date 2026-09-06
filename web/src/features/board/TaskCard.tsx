@@ -39,9 +39,14 @@ export default function TaskCard({ task, profiles, onOpen, onMove, onReassign }:
         >
           <option value="">unassigned</option>
           {profiles.map((p) => (
-            <option key={p.name} value={p.name}>{p.name}</option>
+            <option key={p.name} value={p.name} disabled={!p.valid}>{p.name}</option>
           ))}
         </select>
+        {profile && !profile.valid && (
+          <span className="rounded border border-red-500/30 bg-red-500/15 px-1.5 py-0.5 text-red-300" title={`provider ${profile.provider} invalid — worker crash`}>
+            broken config
+          </span>
+        )}
         {task.workspace_path && (
           <span className="truncate rounded border border-[#1e2430] bg-[#11151f] px-1.5 py-0.5 text-neutral-500" title={task.workspace_path}>
             {task.workspace_path.split("/").pop()}

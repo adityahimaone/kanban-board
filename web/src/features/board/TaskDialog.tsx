@@ -49,8 +49,8 @@ export default function TaskDialog({
         <select value={assignee} onChange={(e) => setAssignee(e.target.value)}
           className="mt-1 w-full rounded-md border border-[#1e2430] bg-[#0b0e14] px-2 py-2 text-sm">
           {profiles.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}
+            <option key={p.name} value={p.name} disabled={!p.valid}>
+              {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}
             </option>
           ))}
         </select>

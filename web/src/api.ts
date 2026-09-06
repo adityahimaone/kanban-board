@@ -45,6 +45,7 @@ export interface Profile {
   model: string
   provider: string
   active: boolean
+  valid: boolean
 }
 
 export type Status =
