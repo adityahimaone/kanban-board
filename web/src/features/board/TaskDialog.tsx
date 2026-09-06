@@ -1,18 +1,21 @@
 import { useState } from "react"
-import type { Workspace } from "../../api"
+import type { Profile, Workspace } from "../../api"
 
 export default function TaskDialog({
   workspaces,
+  profiles,
   onClose,
   onCreate,
 }: {
   workspaces: Workspace[]
+  profiles: Profile[]
   onClose: () => void
   onCreate: (p: Record<string, unknown>) => Promise<void>
 }) {
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
   const [ws, setWs] = useState(workspaces[0]?.path ?? "")
+  const [assignee, setAssignee] = useState(profiles[0]?.name ?? "default")
   const [priority, setPriority] = useState(0)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -21,7 +24,14 @@ export default function TaskDialog({
     if (!title.trim()) { setErr("Title required"); return }
     setBusy(true); setErr(null)
     try {
-      await onCreate({ title: title.trim(), body: body.trim(), workspace_path: ws, priority, status: "todo" })
+      await onCreate({
+        title: title.trim(),
+        body: body.trim(),
+        workspace_path: ws,
+        assignee,
+        priority,
+        status: "todo",
+      })
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
 
@@ -35,6 +45,15 @@ export default function TaskDialog({
         <label className="mt-3 block text-xs text-neutral-400">Body</label>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Deskripsi (opsional)"
           className="mt-1 w-full rounded-md border border-[#1e2430] bg-[#0b0e14] px-3 py-2 text-sm outline-none focus:border-[#10e0dd]/50" />
+        <label className="mt-3 block text-xs text-neutral-400">Agent Profile</label>
+        <select value={assignee} onChange={(e) => setAssignee(e.target.value)}
+          className="mt-1 w-full rounded-md border border-[#1e2430] bg-[#0b0e14] px-2 py-2 text-sm">
+          {profiles.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}
+            </option>
+          ))}
+        </select>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-neutral-400">Workspace</label>

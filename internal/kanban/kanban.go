@@ -79,6 +79,13 @@ type Workspace struct {
 	Kind string `json:"kind"`
 }
 
+type Profile struct {
+	Name     string `json:"name"`
+	Model    string `json:"model"`
+	Provider string `json:"provider"`
+	Active   bool   `json:"active"`
+}
+
 func openDB(slug string) (*sql.DB, error) {
 	path := BoardDBPath(slug)
 	if _, err := os.Stat(path); err != nil { return nil, fmt.Errorf("board %q not found: %w", slug, err) }
@@ -268,6 +275,78 @@ func insertEvent(db *sql.DB, taskID, kind string, payload any) error {
 func newTaskID() string {
 	b := time.Now().UnixNano()
 	return fmt.Sprintf("t_%08x", b&0xffffffff)
+}
+
+// ListProfiles enumerates agent profiles: ~/.hermes/profiles/*/config.yaml plus
+// the implicit "default" profile. Model name is parsed out of config.yaml.
+func ListProfiles() ([]Profile, error) {
+	out := []Profile{}
+	root := filepath.Join(hermesHome(), "profiles")
+	entries, err := os.ReadDir(root)
+	if err == nil {
+		for _, e := range entries {
+			if !e.IsDir() { continue }
+			p := Profile{Name: e.Name()}
+			raw, err := os.ReadFile(filepath.Join(root, e.Name(), "config.yaml"))
+			if err == nil {
+				p.Model, p.Provider = parseModelYAML(string(raw))
+			}
+			out = append(out, p)
+		}
+	}
+	// implicit default profile — read model from the top-level config
+	def := Profile{Name: "default", Active: true}
+	if raw, err := os.ReadFile(filepath.Join(hermesHome(), "config.yaml")); err == nil {
+		def.Model, def.Provider = parseModelYAML(string(raw))
+	}
+	out = append(out, def)
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+// parseModelYAML is a deliberately tiny `model: {default, provider}` reader —
+// enough for the picker without a YAML dependency.
+func parseModelYAML(src string) (model, provider string) {
+	inModel := false
+	for _, line := range strings.Split(src, "\n") {
+		trimmed := strings.TrimRight(line, " 	\r")
+		switch {
+		case strings.HasPrefix(trimmed, "model:"):
+			inModel = true
+		case inModel && strings.HasPrefix(trimmed, "  "):
+			k, v, ok := strings.Cut(strings.TrimSpace(trimmed), ":")
+			if !ok { continue }
+			v = strings.Trim(strings.TrimSpace(v), `'"`)
+			switch k {
+			case "default":
+				if model == "" { model = v }
+			case "provider":
+				if provider == "" { provider = v }
+			}
+		case inModel && !strings.HasPrefix(trimmed, " "):
+			inModel = false
+		}
+	}
+	return model, provider
+}
+
+// Assign sets a task's assignee (agent profile). Refuses running tasks —
+// the dispatcher owns claims on in-flight work.
+func Assign(slug, taskID, profile string) error {
+	db, err := openDB(slug)
+	if err != nil { return err }
+	defer db.Close()
+	var current string
+	if err := db.QueryRow(`SELECT status FROM tasks WHERE id=?`, taskID).Scan(&current); err != nil {
+		return fmt.Errorf("task not found: %w", err)
+	}
+	if current == "running" {
+		return fmt.Errorf("task is running (dispatcher-owned); reclaim before reassigning")
+	}
+	if _, err := db.Exec(`UPDATE tasks SET assignee=? WHERE id=?`, strings.TrimSpace(profile), taskID); err != nil {
+		return err
+	}
+	return insertEvent(db, taskID, "assigned", map[string]any{"source": "board-ui", "assignee": profile})
 }
 
 var _ = dispatcherOwned

@@ -68,6 +68,19 @@ func main() {
 		if err != nil { fail(w, err, 500); return }
 		writeJSON(w, http.StatusOK, events)
 	})
+	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, r *http.Request) {
+		profiles, err := kanban.ListProfiles()
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, profiles)
+	})
+	mux.HandleFunc("PATCH /api/boards/{slug}/tasks/{id}/assignee", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Assignee string `json:"assignee"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
+		if err := kanban.Assign(r.PathValue("slug"), r.PathValue("id"), req.Assignee); err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusOK, map[string]string{"assignee": req.Assignee})
+	})
 	mux.HandleFunc("GET /api/workspaces", func(w http.ResponseWriter, r *http.Request) {
 		raw, err := os.ReadFile(filepath.Join(kanban.HermesHome(), "workspaces.json"))
 		if err != nil { fail(w, err, 500); return }

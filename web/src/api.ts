@@ -40,6 +40,13 @@ export interface Workspace {
   kind: string
 }
 
+export interface Profile {
+  name: string
+  model: string
+  provider: string
+  active: boolean
+}
+
 export type Status =
   | "triage" | "todo" | "scheduled" | "ready" | "running"
   | "blocked" | "review" | "done" | "archived"

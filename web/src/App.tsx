@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api, COLUMNS, type Board, type Status, type Task, type Workspace } from "./api"
+import { api, COLUMNS, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
 import TaskDialog from "./features/board/TaskDialog"
 import TaskDetail from "./features/board/TaskDetail"
@@ -14,10 +14,17 @@ export default function App() {
   const boards = useQuery({ queryKey: ["boards"], queryFn: () => api<Board[]>("/api/boards") })
   const tasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`) })
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => api<Workspace[]>("/api/workspaces") })
+  const profiles = useQuery({ queryKey: ["profiles"], queryFn: () => api<Profile[]>("/api/profiles") })
 
   const move = useMutation({
     mutationFn: ({ id, status }: { id: string; status: Status }) =>
       api(`/api/boards/${slug}/tasks/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
+  })
+
+  const reassign = useMutation({
+    mutationFn: ({ id, assignee }: { id: string; assignee: string }) =>
+      api(`/api/boards/${slug}/tasks/${id}/assignee`, { method: "PATCH", body: JSON.stringify({ assignee }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
   })
 
@@ -59,7 +66,14 @@ export default function App() {
               </h2>
               <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
                 {byCol(col).map((t) => (
-                  <TaskCard key={t.id} task={t} onOpen={() => setDetail(t)} onMove={(s) => move.mutate({ id: t.id, status: s })} />
+                  <TaskCard
+                    key={t.id}
+                    task={t}
+                    onOpen={() => setDetail(t)}
+                    onMove={(s) => move.mutate({ id: t.id, status: s })}
+                    onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
+                    profiles={profiles.data ?? []}
+                  />
                 ))}
               </div>
             </section>
@@ -70,6 +84,7 @@ export default function App() {
       {creating && (
         <TaskDialog
           workspaces={workspaces.data ?? []}
+          profiles={profiles.data ?? []}
           onClose={() => setCreating(false)}
           onCreate={(payload) =>
             api(`/api/boards/${slug}/tasks`, { method: "POST", body: JSON.stringify(payload) }).then(() => {
@@ -83,8 +98,12 @@ export default function App() {
         <TaskDetail
           slug={slug}
           task={detail}
+          profiles={profiles.data ?? []}
           onClose={() => setDetail(null)}
           onMove={(s) => move.mutateAsync({ id: detail.id, status: s }).then(() => setDetail({ ...detail, status: s }))}
+          onReassign={(a) =>
+            reassign.mutateAsync({ id: detail.id, assignee: a }).then(() => setDetail({ ...detail, assignee: a }))
+          }
         />
       )}
     </div>

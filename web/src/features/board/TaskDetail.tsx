@@ -1,21 +1,26 @@
 import { useQuery } from "@tanstack/react-query"
-import { api, COLUMNS, type Status, type Task, type TaskEvent } from "../../api"
+import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent } from "../../api"
 
 export default function TaskDetail({
   slug,
   task,
+  profiles,
   onClose,
   onMove,
+  onReassign,
 }: {
   slug: string
   task: Task
+  profiles: Profile[]
   onClose: () => void
   onMove: (s: Status) => Promise<void>
+  onReassign: (a: string) => Promise<void>
 }) {
   const events = useQuery({
     queryKey: ["events", slug, task.id],
     queryFn: () => api<TaskEvent[]>(`/api/boards/${slug}/tasks/${task.id}/events`),
   })
+  const profile = profiles.find((p) => p.name === task.assignee)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
@@ -28,6 +33,28 @@ export default function TaskDetail({
           <button onClick={onClose} className="shrink-0 rounded border border-[#1e2430] px-2 py-1 text-xs">✕</button>
         </div>
         <p className="mt-1 text-xs text-neutral-500">{task.id} · {task.status}</p>
+
+        <div className="mt-3">
+          <label className="block text-xs text-neutral-400">Agent Profile</label>
+          <select
+            value={task.assignee || ""}
+            onChange={(e) => onReassign(e.target.value).catch((err: Error) => alert(err.message))}
+            disabled={task.status === "running"}
+            className="mt-1 w-full rounded-md border border-[#1e2430] bg-[#0b0e14] px-2 py-2 text-sm disabled:opacity-50"
+          >
+            <option value="">unassigned</option>
+            {profiles.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}
+              </option>
+            ))}
+          </select>
+          {task.status === "running" && (
+            <p className="mt-1 text-[11px] text-amber-400/80">Running — reclaim dulu buat reassign.</p>
+          )}
+          {profile && <p className="mt-1 text-[11px] text-neutral-500">model: {profile.model || "—"} · provider: {profile.provider || "—"}</p>}
+        </div>
+
         {task.body && <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-300">{task.body}</p>}
         {task.last_failure_error && (
           <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-300">{task.last_failure_error}</p>
