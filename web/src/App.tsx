@@ -3,12 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar, type Page } from "@/components/AppSidebar"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
 import TaskDialog from "./features/board/TaskDialog"
 import TaskDetail from "./features/board/TaskDetail"
 import WorkspacesPage from "./features/workspaces/WorkspacesPage"
 import ProfilesPage from "./features/profiles/ProfilesPage"
+import ProvidersPage from "./features/providers/ProvidersPage"
+import { Plus } from "lucide-react"
 
 export default function App() {
   const [page, setPage] = useState<Page>("board")
@@ -34,42 +38,55 @@ export default function App() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
   })
 
-  const current = boards.data?.find((b) => b.slug === slug)
+  const active = (boards.data ?? []).filter((b) => !["default", "archived"].includes(b.slug))
   const byCol = (s: Status) => (tasks.data ?? []).filter((t) => t.status === s)
-  const pageTitle = page === "board" ? (current ? `${current.icon} ${current.name}` : "Kanban Board") : page === "workspaces" ? "Workspaces" : "Agent Profiles"
+  const pageTitle = page === "workspaces" ? "Workspaces" : page === "profiles" ? "Agent Profiles" : page === "providers" ? "Providers" : "Kanban Board"
 
   return (
     <SidebarProvider>
       <AppSidebar
         page={page}
-        boards={(boards.data ?? []) as Board[]}
+        boards={active}
         slug={slug}
         onSelectPage={setPage}
         onSelectBoard={(s) => { setSlug(s); setPage("board") }}
-        onNewTask={() => { setPage("board"); setCreating(true) }}
       />
       <SidebarInset className="bg-[#0b0e14]">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[#1e2430] bg-[#11151f] px-4">
           <SidebarTrigger className="-ml-1 text-neutral-300 hover:text-[#10e0dd]" />
           <Separator orientation="vertical" className="mr-1 h-5" />
           <h1 className="text-sm font-semibold tracking-tight">{pageTitle}</h1>
+
           {page === "board" && (
             <>
+              {/* board switcher moved to top bar */}
+              <Select value={slug} onValueChange={setSlug}>
+                <SelectTrigger size="sm" className="w-auto gap-1.5 border-[#1e2430] bg-[#0b0e14] text-xs">
+                  <SelectValue placeholder="board" />
+                </SelectTrigger>
+                <SelectContent className="border-[#1e2430] bg-[#11151f]">
+                  {active.map((b) => (
+                    <SelectItem key={b.slug} value={b.slug} className="text-xs">
+                      {b.icon ? `${b.icon} ` : ""}{b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
                 {tasks.data?.length ?? 0} tasks
               </span>
-              <button
-                onClick={() => setCreating(true)}
-                className="ml-auto rounded-md bg-[#10e0dd] px-3 py-1.5 text-sm font-medium text-black hover:opacity-90 md:hidden"
-              >
-                + New Task
-              </button>
+              {/* New Task moved to top bar */}
+              <Button size="sm" onClick={() => setCreating(true)}
+                className="ml-auto bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+                <Plus className="size-3.5" /> New Task
+              </Button>
             </>
           )}
         </header>
 
         {page === "workspaces" && <WorkspacesPage />}
         {page === "profiles" && <ProfilesPage />}
+        {page === "providers" && <ProvidersPage />}
 
         {page === "board" && (
           tasks.isLoading ? (

@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent } from "../../api"
 import { parseEventCards, TONE_BORDER, TONE_DOT, TONE_TEXT, type EventTone } from "./eventCards"
 
@@ -41,25 +43,29 @@ export default function TaskDetail({
       >
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-sm font-semibold leading-snug">{task.title}</h2>
-          <button onClick={onClose} className="shrink-0 rounded border border-[#1e2430] px-2 py-1 text-xs">✕</button>
+          <Button variant="outline" size="sm" className="shrink-0 px-2" onClick={onClose}>✕</Button>
         </div>
         <p className="mt-1 text-xs text-neutral-500">{task.id} · {task.status}</p>
 
         <div className="mt-3">
           <label className="block text-xs text-neutral-400">Agent Profile</label>
-          <select
-            value={task.assignee || ""}
-            onChange={(e) => onReassign(e.target.value).catch((err: Error) => alert(err.message))}
+          <Select
+            value={task.assignee || "unassigned"}
+            onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => alert(err.message))}
             disabled={task.status === "running"}
-            className="mt-1 w-full rounded-md border border-[#1e2430] bg-[#0b0e14] px-2 py-2 text-sm disabled:opacity-50"
           >
-            <option value="">unassigned</option>
-            {profiles.map((p) => (
-              <option key={p.name} value={p.name} disabled={!p.valid}>
-                {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="mt-1 w-full border-[#1e2430] bg-[#0b0e14] text-sm data-[size=default]:h-9 disabled:opacity-50">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-72 border-[#1e2430] bg-[#11151f]">
+              <SelectItem value="unassigned" className="text-sm">unassigned</SelectItem>
+              {profiles.map((p) => (
+                <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-sm">
+                  {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {task.status === "running" && (
             <p className="mt-1 text-[11px] text-amber-400/80">Running — reclaim dulu buat reassign.</p>
           )}
@@ -83,13 +89,15 @@ export default function TaskDetail({
         )}
         <div className="mt-4 flex flex-wrap gap-1.5">
           {COLUMNS.filter((s) => s !== task.status).map((s) => (
-            <button
+            <Button
               key={s}
+              variant="outline"
+              size="sm"
               onClick={() => onMove(s).catch((e: Error) => alert(e.message))}
-              className="rounded border border-[#1e2430] px-2 py-1 text-xs hover:border-[#10e0dd]/50 hover:text-[#10e0dd]"
+              className="text-xs hover:border-[#10e0dd]/50 hover:text-[#10e0dd]"
             >
               → {s}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -147,7 +155,6 @@ export default function TaskDetail({
             ))
           )}
         </div>
-        {/* TONE_CHIP kept for future chips */}
         <span className="hidden" data-tone={Object.keys(TONE_CHIP).join(",")} />
       </aside>
     </div>

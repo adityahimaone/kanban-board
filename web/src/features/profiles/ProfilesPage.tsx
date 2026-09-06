@@ -2,10 +2,16 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, type Profile, type ProfileDetail } from "@/api"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Bot, Plus, Trash2, Pencil, ShieldAlert, ShieldCheck } from "lucide-react"
 
-const PROVIDERS = [
+const FALLBACK_PROVIDERS = [
   "custom", "auto", "anthropic", "openai", "openrouter", "google",
   "groq", "deepseek", "mistral", "xai", "ollama",
 ]
@@ -26,6 +32,15 @@ function ProfileForm({
   const [prompt, setPrompt] = useState(initial?.system_prompt ?? "")
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [modelQ, setModelQ] = useState("")
+  const providersQ = useQuery({
+    queryKey: ["providers"],
+    queryFn: () => api<{ name: string; default_model: string; models: string[] }[]>("/api/providers"),
+  })
+  const providerNames = providersQ.data?.length ? providersQ.data.map((p) => p.name) : FALLBACK_PROVIDERS
+  const activeProvider = providersQ.data?.find((p) => p.name === provider) ?? providersQ.data?.find((p) => p.default_model === model)
+  const modelOptions: string[] = activeProvider?.models?.length ? activeProvider.models : []
+  const filteredModels = modelQ ? modelOptions.filter((m) => m.toLowerCase().includes(modelQ.toLowerCase())).slice(0, 80) : modelOptions.slice(0, 80)
 
   async function submit() {
     if (!editing && !/^[a-z0-9_-]{1,32}$/.test(name.trim())) {
@@ -43,7 +58,6 @@ function ProfileForm({
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
 
-  const field = "w-full rounded-md border border-[#1e2430] bg-[#0b0e14] px-3 py-2 text-sm outline-none focus:border-[#10e0dd]/50"
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
@@ -51,29 +65,53 @@ function ProfileForm({
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {!editing && (
             <>
-              <label className="mt-3 block text-xs text-neutral-400">Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="karina" className={`mt-1 ${field}`} />
+              <Label className="mt-3 block text-xs text-neutral-400">Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="karina" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
             </>
           )}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-neutral-400">Model</label>
-              <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="codex" className={`mt-1 ${field}`} />
+              <Label className="block text-xs text-neutral-400">Provider</Label>
+              <Select value={provider} onValueChange={setProvider}>
+                <SelectTrigger className="mt-1 w-full border-[#1e2430] bg-[#0b0e14] text-sm data-[size=default]:h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-[#1e2430] bg-[#11151f] max-h-72">
+                  {providerNames.map((p) => <SelectItem key={p} value={p} className="text-sm">{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="block text-xs text-neutral-400">Provider</label>
-              <select value={provider} onChange={(e) => setProvider(e.target.value)} className={`mt-1 ${field}`}>
-                {PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <Label className="block text-xs text-neutral-400">Model</Label>
+              {modelOptions.length > 0 ? (
+                <>
+                  <Input
+                    value={model} onChange={(e) => { setModel(e.target.value); setModelQ(e.target.value) }}
+                    onFocus={() => setModelQ(model)} placeholder={activeProvider?.default_model || "codex"}
+                    className="mt-1 border-[#1e2430] bg-[#0b0e14]" list="model-options"
+                  />
+                  <div className="mt-1 max-h-28 overflow-y-auto rounded-md border border-[#1e2430] bg-[#0b0e14]">
+                    {filteredModels.map((m) => (
+                      <button key={m} onClick={() => { setModel(m); setModelQ("") }}
+                        className={`block w-full px-2 py-1 text-left font-mono text-[11px] hover:bg-[#1e2430] ${m === model ? "bg-[#1e2430] text-[#10e0dd]" : "text-neutral-400"}`}>
+                        {m}
+                      </button>
+                    ))}
+                    {!filteredModels.length && <p className="px-2 py-1 text-[11px] text-neutral-600">No match</p>}
+                  </div>
+                </>
+              ) : (
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="codex" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+              )}
             </div>
           </div>
-          <label className="mt-3 block text-xs text-neutral-400">
+          <Label className="mt-3 block text-xs text-neutral-400">
             System prompt <span className="text-neutral-600">(SOUL.md)</span>
-          </label>
-          <textarea
+          </Label>
+          <Textarea
             value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8}
             placeholder="You are an expert full-stack developer…"
-            className={`mt-1 min-h-40 w-full ${field} font-mono text-xs leading-relaxed`}
+            className="mt-1 min-h-40 border-[#1e2430] bg-[#0b0e14] font-mono text-xs leading-relaxed"
           />
           {editing && (
             <p className="mt-2 text-[11px] text-neutral-500">
@@ -146,49 +184,51 @@ export default function ProfilesPage() {
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(profiles.data ?? []).map((p) => (
-            <article key={p.name} className="rounded-lg border border-[#1e2430] bg-[#11151f] p-3.5">
-              <div className="flex items-start gap-2">
-                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-[#161b27]">
-                  <Bot className="size-4 text-[#10e0dd]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-sm font-semibold">{p.name}</h3>
-                    {p.active && <span className="rounded bg-[#10e0dd]/15 px-1.5 py-0.5 text-[10px] text-[#10e0dd]">active</span>}
-                    {p.valid === false ? (
-                      <span className="inline-flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-300">
-                        <ShieldAlert className="size-3" /> broken config
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-300">
-                        <ShieldCheck className="size-3" /> valid
-                      </span>
+            <Card key={p.name} className="border-[#1e2430] bg-[#11151f]">
+              <CardContent className="p-3.5">
+                <div className="flex items-start gap-2">
+                  <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-[#161b27]">
+                    <Bot className="size-4 text-[#10e0dd]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate text-sm font-semibold">{p.name}</h3>
+                      {p.active && <Badge className="bg-[#10e0dd]/15 text-[10px] text-[#10e0dd] hover:bg-[#10e0dd]/15">active</Badge>}
+                      {p.valid === false ? (
+                        <Badge variant="outline" className="gap-1 border-red-500/30 bg-red-500/10 text-[10px] text-red-300">
+                          <ShieldAlert className="size-3" /> broken config
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
+                          <ShieldCheck className="size-3" /> valid
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-1 text-[11px] text-neutral-400">
+                      model: <span className="font-mono text-neutral-300">{p.model || "—"}</span> · provider:{" "}
+                      <span className="font-mono text-neutral-300">{p.provider || "—"}</span>
+                    </p>
+                    {"skills" in p && (
+                      <p className="mt-0.5 truncate text-[11px] text-neutral-500" title={p.skills?.join(", ")}>
+                        {p.skills?.length ?? 0} skills
+                      </p>
                     )}
                   </div>
-                  <p className="mt-1 text-[11px] text-neutral-400">
-                    model: <span className="font-mono text-neutral-300">{p.model || "—"}</span> · provider:{" "}
-                    <span className="font-mono text-neutral-300">{p.provider || "—"}</span>
-                  </p>
-                  {"skills" in p && (
-                    <p className="mt-0.5 truncate text-[11px] text-neutral-500" title={p.skills?.join(", ")}>
-                      {p.skills?.length ?? 0} skills
-                    </p>
-                  )}
                 </div>
-              </div>
-              <div className="mt-3 flex gap-1.5">
-                <Button variant="outline" size="sm" onClick={() => openEdit(p.name)}>
-                  <Pencil className="size-3.5" /> Edit
-                </Button>
-                <Button
-                  variant="outline" size="sm" disabled={p.active}
-                  className="ml-auto border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-                  onClick={() => { if (confirm(`Delete profile "${p.name}"?`)) del.mutate(p.name) }}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </div>
-            </article>
+                <div className="mt-3 flex gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(p.name)}>
+                    <Pencil className="size-3.5" /> Edit
+                  </Button>
+                  <Button
+                    variant="outline" size="sm" disabled={p.active}
+                    className="ml-auto border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                    onClick={() => { if (confirm(`Delete profile "${p.name}"?`)) del.mutate(p.name) }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

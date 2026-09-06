@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -174,6 +175,22 @@ func main() {
 	mux.HandleFunc("DELETE /api/profiles/{name}", func(w http.ResponseWriter, r *http.Request) {
 		if err := kanban.DeleteProfile(r.PathValue("name")); err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusOK, map[string]string{"deleted": r.PathValue("name")})
+	})
+	mux.HandleFunc("GET /api/providers", func(w http.ResponseWriter, r *http.Request) {
+		providers, err := kanban.ListProviders()
+		if err != nil { fail(w, err, 500); return }
+		writeJSON(w, http.StatusOK, providers)
+	})
+	mux.HandleFunc("POST /api/ai/improve-prompt", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Title string `json:"title"`
+			Body  string `json:"body"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
+		if strings.TrimSpace(req.Body) == "" { fail(w, fmt.Errorf("body required"), 400); return }
+		improved, err := kanban.ImprovePrompt(req.Title, req.Body)
+		if err != nil { fail(w, err, 502); return }
+		writeJSON(w, http.StatusOK, map[string]string{"improved": improved})
 	})
 	mux.HandleFunc("GET /api/nodes", func(w http.ResponseWriter, r *http.Request) {
 		c := &http.Client{Timeout: 2 * time.Second}

@@ -62,6 +62,14 @@ export interface ProfileDetail {
   skills: string[]
 }
 
+export interface ProviderModel {
+  name: string
+  base_url: string
+  default_model: string
+  models: string[]
+  api_key_set: boolean
+}
+
 export type Status =
   | "triage" | "todo" | "scheduled" | "ready" | "running"
   | "blocked" | "review" | "done" | "archived"

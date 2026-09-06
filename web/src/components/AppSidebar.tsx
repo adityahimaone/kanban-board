@@ -1,7 +1,6 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -13,9 +12,9 @@ import {
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import type { Board } from "@/api"
-import { LayoutDashboard, Layers, Kanban, FolderGit2, Bot } from "lucide-react"
+import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, Layers } from "lucide-react"
 
-export type Page = "board" | "workspaces" | "profiles"
+export type Page = "board" | "workspaces" | "profiles" | "providers" | "workspaces" | "profiles" | "providers"
 
 export function AppSidebar({
   page,
@@ -23,17 +22,13 @@ export function AppSidebar({
   slug,
   onSelectPage,
   onSelectBoard,
-  onNewTask,
 }: {
   page: Page
   boards: Board[]
   slug: string
   onSelectPage: (p: Page) => void
   onSelectBoard: (s: string) => void
-  onNewTask: () => void
 }) {
-  const active = boards.filter((b) => !["default", "archived"].includes(b.slug))
-
   return (
     <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader>
@@ -75,6 +70,12 @@ export function AppSidebar({
                   <span>Agent Profiles</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive={page === "providers"} onClick={() => onSelectPage("providers")} tooltip="Providers">
+                  <Server />
+                  <span>Providers</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -85,7 +86,7 @@ export function AppSidebar({
           <SidebarGroupLabel>Boards</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {active.map((b) => (
+              {boards.map((b) => (
                 <SidebarMenuItem key={b.slug}>
                   <SidebarMenuButton
                     isActive={page === "board" && slug === b.slug}
@@ -97,28 +98,13 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {!active.length && (
+              {!boards.length && (
                 <p className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">No boards</p>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={onNewTask}
-              tooltip="New Task"
-              className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90 hover:text-black"
-            >
-              <span className="text-base leading-none">＋</span>
-              <span>New Task</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
