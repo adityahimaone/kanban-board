@@ -94,6 +94,7 @@ type Profile struct {
 	Provider string `json:"provider"`
 	Active   bool   `json:"active"`
 	Valid    bool   `json:"valid"`
+	BaseURL  string `json:"base_url,omitempty"`
 }
 
 func openDB(slug string) (*sql.DB, error) {
@@ -302,7 +303,7 @@ func ListProfiles() ([]Profile, error) {
 			p := Profile{Name: e.Name()}
 			raw, err := os.ReadFile(filepath.Join(root, e.Name(), "config.yaml"))
 			if err == nil {
-				p.Model, p.Provider = parseModelYAML(string(raw))
+				p.Model, p.Provider, p.BaseURL = parseModelYAML(string(raw))
 			}
 			p.Valid = profileValid(p.Provider)
 			out = append(out, p)
@@ -311,7 +312,7 @@ func ListProfiles() ([]Profile, error) {
 	// implicit default profile — read model from the top-level config
 	def := Profile{Name: "default", Active: true}
 	if raw, err := os.ReadFile(filepath.Join(hermesHome(), "config.yaml")); err == nil {
-		def.Model, def.Provider = parseModelYAML(string(raw))
+		def.Model, def.Provider, def.BaseURL = parseModelYAML(string(raw))
 	}
 	def.Valid = profileValid(def.Provider)
 	out = append(out, def)
@@ -332,7 +333,7 @@ func profileValid(provider string) bool {
 
 // parseModelYAML is a deliberately tiny `model: {default, provider}` reader —
 // enough for the picker without a YAML dependency.
-func parseModelYAML(src string) (model, provider string) {
+func parseModelYAML(src string) (model, provider, baseURL string) {
 	inModel := false
 	for _, line := range strings.Split(src, "\n") {
 		trimmed := strings.TrimRight(line, " 	\r")
@@ -348,12 +349,14 @@ func parseModelYAML(src string) (model, provider string) {
 				if model == "" { model = v }
 			case "provider":
 				if provider == "" { provider = v }
+			case "base_url":
+				if baseURL == "" { baseURL = v }
 			}
 		case inModel && !strings.HasPrefix(trimmed, " "):
 			inModel = false
 		}
 	}
-	return model, provider
+	return model, provider, baseURL
 }
 
 // Assign sets a task's assignee (agent profile). Refuses running tasks —

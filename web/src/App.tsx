@@ -42,6 +42,37 @@ export default function App() {
   const byCol = (s: Status) => (tasks.data ?? []).filter((t) => t.status === s)
   const pageTitle = page === "workspaces" ? "Workspaces" : page === "profiles" ? "Agent Profiles" : page === "providers" ? "Providers" : "Kanban Board"
 
+  // header stays fixed, board scrolls horizontally, each column scrolls its cards internally
+  const boardBody =
+    tasks.isLoading ? (
+      <p className="p-6 text-sm text-neutral-400">Loading…</p>
+    ) : tasks.isError ? (
+      <p className="p-6 text-sm text-red-400">Gagal load tasks: {(tasks.error as Error).message}</p>
+    ) : (
+      <main className="flex min-h-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-3">
+        {COLUMNS.map((col) => (
+          <section key={col} className="flex h-full w-72 shrink-0 flex-col rounded-lg border border-[#1e2430] bg-[#11151f]">
+            <h2 className="flex shrink-0 items-center justify-between border-b border-[#1e2430] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+              {col}
+              <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px]">{byCol(col).length}</span>
+            </h2>
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
+              {byCol(col).map((t) => (
+                <TaskCard
+                  key={t.id}
+                  task={t}
+                  onOpen={() => setDetail(t)}
+                  onMove={(s) => move.mutate({ id: t.id, status: s })}
+                  onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
+                  profiles={profiles.data ?? []}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+      </main>
+    )
+
   return (
     <SidebarProvider>
       <AppSidebar
@@ -51,7 +82,7 @@ export default function App() {
         onSelectPage={setPage}
         onSelectBoard={(s) => { setSlug(s); setPage("board") }}
       />
-      <SidebarInset className="bg-[#0b0e14]">
+      <SidebarInset className="flex h-dvh flex-col overflow-hidden bg-[#0b0e14]">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[#1e2430] bg-[#11151f] px-4">
           <SidebarTrigger className="-ml-1 text-neutral-300 hover:text-[#10e0dd]" />
           <Separator orientation="vertical" className="mr-1 h-5" />
@@ -59,7 +90,6 @@ export default function App() {
 
           {page === "board" && (
             <>
-              {/* board switcher moved to top bar */}
               <Select value={slug} onValueChange={setSlug}>
                 <SelectTrigger size="sm" className="w-auto gap-1.5 border-[#1e2430] bg-[#0b0e14] text-xs">
                   <SelectValue placeholder="board" />
@@ -75,7 +105,6 @@ export default function App() {
               <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
                 {tasks.data?.length ?? 0} tasks
               </span>
-              {/* New Task moved to top bar */}
               <Button size="sm" onClick={() => setCreating(true)}
                 className="ml-auto bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
                 <Plus className="size-3.5" /> New Task
@@ -84,40 +113,12 @@ export default function App() {
           )}
         </header>
 
-        {page === "workspaces" && <WorkspacesPage />}
-        {page === "profiles" && <ProfilesPage />}
-        {page === "providers" && <ProvidersPage />}
-
-        {page === "board" && (
-          tasks.isLoading ? (
-            <p className="p-6 text-sm text-neutral-400">Loading…</p>
-          ) : tasks.isError ? (
-            <p className="p-6 text-sm text-red-400">Gagal load tasks: {(tasks.error as Error).message}</p>
-          ) : (
-            <main className="flex flex-1 gap-3 overflow-x-auto p-3">
-              {COLUMNS.map((col) => (
-                <section key={col} className="flex w-72 shrink-0 flex-col rounded-lg border border-[#1e2430] bg-[#11151f]">
-                  <h2 className="flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                    {col}
-                    <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px]">{byCol(col).length}</span>
-                  </h2>
-                  <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
-                    {byCol(col).map((t) => (
-                      <TaskCard
-                        key={t.id}
-                        task={t}
-                        onOpen={() => setDetail(t)}
-                        onMove={(s) => move.mutate({ id: t.id, status: s })}
-                        onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
-                        profiles={profiles.data ?? []}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </main>
-          )
-        )}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {page === "workspaces" && <div className="flex-1 overflow-y-auto"><WorkspacesPage /></div>}
+          {page === "profiles" && <div className="flex-1 overflow-y-auto"><ProfilesPage /></div>}
+          {page === "providers" && <div className="flex-1 overflow-y-auto"><ProvidersPage /></div>}
+          {page === "board" && boardBody}
+        </div>
       </SidebarInset>
 
       {creating && (

@@ -58,6 +58,7 @@ export interface ProfileDetail {
   provider: string
   active: boolean
   valid: boolean
+  base_url?: string
   system_prompt: string
   skills: string[]
 }

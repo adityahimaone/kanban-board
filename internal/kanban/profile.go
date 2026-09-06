@@ -18,6 +18,7 @@ type AgentProfile struct {
 	Provider string `json:"provider"`
 	Active   bool   `json:"active"`
 	Valid    bool   `json:"valid"`
+	BaseURL  string `json:"base_url,omitempty"`
 
 	SystemPrompt string   `json:"system_prompt"` // SOUL.md content
 	Skills       []string `json:"skills"`        // dir names under skills/
@@ -75,7 +76,7 @@ func GetProfile(name string) (*AgentProfile, error) {
 		p.Active = true
 	}
 	if raw, err := os.ReadFile(filepath.Join(dir, "config.yaml")); err == nil {
-		p.Model, p.Provider = parseModelYAML(string(raw))
+		p.Model, p.Provider, p.BaseURL = parseModelYAML(string(raw))
 	}
 	p.Valid = profileValid(p.Provider)
 	if raw, err := os.ReadFile(filepath.Join(dir, "SOUL.md")); err == nil {

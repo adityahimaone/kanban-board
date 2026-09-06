@@ -35,11 +35,21 @@ function ProfileForm({
   const [modelQ, setModelQ] = useState("")
   const providersQ = useQuery({
     queryKey: ["providers"],
-    queryFn: () => api<{ name: string; default_model: string; models: string[] }[]>("/api/providers"),
+    queryFn: () => api<{ name: string; base_url: string; default_model: string; models: string[] }[]>("/api/providers"),
   })
-  const providerNames = providersQ.data?.length ? providersQ.data.map((p) => p.name) : FALLBACK_PROVIDERS
-  const activeProvider = providersQ.data?.find((p) => p.name === provider) ?? providersQ.data?.find((p) => p.default_model === model)
-  const modelOptions: string[] = activeProvider?.models?.length ? activeProvider.models : []
+  // Provider select: registry allowlist only — custom_providers names are
+  // endpoints, not valid `provider:` values (hermes rejects them at boot).
+  const providerNames = FALLBACK_PROVIDERS
+  const providerRoster = providersQ.data ?? []
+  // Model picker: roster of the endpoint matching this profile's base_url.
+  // Fallback: roster whose default_model == current model, else the
+  // default endpoint (first roster) so "New profile" still shows models.
+  const activeProvider =
+    providerRoster.find((p) => p.base_url && p.base_url === initial?.base_url) ??
+    providerRoster.find((p) => p.default_model === model) ??
+    providerRoster.find((p) => p.base_url === "https://9router.adityahimaone.space/v1") ??
+    providerRoster[0]
+  const modelOptions: string[] = activeProvider?.models?.length ? [...activeProvider.models].sort() : []
   const filteredModels = modelQ ? modelOptions.filter((m) => m.toLowerCase().includes(modelQ.toLowerCase())).slice(0, 80) : modelOptions.slice(0, 80)
 
   async function submit() {
@@ -109,9 +119,9 @@ function ProfileForm({
             System prompt <span className="text-neutral-600">(SOUL.md)</span>
           </Label>
           <Textarea
-            value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8}
+            value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={12}
             placeholder="You are an expert full-stack developer…"
-            className="mt-1 min-h-40 border-[#1e2430] bg-[#0b0e14] font-mono text-xs leading-relaxed"
+            className="mt-1 h-64 min-h-40 resize-y overflow-y-auto border-[#1e2430] bg-[#0b0e14] font-mono text-xs leading-relaxed"
           />
           {editing && (
             <p className="mt-2 text-[11px] text-neutral-500">
