@@ -285,7 +285,7 @@ export default function App() {
             {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
             {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
             {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
-            {page === "flow" && <div className="flex-1 overflow-y-auto p-6"><AgentFlowGraph nodes={[]} edges={[]} /></div>}
+            {page === "flow" && <div className="flex-1 overflow-y-auto p-6"><AgentFlowGraph nodes={[{ id: "trigger", kind: "trigger", label: "Hermes Trigger", sub: "task dispatch", hue: "#9a5cff", active: true }, { id: "vps", kind: "vps", label: "VPS Orchestrator", sub: "9router + kanban", hue: "#10e0dd" }, { id: "na-server", kind: "node-agent", label: "node-agent server", sub: ":8788 long-poll", hue: "#f09a2f" }, { id: "tailscale", kind: "remote", label: "Tailscale tailnet", sub: "direct, no DERP", hue: "#6366f1" }, { id: "mac", kind: "remote", label: "node-agent Mac", sub: "launchd KeepAlive", hue: "#ec4899" }, { id: "win", kind: "remote", label: "node-agent Win", sub: "Scheduled Task", hue: "#3b82f6" }, { id: "done", kind: "done", label: "Result", sub: "completed", hue: "#22c55e", done: true }]} edges={[{ from: "trigger", to: "vps" }, { from: "vps", to: "na-server" }, { from: "na-server", to: "tailscale" }, { from: "tailscale", to: "mac" }, { from: "tailscale", to: "win" }, { from: "mac", to: "done" }, { from: "win", to: "done" }]} /></div>}
             {page === "board" && detailPage && (
               <TaskDetailPage
                 slug={slug}
