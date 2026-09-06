@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -23,6 +24,26 @@ func nodeAgentBase() string {
 		return strings.TrimRight(v, "/")
 	}
 	return "http://127.0.0.1:8788"
+}
+
+// nodeAgentToken reads the shared secret for the X-Node-Agent-Token header.
+// Kept in ~/.hermes/node-agent.env (chmod 600) so every local consumer
+// (kanban-board, gateway watcher) reads the same value without shell exports.
+func nodeAgentToken() string {
+	if v := os.Getenv("NODE_AGENT_TOKEN"); v != "" {
+		return v
+	}
+	raw, err := os.ReadFile(filepath.Join(hermesHome(), "node-agent.env"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if v, ok := strings.CutPrefix(line, "NODE_AGENT_TOKEN="); ok {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
 }
 
 // NodeDispatchRequest mirrors transport.DispatchRequest on the node-agent.
@@ -86,7 +107,15 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 	}
 	c := &http.Client{Timeout: 10 * time.Second}
 	buf, _ := json.Marshal(req)
-	resp, err := c.Post(nodeAgentBase()+"/api/dispatch", "application/json", bytes.NewReader(buf))
+	hreq, err := http.NewRequest("POST", nodeAgentBase()+"/api/dispatch", bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+	hreq.Header.Set("Content-Type", "application/json")
+	if tok := nodeAgentToken(); tok != "" {
+		hreq.Header.Set("X-Node-Agent-Token", tok)
+	}
+	resp, err := c.Do(hreq)
 	if err != nil {
 		return nil, fmt.Errorf("node-agent unreachable: %w", err)
 	}
@@ -108,7 +137,14 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 	pc := &http.Client{Timeout: 5 * time.Second}
 	for time.Now().Before(deadline) {
 		time.Sleep(2 * time.Second)
-		r2, err := pc.Get(nodeAgentBase() + "/api/results/" + req.TaskID)
+		preq, err := http.NewRequest("GET", nodeAgentBase()+"/api/results/"+req.TaskID, nil)
+		if err != nil {
+			continue
+		}
+		if tok := nodeAgentToken(); tok != "" {
+			preq.Header.Set("X-Node-Agent-Token", tok)
+		}
+		r2, err := pc.Do(preq)
 		if err != nil {
 			continue
 		}
