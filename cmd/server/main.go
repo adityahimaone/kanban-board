@@ -74,6 +74,17 @@ func main() {
 		if err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusCreated, b)
 	})
+	mux.HandleFunc("PATCH /api/boards/{slug}", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name  string `json:"name"`
+			Icon  string `json:"icon"`
+			Color string `json:"color"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
+		b, err := kanban.PatchBoard(r.PathValue("slug"), req.Name, req.Icon, req.Color)
+		if err != nil { fail(w, err, 400); return }
+		writeJSON(w, http.StatusOK, b)
+	})
 	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/events", func(w http.ResponseWriter, r *http.Request) {
 		events, err := kanban.TaskEvents(r.PathValue("slug"), r.PathValue("id"))
 		if err != nil { fail(w, err, 500); return }

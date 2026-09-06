@@ -10,26 +10,16 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import type { Board } from "@/api"
-import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, Layers, ScrollText, Puzzle, Brain, Plus } from "lucide-react"
+import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, ScrollText, Puzzle, Brain } from "lucide-react"
 
 export type Page = "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory"
 
 export function AppSidebar({
   page,
-  boards,
-  slug,
   onSelectPage,
-  onSelectBoard,
-  onNewBoard,
 }: {
   page: Page
-  boards: Board[]
-  slug: string
   onSelectPage: (p: Page) => void
-  onSelectBoard: (s: string) => void
-  onNewBoard?: () => void
 }) {
   return (
     <Sidebar collapsible="icon" variant="sidebar">
@@ -96,39 +86,6 @@ export function AppSidebar({
                   <span>Memory</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <Separator className="mx-2 w-auto" />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Boards</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {boards.map((b) => (
-                <SidebarMenuItem key={b.slug}>
-                  <SidebarMenuButton
-                    isActive={page === "board" && slug === b.slug}
-                    onClick={() => onSelectBoard(b.slug)}
-                    tooltip={b.name}
-                  >
-                    <Layers />
-                    <span className="truncate">{b.icon ? `${b.icon} ` : ""}{b.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              {!boards.length && (
-                <p className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">No boards</p>
-              )}
-              {onNewBoard && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={onNewBoard} tooltip="New Board">
-                    <Plus />
-                    <span>New Board</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -9,6 +9,39 @@ import (
 	"time"
 )
 
+// PatchBoard updates board.json metadata (name/icon/color) for an existing board.
+func PatchBoard(slug, name, icon, color string) (*Board, error) {
+	dir := boardDir(slug)
+	metaPath := filepath.Join(dir, "board.json")
+	raw, err := os.ReadFile(metaPath)
+	if err != nil {
+		return nil, fmt.Errorf("board %q not found", slug)
+	}
+	var meta map[string]any
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return nil, err
+	}
+	b := Board{Slug: slug}
+	if v, ok := meta["icon"].(string); ok { b.Icon = v }
+	if v, ok := meta["color"].(string); ok { b.Color = v }
+	if name != "" {
+		meta["name"] = name
+		b.Name = name
+	} else if v, ok := meta["name"].(string); ok {
+		b.Name = v
+	}
+	if icon != "" { meta["icon"] = icon; b.Icon = icon }
+	if color != "" { meta["color"] = color; b.Color = color }
+	out, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(metaPath, append(out, '\n'), 0o644); err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
 // CreateBoard makes a new board directory with a minimal board.json and an
 // empty kanban.db (schema created lazily by openDB callers / hermes CLI init).
 func CreateBoard(slug, name, icon, color string) (*Board, error) {
