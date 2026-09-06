@@ -140,9 +140,10 @@ func main() {
 		if err != nil { fail(w, err, 500); return }
 		for _, e := range ws {
 			if e.ID == r.PathValue("id") {
-				p := kanban.PingWorkspace(&e)
-				kanban.AppendPingHistory(p.ID, p)
-				writeJSON(w, http.StatusOK, p)
+				raw := kanban.PingWorkspace(&e)
+				eff := kanban.DebouncedStatus(raw.ID, raw)
+				kanban.AppendPingHistory(raw.ID, raw) // raw fail goes to history/EKG
+				writeJSON(w, http.StatusOK, eff)
 				return
 			}
 		}

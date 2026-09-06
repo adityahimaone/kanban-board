@@ -112,8 +112,40 @@ func GetPingHistory(id string) ([]PingPoint, error) {
 	return out, nil
 }
 
+// debouncedStatus prevents single transient probe failures from flipping a
+// previously-connected workspace to offline. Offline only after 3 consecutive
+// failed probes (including the current one).
+func debouncedStatus(id string, raw Workspace) Workspace {
+	if raw.Status != "unreachable" {
+		return raw
+	}
+	m, _ := loadPingMap()
+	pts := m[id]
+	consecutive := 1 // current fail
+	for i := len(pts) - 1; i >= 0 && consecutive < 3; i-- {
+		if !pts[i].Ok {
+			consecutive++
+		} else {
+			break
+		}
+	}
+	if consecutive < 3 {
+		raw.Status = "connected"
+		raw.StatusMsg = fmt.Sprintf("connected (retry %d/3) — %s", consecutive, raw.StatusMsg)
+	}
+	return raw
+}
+
+// DebouncedStatus is the exported form used by single-ping routes too:
+// offline only after 3 consecutive failed probes (including current).
+func DebouncedStatus(id string, raw Workspace) Workspace {
+	return debouncedStatus(id, raw)
+}
+
 // PingAll probes every workspace sequentially (ssh is serial to avoid storm),
 // logs each result, and returns the updated list with Status/PingMs filled.
+// A single transient failure stays reported as connected until 3 in a row —
+// history still records the raw fail so the EKG shows the dip.
 func PingAll() ([]Workspace, error) {
 	ws, err := ListWorkspaces()
 	if err != nil {
@@ -121,9 +153,10 @@ func PingAll() ([]Workspace, error) {
 	}
 	out := make([]Workspace, 0, len(ws))
 	for i := range ws {
-		probed := PingWorkspace(&ws[i])
-		AppendPingHistory(probed.ID, probed)
-		out = append(out, probed)
+		raw := PingWorkspace(&ws[i])
+		eff := debouncedStatus(raw.ID, raw)
+		AppendPingHistory(raw.ID, raw) // store raw, not debounced
+		out = append(out, eff)
 	}
 	return out, nil
 }

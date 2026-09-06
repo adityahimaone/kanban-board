@@ -48,63 +48,75 @@ function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tin
   return { label: "linux", Icon: HardDrive, tint: "border-amber-500/30 bg-amber-500/10 text-amber-300" }
 }
 
-// EkgTrace: heart-rate monitor style ping indicator driven by REAL ping data.
-// The trace is a polyline of the last N ping latencies (ms), min-max normalized
-// per window so variation reads like a heartbeat. Failing pings flatline at the
-// baseline. A glowing accent dot rides the same generated path via CSS
-// offset-path, 2.4s linear infinite sweep (ekg-sweep keyframes in index.css).
-function EkgTrace({ points, live, ok }: { points: PingPoint[] | undefined; live: boolean; ok: boolean }) {
-  const boxRef = useRef<HTMLDivElement>(null)
-  const [w, setW] = useState(0)
-  useEffect(() => {
-    const el = boxRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => setW(el.clientWidth))
-    ro.observe(el)
-    setW(el.clientWidth)
-    return () => ro.disconnect()
-  }, [])
+// EkgTrace: heart-rate monitor fed by REAL ping history. The trace scrolls
+// left like a live monitor: latest point slides in at the right edge via
+// transform transition when a new ping lands, older points shift left.
+// Failing pings flatline at the baseline. A glowing accent dot rides the
+// full path via CSS offset-path, 2.4s linear infinite sweep (ekg-sweep
+// keyframes in index.css).
+const EKG_W = 220 // fixed virtual width; scaled to container via viewBox
 
+function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | undefined; live: boolean; ok: boolean; height?: number }) {
   const pts = (points ?? []).slice(-30)
   const last = pts[pts.length - 1]
   const accent = ok ? "#10e0dd" : "#f87171"
-  const H = 36, BASE = 30, TOP = 6
+  const BASE = height - 6, TOP = 6
+  const [w, setW] = useState(EKG_W)
+  const boxRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth || EKG_W))
+    ro.observe(el)
+    setW(el.clientWidth || EKG_W)
+    return () => ro.disconnect()
+  }, [])
 
+  // pad so the window is always 30 slots wide: old slots enter from the left
+  const padded = pts.length < 30 ? [...Array<null>(30 - pts.length).fill(null), ...pts] : pts
   const good = pts.filter((p) => p.ok && p.ms != null).map((p) => p.ms!)
   const min = good.length ? Math.min(...good) : 0
   const max = good.length ? Math.max(...good) : 0
-  const yOf = (p: PingPoint) => {
+  const yOf = (p: PingPoint | null) => {
+    if (!p) return BASE // empty slot -> baseline (quiet left tail)
     if (!p.ok || p.ms == null) return BASE // fail -> flatline
     if (max - min < 1) return BASE - (BASE - TOP) / 2 // flat data -> mid line
     return BASE - ((p.ms - min) / (max - min)) * (BASE - TOP)
   }
+  // latest point lands at right edge; older ones step left by slot width.
+  // drift left by one slot over the 30s window so the trace feels live
+  // between pings, then snaps on next data arrival.
+  const slot = w / 29
+  const [frac, setFrac] = useState(0)
+  const lastAt = last?.at ?? 0
+  useEffect(() => {
+    setFrac(0)
+    const iv = setInterval(() => {
+      if (!lastAt) return
+      const f = Math.min(1, (Date.now() / 1000 - lastAt) / 30)
+      setFrac(f)
+    }, 1000)
+    return () => clearInterval(iv)
+  }, [lastAt])
 
-  let d = ""
-  if (w > 0 && pts.length >= 2) {
-    d = pts
-      .map((p, i) => {
-        const x = (i / (pts.length - 1)) * (w - 2) + 1
-        return `${i ? "L" : "M"}${x.toFixed(1)} ${yOf(p).toFixed(1)}`
-      })
-      .join(" ")
-  } else if (w > 0) {
-    d = `M1 ${BASE} H${w - 1}`
-  }
+  const xOf = (i: number) => i * slot - frac * slot
+  const d = padded
+    .map((p, i) => `${i ? "L" : "M"}${xOf(i).toFixed(1)} ${yOf(p).toFixed(1)}`)
+    .join(" ")
 
   return (
     <div
       ref={boxRef}
-      className={`relative h-9 w-full overflow-hidden rounded-md border border-[#1e2430] bg-[#0b0e14] ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
+      className={`relative overflow-hidden rounded-md border border-[#1e2430] bg-[#0b0e14] ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
+      style={{ height }}
       title={last
         ? `${last.ok ? "ok" : "fail"} ${last.ms != null ? Math.round(last.ms) + "ms" : ""} · ${good.length ? `${Math.round(min)}–${Math.round(max)}ms` : ""}`
         : "no pings yet"}
     >
-      {w > 0 && (
-        <svg viewBox={`0 0 ${w} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <path d={d} fill="none" stroke={accent} strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-        </svg>
-      )}
-      {live && d && (
+      <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+        <path d={d} fill="none" stroke={accent} strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {live && (
         <span
           className="absolute left-0 top-0 size-[7px] rounded-full"
           style={{
@@ -347,7 +359,7 @@ export default function WorkspacesPage() {
       return Object.fromEntries(entries) as Record<string, PingPoint[]>
     },
     enabled: (workspaces.data?.length ?? 0) > 0,
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
   })
 
   const save = useMutation({
@@ -461,7 +473,7 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-3">
-                  <EkgTrace points={pingHistories.data?.[ws.id]} live={live} ok={ws.status === "connected"} />
+                  <EkgTrace points={pingHistories.data?.[ws.id]} live={live} ok={ws.status === "connected"} height={72} />
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
