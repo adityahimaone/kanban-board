@@ -75,6 +75,7 @@ export default function App() {
                   onMove={(s) => move.mutate({ id: t.id, status: s })}
                   onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
                   profiles={profiles.data ?? []}
+                  workspaces={workspaces.data ?? []}
                 />
               ))}
             </div>
@@ -127,9 +128,9 @@ export default function App() {
           {page === "workspaces" && <div className="flex-1 overflow-y-auto"><WorkspacesPage /></div>}
           {page === "profiles" && <div className="flex-1 overflow-y-auto"><ProfilesPage /></div>}
           {page === "providers" && <div className="flex-1 overflow-y-auto"><ProvidersPage /></div>}
-          {page === "logs" && <LogsPage />}
-          {page === "skills" && <SkillsPage />}
-          {page === "memory" && <MemoryPage />}
+          {page === "logs" && <div className="flex min-h-0 flex-1 flex-col"><LogsPage /></div>}
+          {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
+          {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
           {page === "board" && boardBody}
         </div>
       </SidebarInset>

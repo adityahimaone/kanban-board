@@ -80,6 +80,7 @@ type Workspace struct {
 	Name      string   `json:"name"`
 	Path      string   `json:"path"`
 	Host      string   `json:"host"`
+	OS        string   `json:"os,omitempty"`
 	Kind      string   `json:"kind"`
 	Note      string   `json:"note,omitempty"`
 	Apps      []string `json:"apps,omitempty"`

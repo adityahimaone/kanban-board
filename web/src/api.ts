@@ -37,6 +37,7 @@ export interface Workspace {
   name: string
   path: string
   host: string
+  os?: string
   kind: string
   note?: string
   status?: string

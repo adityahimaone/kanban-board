@@ -18,14 +18,14 @@ import (
 // hermes CLI / node-agent). Entries carry extra keys we don't model
 // (luvus_workspace_id, remote, apps, ...); saveWorkspaces preserves them.
 type workspaceFile struct {
-	Version    int          `json:"version"`
-	Source     string       `json:"source,omitempty"`
-	Workspaces []Workspace  `json:"workspaces"`
+	Version    int         `json:"version"`
+	Source     string      `json:"source,omitempty"`
+	Workspaces []Workspace `json:"workspaces"`
 }
 
 // typed keys that win over the original file on save
 var workspaceKnownKeys = map[string]bool{
-	"id": true, "name": true, "path": true, "host": true, "kind": true,
+	"id": true, "name": true, "path": true, "host": true, "os": true, "kind": true,
 	"note": true, "apps": true,
 }
 
@@ -151,6 +151,9 @@ func SaveWorkspace(w *Workspace) error {
 	if w.Kind == "" {
 		w.Kind = "dir"
 	}
+	if w.OS == "" {
+		w.OS = inferOS(w.Host, w.Path)
+	}
 	wsMu.Lock()
 	defer wsMu.Unlock()
 	f, err := loadWorkspaces()
@@ -242,6 +245,21 @@ func trimErr(err error) string {
 		s = s[:160]
 	}
 	return s
+}
+
+// inferOS guesses the target OS from host/path shape (mac, windows, linux).
+func inferOS(host, path string) string {
+	h, p := strings.ToLower(host), strings.ToLower(path)
+	if strings.Contains(h, "windows") || strings.Contains(p, ":\\") {
+		return "windows"
+	}
+	if strings.Contains(h, "mac") || strings.HasPrefix(p, "/users/") {
+		return "mac"
+	}
+	if h == "" || h == "localhost" || h == "127.0.0.1" {
+		return "linux"
+	}
+	return "linux"
 }
 
 func shellQuote(s string) string {

@@ -20,46 +20,62 @@ const STATUS_STYLE: Record<WsStatus, { dot: string; text: string; label: string 
 }
 
 // known SSH hosts for the transport select in the form
-const SSH_PRESETS: Record<string, { path: string; name: string }> = {
-  "mac-tailscale": { path: "/Users/adityahimawan/Development", name: "Mac Dev" },
-  "windows-tailscale": { path: "C:\\Users\\user", name: "Windows Dev" },
+const SSH_PRESETS: Record<string, { path: string; name: string; os: string }> = {
+  "mac-tailscale": { path: "/Users/adityahimawan/Development", name: "Mac Dev", os: "mac" },
+  "windows-tailscale": { path: "C:\\Users\\user", name: "Windows Dev", os: "windows" },
 }
 
+const OS_OPTIONS = [
+  { value: "mac", label: "macOS" },
+  { value: "windows", label: "Windows" },
+  { value: "linux", label: "Linux" },
+]
+
 function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tint: string } {
+  const os = (w.os || "").toLowerCase()
   const path = (w.path || "").toLowerCase()
   const host = (w.host || "").toLowerCase()
-  if (host.includes("windows") || path.startsWith("c:\\") || path.includes(":\\")) {
+  if (os === "windows" || host.includes("windows") || path.startsWith("c:\\") || path.includes(":\\")) {
     return { label: "windows", Icon: Laptop, tint: "border-sky-500/30 bg-sky-500/10 text-sky-300" }
   }
-  if (host.includes("mac") || path.startsWith("/users/aditya") || path.includes("/users/")) {
+  if (os === "mac" || host.includes("mac") || path.startsWith("/users/aditya") || path.includes("/users/")) {
     return { label: "mac", Icon: Apple, tint: "border-neutral-700 bg-[#0b0e14] text-neutral-300" }
   }
-  if (!host || host === "localhost" || host === "127.0.0.1") {
+  if (!host || host === "localhost" || host === "127.0.0.1" || os === "linux") {
     return { label: "vps", Icon: Monitor, tint: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" }
   }
   return { label: "linux", Icon: HardDrive, tint: "border-amber-500/30 bg-amber-500/10 text-amber-300" }
 }
 
-// PingWave: mini bar spectrum of the last N ping results. Green bar = ok
-// (height ~latency), red bar = fail. Newest on the right.
-function PingWave({ points }: { points: PingPoint[] | undefined }) {
-  const pts = (points ?? []).slice(-24)
-  if (!pts.length) return <span className="text-[10px] text-neutral-600">no pings yet</span>
+// PingWave: standalone bar spectrum of the last N ping results — own row, not
+// stuffed inside the status badge. Green bar = ok (height ~latency), red = fail.
+function PingWave({ points, live }: { points: PingPoint[] | undefined; live: boolean }) {
+  const pts = (points ?? []).slice(-30)
+  if (!pts.length) {
+    return (
+      <div className="flex h-9 w-full items-center justify-center rounded-md border border-[#1e2430] bg-[#0b0e14] text-[10px] text-neutral-600">
+        no pings yet
+      </div>
+    )
+  }
   const maxMs = Math.max(...pts.map((p) => p.ms ?? 0), 100)
   return (
-    <span className="flex h-4 items-end gap-[2px]" title={pts.map((p) => `${p.ok ? "ok" : "fail"} ${p.ms != null ? Math.round(p.ms) + "ms" : ""}`).join(" | ")}>
+    <div
+      className={`flex h-9 w-full items-end justify-center gap-[3px] rounded-md border border-[#1e2430] bg-[#0b0e14] px-2 py-1 ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
+      title={pts.map((p) => `${p.ok ? "ok" : "fail"} ${p.ms != null ? Math.round(p.ms) + "ms" : ""}`).join(" | ")}
+    >
       {pts.map((p, i) => (
         <span
           key={i}
-          className={`w-[3px] rounded-sm ${p.ok ? "bg-emerald-400/80" : "bg-red-400/90"}`}
-          style={{ height: `${Math.max(3, Math.round(((p.ms ?? maxMs) / maxMs) * 16))}px` }}
+          className={`w-[5px] rounded-sm ${p.ok ? "bg-emerald-400/80" : "bg-red-400/90"} ${i === pts.length - 1 && live ? "animate-pulse" : ""}`}
+          style={{ height: `${Math.max(4, Math.round(((p.ms ?? maxMs) / maxMs) * 26))}px` }}
         />
       ))}
-    </span>
+    </div>
   )
 }
 
-function StatusChip({ ws, points }: { ws: Workspace; points?: PingPoint[] }) {
+function StatusChip({ ws }: { ws: Workspace }) {
   const s = STATUS_STYLE[(ws.status as WsStatus) ?? "unknown"] ?? STATUS_STYLE.unknown
   const live = ws.status === "connected" || ws.status === "local"
   return (
@@ -68,7 +84,6 @@ function StatusChip({ ws, points }: { ws: Workspace; points?: PingPoint[] }) {
       <span className={`size-2 rounded-full ${s.dot} ${live ? "animate-pulse" : ""}`} />
       {s.label}
       {ws.ping_ms != null && <span className="text-neutral-500">{Math.round(ws.ping_ms)}ms</span>}
-      {points && points.length > 0 && <PingWave points={points} />}
     </span>
   )
 }
@@ -88,6 +103,7 @@ function WorkspaceForm({
   const [name, setName] = useState(initial?.name ?? "")
   const [path, setPath] = useState(initial?.path ?? "")
   const [host, setHost] = useState(initial?.host ?? "")
+  const [os, setOs] = useState(initial?.os ?? "")
   const [kind, setKind] = useState(initial?.kind ?? "dir")
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -97,10 +113,12 @@ function WorkspaceForm({
     setTransport(v)
     if (v === "local") {
       setHost("")
+      if (!editing) setOs("linux")
     } else if (!editing) {
-      // prefill first preset host + its default path
+      // prefill first preset host + its default path + OS
       const first = Object.entries(SSH_PRESETS)[0]
       setHost(first[0])
+      setOs(first[1].os)
       if (!path.trim()) setPath(first[1].path)
     }
   }
@@ -108,7 +126,10 @@ function WorkspaceForm({
   function pickHost(v: string) {
     setHost(v)
     const preset = SSH_PRESETS[v]
-    if (preset && !editing && !path.trim()) setPath(preset.path)
+    if (preset) {
+      setOs(preset.os)
+      if (!editing && !path.trim()) setPath(preset.path)
+    }
   }
 
   async function submit() {
@@ -117,7 +138,7 @@ function WorkspaceForm({
     if (transport === "ssh" && !host.trim()) { setErr("SSH host required"); return }
     setBusy(true); setErr(null)
     try {
-      await onSave({ id: id.trim().toLowerCase(), name: name.trim() || id.trim(), path: path.trim(), host: transport === "ssh" ? host.trim() : "", kind } as Workspace)
+      await onSave({ id: id.trim().toLowerCase(), name: name.trim() || id.trim(), path: path.trim(), host: transport === "ssh" ? host.trim() : "", os, kind } as Workspace)
       onClose()
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
@@ -162,6 +183,18 @@ function WorkspaceForm({
         )}
         <Label className="mt-3 block text-xs text-neutral-400">Name</Label>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mac Dev" className={`mt-1 ${inpCls}`} />
+        <Label className="mt-3 block text-xs text-neutral-400">OS</Label>
+        <Select value={os || "__auto"} onValueChange={(v) => setOs(v === "__auto" ? "" : v)}>
+          <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+            {OS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
+            ))}
+            <SelectItem value="__auto" className="text-sm text-neutral-400">Auto-detect (dari host/path)</SelectItem>
+          </SelectContent>
+        </Select>
         <Label className="mt-3 block text-xs text-neutral-400">Path (di host)</Label>
         <Input value={path} onChange={(e) => setPath(e.target.value)}
           placeholder={transport === "ssh" ? SSH_PRESETS[host]?.path ?? "/Users/... atau C:\\..." : "/home/adityahimaone/apps"}
@@ -355,12 +388,16 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <StatusChip ws={ws} points={pingHistories.data?.[ws.id]} />
+                  <StatusChip ws={ws} />
                   {ws.status_message && (
                     <span className="max-w-48 truncate text-[10px] text-neutral-500" title={ws.status_message}>
                       {ws.status_message}
                     </span>
                   )}
+                </div>
+
+                <div className="mt-3">
+                  <PingWave points={pingHistories.data?.[ws.id]} live={live} />
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">

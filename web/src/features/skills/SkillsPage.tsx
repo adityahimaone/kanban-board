@@ -67,7 +67,7 @@ export default function SkillsPage() {
       ) : skills.isError ? (
         <p className="text-sm text-red-400">Gagal load skills: {(skills.error as Error).message}</p>
       ) : (
-        <div className={active ? "grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[1fr_1.2fr]" : ""}>
+        <div className={`grid min-h-0 flex-1 gap-3 overflow-hidden ${active ? "lg:grid-cols-[1fr_1.2fr]" : ""}`}>
           <div className={`grid min-h-0 gap-2 overflow-y-auto pr-1 ${active ? "lg:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
             {filtered.map((s) => (
               <Card

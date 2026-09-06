@@ -1,9 +1,10 @@
-import type { Profile, Status, Task } from "../../api"
+import type { Profile, Status, Task, Workspace } from "../../api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import { Apple, Laptop, Monitor, HardDrive } from "lucide-react"
 
 const STATUS_TARGETS: Record<Status, Status[]> = {
   triage: ["todo", "ready"],
@@ -17,15 +18,45 @@ const STATUS_TARGETS: Record<Status, Status[]> = {
   archived: [],
 }
 
-export default function TaskCard({ task, profiles, onOpen, onMove, onReassign }: {
+function isSshPath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("/Users/")
+}
+
+function OsBadge({ ws }: { ws?: Workspace }) {
+  const os = (ws?.os || "").toLowerCase()
+  const path = ws?.path || ""
+  const host = (ws?.host || "").toLowerCase()
+  let label = ""
+  let Icon = Monitor
+  let tint = ""
+  if (os === "windows" || host.includes("windows") || /^[A-Za-z]:[\\/]/.test(path)) {
+    label = "windows"; Icon = Laptop; tint = "border-sky-500/30 bg-sky-500/10 text-sky-300"
+  } else if (os === "mac" || host.includes("mac") || path.startsWith("/Users/")) {
+    label = "mac"; Icon = Apple; tint = "border-neutral-700 bg-[#0b0e14] text-neutral-300"
+  } else if (os === "linux" || ws) {
+    label = "linux"; Icon = HardDrive; tint = "border-amber-500/30 bg-amber-500/10 text-amber-300"
+  } else {
+    return null
+  }
+  return (
+    <Badge variant="outline" className={`gap-0.5 px-1 py-0 text-[9px] leading-none ${tint}`}>
+      <Icon className="size-2.5" /> {label}
+    </Badge>
+  )
+}
+
+export default function TaskCard({ task, profiles, workspaces, onOpen, onMove, onReassign }: {
   task: Task
   profiles: Profile[]
+  workspaces?: Workspace[]
   onOpen: () => void
   onMove: (s: Status) => void
   onReassign: (a: string) => void
 }) {
   const targets = STATUS_TARGETS[task.status] ?? []
   const profile = profiles.find((p) => p.name === task.assignee)
+  const ws = (workspaces ?? []).find((w) => w.path === task.workspace_path)
+  const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
   return (
     <article className="rounded-md border border-[#1e2430] bg-[#0b0e14] p-2.5 text-sm hover:border-[#10e0dd]/40">
       <button onClick={onOpen} className="block w-full text-left font-medium leading-snug">
@@ -57,10 +88,15 @@ export default function TaskCard({ task, profiles, onOpen, onMove, onReassign }:
           </Badge>
         )}
         {task.workspace_path && (
-          <Badge variant="outline" className="max-w-24 border-[#1e2430] bg-[#11151f] font-normal text-neutral-500" title={task.workspace_path}>
-            <span className="truncate">{task.workspace_path.split("/").pop()}</span>
+          <Badge
+            variant="outline"
+            className={`max-w-24 px-1 py-0 font-normal text-[9px] leading-none ${wsIsSsh ? "border-violet-500/30 bg-violet-500/10 text-violet-300" : "border-[#1e2430] bg-[#11151f] text-neutral-500"}`}
+            title={task.workspace_path}
+          >
+            {wsIsSsh && "ssh · "}<span className="truncate">{task.workspace_path.split(/[\\/]/).pop()}</span>
           </Badge>
         )}
+        <OsBadge ws={ws} />
         {task.priority > 0 && (
           <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">
             P{task.priority}
