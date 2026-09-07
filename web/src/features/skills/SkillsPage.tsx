@@ -2,7 +2,6 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/api"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -39,6 +38,15 @@ export default function SkillsPage() {
     )
   }, [skills.data, q])
 
+  const grouped = useMemo(() => {
+    const groups = new Map<string, SkillMeta[]>()
+    for (const skill of filtered) {
+      const category = skill.category?.trim() || "Uncategorized"
+      groups.set(category, [...(groups.get(category) ?? []), skill])
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered])
+
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -68,32 +76,38 @@ export default function SkillsPage() {
         <p className="text-sm text-red-400">Gagal load skills: {(skills.error as Error).message}</p>
       ) : (
         <div className={`grid min-h-0 flex-1 gap-3 overflow-hidden ${active ? "lg:grid-cols-[1fr_1.2fr]" : ""}`}>
-          <div className={`grid min-h-0 gap-2 overflow-y-auto pr-1 ${active ? "lg:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
-            {filtered.map((s) => (
-              <Card
-                key={s.path || s.name}
-                className={`cursor-pointer border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/40 ${active === s.name ? "border-[#10e0dd]/60" : ""}`}
-                onClick={() => setActive(s.name)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-2">
-                    <div className="flex aspect-square size-7 shrink-0 items-center justify-center rounded-lg bg-[#161b27]">
-                      <Puzzle className="size-3.5 text-[#10e0dd]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="truncate text-sm font-semibold">{s.name}</h3>
-                        {s.category && (
-                          <Badge variant="outline" className="shrink-0 text-[9px] text-neutral-400">{s.category}</Badge>
-                        )}
-                      </div>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-neutral-400">{s.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="min-h-0 overflow-y-auto pr-1">
+            {grouped.map(([category, categorySkills]) => (
+              <section key={category} className="mb-5 last:mb-0">
+                <div className="mb-2 flex items-center gap-2">
+                  <h2 className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400" title={category}>{category}</h2>
+                  <span className="font-mono text-[10px] text-neutral-600">{categorySkills.length}</span>
+                  <div className="h-px flex-1 bg-[#1e2430]" />
+                </div>
+                <div className={`grid gap-2 ${active ? "lg:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+                  {categorySkills.map((s) => (
+                    <Card
+                      key={s.path || s.name}
+                      className={`cursor-pointer border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/35 ${active === s.name ? "border-[#10e0dd]/60" : ""}`}
+                      onClick={() => setActive(s.name)}
+                    >
+                      <CardContent className="flex min-h-[96px] flex-col p-3.5">
+                        <div className="flex min-w-0 items-start gap-2.5">
+                          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#10e0dd]/15 bg-[#161b27]">
+                            <Puzzle className="size-3.5 text-[#10e0dd]" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="truncate text-sm font-semibold leading-5" title={s.name}>{s.name}</h3>
+                            <p className="mt-1 line-clamp-2 min-h-[30px] text-[11px] leading-snug text-neutral-400">{s.description || "—"}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
             ))}
-            {!filtered.length && <p className="col-span-full text-sm text-neutral-500">No skills matched "{q}".</p>}
+            {!filtered.length && <p className="text-sm text-neutral-500">No skills matched "{q}".</p>}
           </div>
 
           {active && (

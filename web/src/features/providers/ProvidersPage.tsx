@@ -48,30 +48,36 @@ export default function ProvidersPage({ onUseInProfile }: { onUseInProfile?: (na
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map((p) => (
-            <Card key={p.name} className={`cursor-pointer border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/40 ${active === p.name ? "border-[#10e0dd]/60" : ""}`}
+            <Card key={p.name} className={`provider-card relative cursor-pointer overflow-hidden border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/40 ${active === p.name ? "border-[#10e0dd]/60" : ""}`}
               onClick={() => setActive(active === p.name ? null : p.name)}>
-              <CardHeader className="p-3.5 pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <div className="flex aspect-square size-7 shrink-0 items-center justify-center rounded-lg bg-[#161b27]">
+              <span className="provider-card-grid pointer-events-none absolute inset-0" />
+              <span className="provider-card-scan pointer-events-none absolute right-[-20%] top-1/2 h-px w-2/3" />
+              <CardHeader className="relative p-3.5 pb-2">
+                <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#10e0dd]/15 bg-[#161b27]">
                     <Server className="size-3.5 text-[#10e0dd]" />
                   </div>
-                  <span className="truncate">{p.name}</span>
-                  {p.api_key_set && (
-                    <Badge variant="outline" className="ml-auto border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
+                  <span className="min-w-0 flex-1 truncate" title={p.name}>{p.name}</span>
+                  {p.api_key_set ? (
+                    <Badge variant="outline" className="ml-auto shrink-0 border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
                       <KeyRound className="size-2.5" /> key set
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="ml-auto shrink-0 border-red-500/30 bg-red-500/10 text-[10px] text-red-300">
+                      key missing
                     </Badge>
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3.5 pt-0">
+              <CardContent className="relative p-3.5 pt-0">
                 <p className="truncate font-mono text-[11px] text-neutral-500" title={p.base_url}>{p.base_url || "—"}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
                   <Badge variant="outline" className="border-[#1e2430] text-[10px] text-neutral-300">
                     {p.models.length} models
                   </Badge>
                   {p.default_model && (
-                    <Badge variant="outline" className="border-[#10e0dd]/30 bg-[#10e0dd]/5 text-[10px] text-[#10e0dd]">
-                      default: {p.default_model}
+                    <Badge variant="outline" className="max-w-full border-[#10e0dd]/30 bg-[#10e0dd]/5 text-[10px] text-[#10e0dd]">
+                      <span className="truncate">default: {p.default_model}</span>
                     </Badge>
                   )}
                 </div>

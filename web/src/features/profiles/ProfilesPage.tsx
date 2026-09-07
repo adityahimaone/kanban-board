@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Bot, Plus, Trash2, Pencil, ShieldAlert, ShieldCheck } from "lucide-react"
+import { Bot, Plus, Trash2, Pencil, ShieldAlert, ShieldCheck, Activity } from "lucide-react"
 
 const FALLBACK_PROVIDERS = [
   "custom", "auto", "anthropic", "openai", "openrouter", "google",
@@ -194,43 +194,48 @@ export default function ProfilesPage() {
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(profiles.data ?? []).map((p) => (
-            <Card key={p.name} className="border-[#1e2430] bg-[#11151f]">
-              <CardContent className="p-3.5">
-                <div className="flex items-start gap-2">
-                  <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-[#161b27]">
+            <Card key={p.name} className={`border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/35 ${p.active ? "border-[#10e0dd]/55" : ""}`}>
+              <CardContent className="p-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#10e0dd]/15 bg-[#161b27]">
                     <Bot className="size-4 text-[#10e0dd]" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-sm font-semibold">{p.name}</h3>
-                      {p.active && <Badge className="bg-[#10e0dd]/15 text-[10px] text-[#10e0dd] hover:bg-[#10e0dd]/15">active</Badge>}
-                      {p.valid === false ? (
-                        <Badge variant="outline" className="gap-1 border-red-500/30 bg-red-500/10 text-[10px] text-red-300">
-                          <ShieldAlert className="size-3" /> broken config
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
-                          <ShieldCheck className="size-3" /> valid
+                    <div className="flex min-w-0 items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-semibold leading-5" title={p.name}>{p.name}</h3>
+                        <p className="mt-0.5 truncate font-mono text-[11px] text-neutral-400" title={`${p.model || "—"} · ${p.provider || "—"}`}>
+                          {p.model || "—"} · {p.provider || "—"}
+                        </p>
+                      </div>
+                      {p.active && (
+                        <Badge className="shrink-0 gap-1 bg-[#10e0dd]/15 text-[10px] text-[#10e0dd] hover:bg-[#10e0dd]/15">
+                          <Activity className="size-3" /> active
                         </Badge>
                       )}
                     </div>
-                    <p className="mt-1 text-[11px] text-neutral-400">
-                      model: <span className="font-mono text-neutral-300">{p.model || "—"}</span> · provider:{" "}
-                      <span className="font-mono text-neutral-300">{p.provider || "—"}</span>
-                    </p>
-                    {"skills" in p && (
-                      <p className="mt-0.5 truncate text-[11px] text-neutral-500" title={p.skills?.join(", ")}>
-                        {p.skills?.length ?? 0} skills
-                      </p>
-                    )}
                   </div>
                 </div>
-                <div className="mt-3 flex gap-1.5">
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  {"skills" in p ? (
+                    <div title={p.skills?.join(", ") || undefined}>
+                      <p className="font-mono text-xl font-semibold leading-none text-neutral-100">{p.skills?.length ?? 0}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-wider text-neutral-500">skills</p>
+                    </div>
+                  ) : <span />}
+                  {p.valid === false ? (
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] text-red-300"><ShieldAlert className="size-3.5" /> broken config</span>
+                  ) : (
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] text-emerald-300"><ShieldCheck className="size-3.5" /> valid</span>
+                  )}
+                </div>
+                <Separator className="my-3" />
+                <div className="flex gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => openEdit(p.name)}>
                     <Pencil className="size-3.5" /> Edit
                   </Button>
                   <Button
-                    variant="outline" size="sm" disabled={p.active}
+                    variant="outline" size="sm" disabled={p.active} aria-label={`Delete profile ${p.name}`} title={p.active ? "Active profile cannot be deleted" : `Delete ${p.name}`}
                     className="ml-auto border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
                     onClick={() => { if (confirm(`Delete profile "${p.name}"?`)) del.mutate(p.name) }}
                   >
