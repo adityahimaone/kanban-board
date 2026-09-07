@@ -32,8 +32,8 @@ export const EDGES: LayoutEdge[] = [
   { from: "tailscale", to: "mac", color: "#5a9cff" },
   { from: "tailscale", to: "windows", color: "#e87baf" },
   { from: "mac", to: "review", color: "#57d18d" },
-  { from: "windows", to: "review", color: "#57d18d" },
-  { from: "review", to: "kanban", color: "#57d18d" },
+  { from: "windows", to: "review", color: "#2dd4bf" },
+  { from: "review", to: "kanban", color: "#f2c94c" },
 ]
 
 export const nodeMap = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<FlowNodeId, LayoutNode>
