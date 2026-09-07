@@ -24,7 +24,7 @@ export function parseRoute(pathname: string): AppRoute {
   }
 
   if (root && PAGES.has(root as Page)) return { page: root as Page }
-  return { page: "board", slug: "f8-saas" }
+  return { page: "overview", slug: "f8-saas" }
 }
 
 export function pagePath(page: Page, slug: string, taskId?: string): string {
