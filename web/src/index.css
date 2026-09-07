@@ -72,3 +72,17 @@ body { background: var(--color-bg); color: var(--color-foreground); }
   from { offset-distance: 0%; }
   to { offset-distance: 100%; }
 }
+
+/* Agent Flow: task dot traveling along its channel, ping-pong via alternate */
+@keyframes flow-travel {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
+
+/* Agent Flow: idle shimmer cascade root -> leaf */
+@keyframes flow-shimmer {
+  0%, 8%    { opacity: 0; offset-distance: 0%; }
+  10%       { opacity: 1; }
+  26%       { opacity: 1; offset-distance: 100%; }
+  30%, 100% { opacity: 0; offset-distance: 100%; }
+}

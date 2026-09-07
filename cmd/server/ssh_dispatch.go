@@ -92,6 +92,13 @@ func dispatchSSHTasks() {
 			}
 
 			log.Printf("ssh-dispatcher: running %s (%s) via hermes chat + SSH to %s", r.id, b.Slug, target)
+			// sync Flow view: orchestrator (VPS hermes) -> mac lane while running
+			node := "mac"
+			if target == "windows-tailscale" {
+				node = "windows"
+			}
+			kanban.FlowTrack(r.id, r.title, b.Slug, node, kanban.FlowRunning)
+
 			output, success := runHemesViaSSH(r.id, r.title, msg, r.ws, target, b.Slug)
 
 			// reopen DB for result write
@@ -103,6 +110,7 @@ func dispatchSSHTasks() {
 			if success {
 				// review gate: success NEVER lands done — approve flow moves it
 				_, _ = db2.Exec(`UPDATE tasks SET status='review', completed_at=?, result=? WHERE id=?`, now, output, r.id)
+				kanban.FlowTrack(r.id, r.title, b.Slug, node, kanban.FlowDone)
 				log.Printf("ssh-dispatcher: %s completed -> review", r.id)
 			} else {
 				failures := 1
@@ -113,6 +121,7 @@ func dispatchSSHTasks() {
 				}
 				_, _ = db2.Exec(`UPDATE tasks SET status=?, consecutive_failures=?, last_failure_error=?, completed_at=? WHERE id=?`,
 					newStatus, failures, truncate(output, 500), now, r.id)
+				kanban.FlowTrack(r.id, r.title, b.Slug, node, kanban.FlowFailed)
 				log.Printf("ssh-dispatcher: %s failed (attempt %d): %s", r.id, failures, truncate(output, 200))
 			}
 			db2.Close()

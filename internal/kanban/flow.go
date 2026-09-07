@@ -67,6 +67,13 @@ func FlowSeed(tasks []FlowTask) {
 	flowMu.Unlock()
 }
 
+// FlowTrack records one stage transition for any dispatcher (node-agent,
+// ssh-dispatcher, future ones). Exported so package main dispatchers can sync
+// the Flow view without touching the registry directly.
+func FlowTrack(taskID, title, board, nodeID string, stage FlowStage) {
+	flowSet(FlowTask{TaskID: taskID, Title: title, Board: board, NodeID: nodeID, Stage: stage})
+}
+
 func FlowActive() []FlowTask {
 	now := time.Now()
 	flowMu.Lock()
