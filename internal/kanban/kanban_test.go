@@ -33,6 +33,8 @@ CREATE TABLE tasks (
 	started_at           INTEGER,
 	completed_at         INTEGER,
 	workspace_kind       TEXT NOT NULL DEFAULT 'scratch',
+	workspace_transport  TEXT,
+	workspace_ssh_target TEXT,
 	workspace_path       TEXT,
 	result               TEXT,
 	consecutive_failures INTEGER NOT NULL DEFAULT 0,

@@ -194,6 +194,7 @@ func CreateTask(slug string, t *Task) error {
 	// board.json default_workdir (both may point at /Users/...). Until the
 	// dispatcher speaks SSH/node-agent, remote workspaces must be refused at
 	// creation so the card never enters the respawn loop.
+	transport, target, _ := transportForPath(t.WorkspacePath)
 	if t.WorkspacePath != "" {
 		if err := validateWorkspacePath(t.WorkspacePath); err != nil {
 			return err
@@ -204,9 +205,9 @@ func CreateTask(slug string, t *Task) error {
 	db, err := openDB(slug)
 	if err != nil { return err }
 	defer db.Close()
-	_, err = db.Exec(`INSERT INTO tasks (id, title, body, status, priority, assignee, workspace_kind, workspace_path, created_by, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		t.ID, t.Title, t.Body, t.Status, t.Priority, t.Assignee, t.WorkspaceKind, t.WorkspacePath, t.CreatedBy, t.CreatedAt)
+	_, err = db.Exec(`INSERT INTO tasks (id, title, body, status, priority, assignee, workspace_kind, workspace_path, workspace_transport, workspace_ssh_target, created_by, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		t.ID, t.Title, t.Body, t.Status, t.Priority, t.Assignee, t.WorkspaceKind, t.WorkspacePath, transport, target, t.CreatedBy, t.CreatedAt)
 	if err != nil { return err }
 	return insertEvent(db, t.ID, "created", map[string]any{"source": "board-ui", "status": t.Status})
 }

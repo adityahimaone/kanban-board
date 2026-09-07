@@ -98,3 +98,42 @@ func isUnderRegisteredRemotePath(p string) bool {
 	}
 	return false
 }
+
+func workspaceHostForPath(p string) string {
+	f, err := loadWorkspaces()
+	if err != nil || f == nil {
+		return ""
+	}
+	for _, w := range f.Workspaces {
+		if w.Host == "" || w.Host == "localhost" || w.Host == "127.0.0.1" {
+			continue
+		}
+		if w.Path == p {
+			return w.Host
+		}
+	}
+	for _, w := range f.Workspaces {
+		if w.Path == "" || w.Host == "" || w.Host == "localhost" || w.Host == "127.0.0.1" {
+			continue
+		}
+		if len(p) > len(w.Path) && p[:len(w.Path)] == w.Path && (p[len(w.Path)] == '/' || p[len(w.Path)] == '\\') {
+			return w.Host
+		}
+	}
+	return ""
+}
+
+func transportForPath(p string) (transport, target string, isRemote bool) {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return "", "", false
+	}
+	if isRegisteredRemotePath(p) || isUnderRegisteredRemotePath(p) {
+		host := workspaceHostForPath(p)
+		if host == "" {
+			host = "mac-tailscale"
+		}
+		return "ssh", host, true
+	}
+	return "", "", false
+}

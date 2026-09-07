@@ -59,7 +59,7 @@ func dispatchSSHTasks() {
 		if err != nil {
 			continue
 		}
-		rows, err := db.Query(`SELECT id, title, COALESCE(body,''), workspace_path, workspace_transport, COALESCE(workspace_ssh_target,'mac-tailscale') FROM tasks WHERE status='todo' AND workspace_transport='ssh' LIMIT 2`)
+		rows, err := db.Query(`SELECT id, title, COALESCE(body,''), workspace_path, COALESCE(workspace_transport,''), COALESCE(workspace_ssh_target,'') FROM tasks WHERE status IN ('todo','ready') AND workspace_path IS NOT NULL AND workspace_path != '' LIMIT 1`)
 		if err != nil {
 			db.Close()
 			continue
@@ -74,13 +74,19 @@ func dispatchSSHTasks() {
 		}
 		rows.Close()
 
+		claimed := false
 		for _, r := range pending {
 			// hard guard runs before claim: never spawn local for remote paths
 			r.transport, r.sshTarget = hardGuardTransport(db, r.id, r.ws, r.transport, r.sshTarget)
+			if r.transport != "ssh" {
+				// local path without ssh transport: not this dispatcher's job
+				continue
+			}
 
 			// claim: persist start time so every UI surface measures same run
 			startedAt := time.Now().Unix()
-			_, _ = db.Exec(`UPDATE tasks SET status='running', started_at=?, completed_at=NULL, consecutive_failures=0 WHERE id=? AND status='todo'`, startedAt, r.id)
+			_, _ = db.Exec(`UPDATE tasks SET status='running', started_at=?, completed_at=NULL, consecutive_failures=0 WHERE id=? AND status IN ('todo','ready')`, startedAt, r.id)
+			claimed = true
 			db.Close()
 
 			msg := r.body
@@ -127,7 +133,7 @@ func dispatchSSHTasks() {
 			}
 			db2.Close()
 		}
-		if len(pending) == 0 {
+		if !claimed {
 			db.Close()
 		}
 	}
