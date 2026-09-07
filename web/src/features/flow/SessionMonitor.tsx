@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Crosshair, Maximize2, Minimize2, Pin } from "lucide-react"
 import { channelPath } from "./layout"
 import { colorForTask } from "./color"
@@ -24,11 +24,13 @@ export function SessionMonitor({ tasks, focused, onFocus }: { tasks: FlowTask[];
   const [height, setHeight] = useState(190)
   const [query, setQuery] = useState("")
   const [pinned, setPinned] = useState<string | null>(null)
+  const [position, setPosition] = useState({ x: 12, y: 12 })
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id) }, [])
   const visible = useMemo(() => tasks.filter((t) => !query || `${t.task_id} ${t.title} ${t.board}`.toLowerCase().includes(query.toLowerCase())), [tasks, query])
 
-  return <section className="absolute bottom-3 left-3 right-3 z-20 overflow-hidden rounded-lg border border-white/15 bg-[#11120f]/95 shadow-2xl backdrop-blur-md" style={{ height: collapsed ? 38 : height }}>
-    <div className="flex h-9 items-center gap-2 border-b border-white/10 px-3 text-[11px]">
+  return <section className="absolute z-20 overflow-hidden rounded-lg border border-white/15 bg-[#11120f]/95 shadow-2xl backdrop-blur-md" style={{ left: position.x, bottom: position.y, width: "min(920px, calc(100% - 24px))", height: collapsed ? 38 : height }}>
+    <div className="flex h-9 cursor-move items-center gap-2 border-b border-white/10 px-3 text-[11px]" onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, ox: position.x, oy: position.y }; e.currentTarget.setPointerCapture(e.pointerId) }} onPointerMove={(e) => { const d = drag.current; if (d) setPosition({ x: Math.max(0, d.ox + e.clientX - d.x), y: Math.max(0, d.oy - e.clientY + d.y) }) }} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
       <span className="font-semibold text-[#e8e8e3]">Session Monitor</span>
       <span className="font-mono text-[#8b8e86]">{tasks.length} sessions</span>
       <span className="text-[#8b8e86]">· terminal expires in 10m</span>

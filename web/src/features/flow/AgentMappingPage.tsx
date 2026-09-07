@@ -3,6 +3,7 @@ import { AppWindow, Brain, Database, Expand, GitPullRequest, Kanban, Laptop, Min
 import { NODES, EDGES, type FlowNodeId, type Point } from "./layout"
 import { elbowPath, elbowPathV, pathLength } from "./elbow"
 import { TravelingDot } from "./TravelingDot"
+import { SessionMonitor } from "./SessionMonitor"
 import { useFlowTasks, type FlowStage, type FlowTask } from "./useFlowTasks"
 
 const CARD_W = 188
@@ -143,6 +144,7 @@ export default function AgentMappingPage() {
         </span>
         <span className="absolute bottom-1.5 right-2 font-mono text-[8px] tracking-[.14em] text-[#687187]">MINIMAP</span>
       </button>
+      <SessionMonitor tasks={visibleTasks} focused={selectedTask?.task_id ?? null} onFocus={() => undefined} />
     </div>
     {selected && <aside className="absolute right-0 top-16 bottom-0 z-20 w-full max-w-[320px] border-l border-[#1e2430] bg-[#11151f] p-4 shadow-2xl md:top-16"><button aria-label="Close inspector" title="Close inspector" onClick={() => setSelected(null)} className="absolute right-3 top-3 rounded-md p-1 text-[#687187] hover:bg-[#161b27] hover:text-[#e6e9ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10e0dd]"><X className="size-4" /></button><p className="font-mono text-[9px] uppercase tracking-[.16em]" style={{ color: COLORS[selected] }}>{GROUP[selected]}</p><h2 className="mt-2 text-base font-semibold tracking-tight">{LABEL[selected]}</h2><p className="mt-1 font-mono text-[10px] text-[#8b93a7]">{nodeMapSub(selected)}</p><div className="my-4 border-t border-[#1e2430]" /><p className="text-[10px] uppercase tracking-wider text-[#687187]">Route activity</p>{selectedTask ? <div className="mt-2 rounded-lg border border-[#1e2430] bg-[#0b0e14] p-3"><p className="truncate text-xs font-medium">{selectedTask.title}</p><p className="mt-2 font-mono text-[10px]" style={{ color: STAGE_COLOR[selectedTask.stage] }}>{selectedTask.stage}</p><p className="mt-1 truncate font-mono text-[10px] text-[#8b93a7]">{selectedTask.task_id}</p><p className="mt-3 text-[10px] text-[#687187]">{new Date(selectedTask.updated_at).toLocaleString()}</p></div> : <p className="mt-2 text-xs text-[#8b93a7]">No matching task currently routed through this service.</p>}</aside>}
   </div>
