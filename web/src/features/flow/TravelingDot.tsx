@@ -37,7 +37,7 @@ export function TravelingDot({
 
   return (
     <div
-      className={`pointer-events-none absolute left-0 top-0 size-0 ${idle ? "animate-[flow-idle_0s_linear_infinite]" : "animate-[flow-travel_0s_linear_infinite_alternate]"}`}
+      className={`pointer-events-none absolute left-0 top-0 size-0 ${idle ? "animate-[flow-idle_0s_linear_infinite]" : active ? "animate-[flow-active_0s_linear_infinite]" : "animate-[flow-travel_0s_linear_infinite_alternate]"}`}
       style={
         {
           offsetPath: `path("${pathD}")`,
