@@ -13,6 +13,8 @@ export interface Task {
   status: Status
   priority: number
   assignee: string
+  executor: "auto" | "hermes" | "codex" | "commandcode" | "shell"
+  command?: string
   workspace_kind: string
   workspace_path: string
   result: string

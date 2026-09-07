@@ -16,7 +16,7 @@ import (
 
 // reviewGate implements the review column backend:
 //   GET  /api/boards/{slug}/tasks/{id}/diff     -> git diff (full, inline)
-//   POST /api/boards/{slug}/tasks/{id}/approve  -> {"action":"commit"|"commit_push"}
+//   POST /api/boards/{slug}/tasks/{id}/approve  -> {"action":"done"|"commit"|"commit_push"}
 //
 // Both run git ON the workspace host over SSH (workspace_transport=ssh).
 // Approve is the ONLY path from review -> done; the plain status PATCH
@@ -56,6 +56,17 @@ func runGit(t *reviewTask, args string) (string, int) {
 	return sshRun(target, t.WorkspacePath, args)
 }
 
+func reviewWorkspaceClean(t *reviewTask) (bool, string, int) {
+	out, code := runGit(t, `git diff --quiet HEAD -- .`)
+	if code == 0 {
+		return true, out, 0
+	}
+	if code == 1 {
+		return false, out, 0
+	}
+	return false, out, code
+}
+
 func handleTaskDiff(w http.ResponseWriter, r *http.Request) {
 	slug, id := r.PathValue("slug"), r.PathValue("id")
 	t, err := loadReviewTask(slug, id)
@@ -73,20 +84,22 @@ func handleTaskDiff(w http.ResponseWriter, r *http.Request) {
 	}
 	stat, code1 := runGit(t, `git diff --stat HEAD -- . | tail -20`)
 	diff, code2 := runGit(t, `git diff HEAD -- .`)
-	if code1 != 0 && code2 != 0 {
+	clean, _, code3 := reviewWorkspaceClean(t)
+	if code1 != 0 && code2 != 0 && code3 != 0 {
 		fail(w, fmt.Errorf("git diff failed: %s", truncate(stat, 300)), 500)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{
-		"stat": truncate(stat, 4000),
-		"diff": truncate(diff, diffLimit),
+	writeJSON(w, http.StatusOK, map[string]any{
+		"stat":  truncate(stat, 4000),
+		"diff":  truncate(diff, diffLimit),
+		"clean": clean,
 	})
 }
 
 func handleTaskApprove(w http.ResponseWriter, r *http.Request) {
 	slug, id := r.PathValue("slug"), r.PathValue("id")
 	var req struct {
-		Action  string `json:"action"`            // commit | commit_push
+		Action  string `json:"action"`            // done | commit | commit_push
 		Message string `json:"message,omitempty"` // optional commit message override
 	}
 	body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<16))
@@ -94,8 +107,8 @@ func handleTaskApprove(w http.ResponseWriter, r *http.Request) {
 		fail(w, err, 400)
 		return
 	}
-	if req.Action != "commit" && req.Action != "commit_push" {
-		fail(w, fmt.Errorf("action must be commit or commit_push"), 400)
+	if req.Action != "done" && req.Action != "commit" && req.Action != "commit_push" {
+		fail(w, fmt.Errorf("action must be done, commit, or commit_push"), 400)
 		return
 	}
 	t, err := loadReviewTask(slug, id)
@@ -109,6 +122,24 @@ func handleTaskApprove(w http.ResponseWriter, r *http.Request) {
 	}
 	if t.Transport != "ssh" {
 		fail(w, fmt.Errorf("unsupported transport %q for approve", t.Transport), 400)
+		return
+	}
+
+	clean, status, code := reviewWorkspaceClean(t)
+	if code != 0 {
+		fail(w, fmt.Errorf("git diff failed: %s", truncate(status, 500)), 500)
+		return
+	}
+	if clean {
+		if err := kanban.StatusTransition(slug, id, "done"); err != nil {
+			fail(w, err, 500)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "done", "output": "workspace clean; no commit needed"})
+		return
+	}
+	if req.Action == "done" {
+		fail(w, fmt.Errorf("workspace has uncommitted changes; choose commit or commit_push"), 400)
 		return
 	}
 

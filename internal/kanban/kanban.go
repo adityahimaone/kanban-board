@@ -19,6 +19,10 @@ var ValidStatuses = map[string]bool{
 	"blocked": true, "review": true, "done": true, "archived": true,
 }
 
+var ValidExecutors = map[string]bool{
+	"auto": true, "hermes": true, "codex": true, "commandcode": true, "shell": true,
+}
+
 // Columns the dispatcher owns — board UI must never write these.
 var dispatcherOwned = []string{"claim_lock", "consecutive_failures", "worker_pid", "current_run_id", "last_heartbeat_at"}
 
@@ -31,21 +35,23 @@ type Board struct {
 }
 
 type Task struct {
-	ID            string  `json:"id"`
-	Title         string  `json:"title"`
-	Body          string  `json:"body"`
-	Status        string  `json:"status"`
-	Priority      int     `json:"priority"`
-	Assignee      string  `json:"assignee"`
-	WorkspaceKind string  `json:"workspace_kind"`
-	WorkspacePath string  `json:"workspace_path"`
-	Result        string  `json:"result"`
-	CreatedBy     string  `json:"created_by"`
-	CreatedAt     int64   `json:"created_at"`
-	StartedAt     *int64  `json:"started_at"`
-	CompletedAt   *int64  `json:"completed_at"`
-	Failures      int     `json:"consecutive_failures"`
-	LastError     string  `json:"last_failure_error"`
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	Body          string `json:"body"`
+	Status        string `json:"status"`
+	Priority      int    `json:"priority"`
+	Assignee      string `json:"assignee"`
+	Executor      string `json:"executor"`
+	Command       string `json:"command,omitempty"`
+	WorkspaceKind string `json:"workspace_kind"`
+	WorkspacePath string `json:"workspace_path"`
+	Result        string `json:"result"`
+	CreatedBy     string `json:"created_by"`
+	CreatedAt     int64  `json:"created_at"`
+	StartedAt     *int64 `json:"started_at"`
+	CompletedAt   *int64 `json:"completed_at"`
+	Failures      int    `json:"consecutive_failures"`
+	LastError     string `json:"last_failure_error"`
 }
 
 type TaskEvent struct {
@@ -57,7 +63,9 @@ type TaskEvent struct {
 }
 
 func hermesHome() string {
-	if h := os.Getenv("HERMES_HOME"); h != "" { return h }
+	if h := os.Getenv("HERMES_HOME"); h != "" {
+		return h
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".hermes")
 }
@@ -65,7 +73,9 @@ func hermesHome() string {
 func HermesHome() string { return hermesHome() }
 
 func boardDir(slug string) string {
-	if slug == "default" { return filepath.Join(hermesHome()) }
+	if slug == "default" {
+		return filepath.Join(hermesHome())
+	}
 	return filepath.Join(hermesHome(), "kanban", "boards", slug)
 }
 
@@ -100,13 +110,37 @@ type Profile struct {
 
 func openDB(slug string) (*sql.DB, error) {
 	path := BoardDBPath(slug)
-	if _, err := os.Stat(path); err != nil { return nil, fmt.Errorf("board %q not found: %w", slug, err) }
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("board %q not found: %w", slug, err)
+	}
 	// WAL + busy_timeout so hermes CLI and this server can share the file.
 	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)", path)
 	db, err := sql.Open("sqlite", dsn)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	db.SetMaxOpenConns(1) // serialize writers; SQLite single-writer anyway
+	if err := ensureTaskExecutionColumns(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return db, nil
+}
+
+// ensureTaskExecutionColumns keeps boards created by older Hermes versions usable.
+// These fields are additive and let the board select a concrete worker executor.
+func ensureTaskExecutionColumns(db *sql.DB) error {
+	for _, stmt := range []string{
+		`ALTER TABLE tasks ADD COLUMN executor TEXT NOT NULL DEFAULT 'auto'`,
+		`ALTER TABLE tasks ADD COLUMN command TEXT`,
+		`ALTER TABLE tasks ADD COLUMN resolved_executor TEXT`,
+		`ALTER TABLE tasks ADD COLUMN execution_meta TEXT`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+	}
+	return nil
 }
 
 // ListBoards scans ~/.hermes/kanban/boards/*/board.json (+ legacy default kanban.db).
@@ -116,19 +150,29 @@ func ListBoards() ([]Board, error) {
 	entries, err := os.ReadDir(root)
 	if err == nil {
 		for _, e := range entries {
-			if !e.IsDir() { continue }
+			if !e.IsDir() {
+				continue
+			}
 			metaPath := filepath.Join(root, e.Name(), "board.json")
 			raw, err := os.ReadFile(metaPath)
-			if err != nil { continue }
+			if err != nil {
+				continue
+			}
 			var b Board
-			if err := json.Unmarshal(raw, &b); err != nil { continue }
-			if b.ArchivedSkip() { continue }
+			if err := json.Unmarshal(raw, &b); err != nil {
+				continue
+			}
+			if b.ArchivedSkip() {
+				continue
+			}
 			out = append(out, b)
 		}
 	}
 	// legacy default board — skip if a boards/default/board.json already provided it
 	seen := map[string]bool{}
-	for _, b := range out { seen[b.Slug] = true }
+	for _, b := range out {
+		seen[b.Slug] = true
+	}
 	if !seen["default"] {
 		if _, err := os.Stat(filepath.Join(hermesHome(), "kanban.db")); err == nil {
 			out = append(out, Board{Slug: "default", Name: "Default", Icon: "default"})
@@ -144,49 +188,90 @@ type boardMeta struct {
 
 func (b Board) ArchivedSkip() bool {
 	raw, err := os.ReadFile(filepath.Join(boardDir(b.Slug), "board.json"))
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 	var m boardMeta
-	if json.Unmarshal(raw, &m) == nil { return m.Archived }
+	if json.Unmarshal(raw, &m) == nil {
+		return m.Archived
+	}
 	return false
 }
 
 func ListTasks(slug string) ([]Task, error) {
 	db, err := openDB(slug)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer db.Close()
 	rows, err := db.Query(`
-		SELECT id, title, COALESCE(body,''), status, priority, COALESCE(assignee,''),
+		SELECT id, title, COALESCE(body,''), status, priority, COALESCE(assignee,''), COALESCE(executor,'auto'), COALESCE(command,''),
 		       workspace_kind, COALESCE(workspace_path,''), COALESCE(result,''),
 		       COALESCE(created_by,''), created_at, started_at, completed_at,
 		       consecutive_failures, COALESCE(last_failure_error,'')
 		FROM tasks ORDER BY priority DESC, created_at DESC`)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	out := []Task{}
 	for rows.Next() {
 		var t Task
 		var started, completed sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Status, &t.Priority, &t.Assignee,
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Status, &t.Priority, &t.Assignee, &t.Executor, &t.Command,
 			&t.WorkspaceKind, &t.WorkspacePath, &t.Result, &t.CreatedBy, &t.CreatedAt,
-			&started, &completed, &t.Failures, &t.LastError); err != nil { return nil, err }
-		if started.Valid { v := started.Int64; t.StartedAt = &v }
-		if completed.Valid { v := completed.Int64; t.CompletedAt = &v }
+			&started, &completed, &t.Failures, &t.LastError); err != nil {
+			return nil, err
+		}
+		if started.Valid {
+			v := started.Int64
+			t.StartedAt = &v
+		}
+		if completed.Valid {
+			v := completed.Int64
+			t.CompletedAt = &v
+		}
 		out = append(out, t)
 	}
 	return out, rows.Err()
 }
 
 func CreateTask(slug string, t *Task) error {
-	if strings.TrimSpace(t.Title) == "" { return fmt.Errorf("title required") }
-	if t.Status == "" { t.Status = "todo" }
-	if !ValidStatuses[t.Status] { return fmt.Errorf("invalid status %q", t.Status) }
-	if t.Status == "running" { return fmt.Errorf("status 'running' is dispatcher-owned; use todo/ready/triage") }
-	if t.ID == "" { t.ID = newTaskID() }
-	if t.CreatedBy == "" { t.CreatedBy = "board-ui" }
-	if t.WorkspaceKind == "" { t.WorkspaceKind = "dir" }
+	if strings.TrimSpace(t.Title) == "" {
+		return fmt.Errorf("title required")
+	}
+	if t.Status == "" {
+		t.Status = "todo"
+	}
+	if !ValidStatuses[t.Status] {
+		return fmt.Errorf("invalid status %q", t.Status)
+	}
+	if t.Status == "running" {
+		return fmt.Errorf("status 'running' is dispatcher-owned; use todo/ready/triage")
+	}
+	if t.ID == "" {
+		t.ID = newTaskID()
+	}
+	if t.CreatedBy == "" {
+		t.CreatedBy = "board-ui"
+	}
+	if strings.TrimSpace(t.Executor) == "" {
+		t.Executor = "auto"
+	}
+	if !ValidExecutors[t.Executor] {
+		return fmt.Errorf("invalid executor %q", t.Executor)
+	}
+	if t.Executor == "shell" && strings.TrimSpace(t.Command) == "" {
+		return fmt.Errorf("shell executor requires command")
+	}
+	if t.WorkspaceKind == "" {
+		t.WorkspaceKind = "dir"
+	}
 	// Explicit workspace_path selected (existing behavior: dir workspace). Only
 	// board tasks without a path fall back to a managed scratch dir.
-	if t.WorkspacePath == "" { t.WorkspaceKind = "scratch" }
+	if t.WorkspacePath == "" {
+		t.WorkspaceKind = "scratch"
+	}
 	// Fail closed for remote paths: hermes dispatcher on this VPS runs `mkdir`
 	// on workspace_path locally. A Mac path like /Users/... does not exist here
 	// and `mkdir /Users` fails with Permission denied (t_0b6b086c, t_03ede921).
@@ -203,12 +288,16 @@ func CreateTask(slug string, t *Task) error {
 	t.Title = strings.TrimSpace(t.Title)
 	t.CreatedAt = time.Now().Unix()
 	db, err := openDB(slug)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer db.Close()
-	_, err = db.Exec(`INSERT INTO tasks (id, title, body, status, priority, assignee, workspace_kind, workspace_path, workspace_transport, workspace_ssh_target, created_by, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-		t.ID, t.Title, t.Body, t.Status, t.Priority, t.Assignee, t.WorkspaceKind, t.WorkspacePath, transport, target, t.CreatedBy, t.CreatedAt)
-	if err != nil { return err }
+	_, err = db.Exec(`INSERT INTO tasks (id, title, body, status, priority, assignee, executor, command, workspace_kind, workspace_path, workspace_transport, workspace_ssh_target, created_by, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		t.ID, t.Title, t.Body, t.Status, t.Priority, t.Assignee, t.Executor, t.Command, t.WorkspaceKind, t.WorkspacePath, transport, target, t.CreatedBy, t.CreatedAt)
+	if err != nil {
+		return err
+	}
 	return insertEvent(db, t.ID, "created", map[string]any{"source": "board-ui", "status": t.Status})
 }
 
@@ -229,10 +318,16 @@ func TaskStatus(slug, taskID string) (string, error) {
 }
 
 func StatusTransition(slug, taskID, to string) error {
-	if !ValidStatuses[to] { return fmt.Errorf("invalid status %q", to) }
-	if to == "running" { return fmt.Errorf("status 'running' is dispatcher-owned") }
+	if !ValidStatuses[to] {
+		return fmt.Errorf("invalid status %q", to)
+	}
+	if to == "running" {
+		return fmt.Errorf("status 'running' is dispatcher-owned")
+	}
 	db, err := openDB(slug)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer db.Close()
 	var current string
 	if err := db.QueryRow(`SELECT status FROM tasks WHERE id=?`, taskID).Scan(&current); err != nil {
@@ -243,7 +338,9 @@ func StatusTransition(slug, taskID, to string) error {
 	}
 	now := time.Now().Unix()
 	var completed any
-	if to == "done" || to == "archived" { completed = now }
+	if to == "done" || to == "archived" {
+		completed = now
+	}
 	if _, err := db.Exec(`UPDATE tasks SET status=?, completed_at=COALESCE(?, completed_at) WHERE id=?`, to, completed, taskID); err != nil {
 		return err
 	}
@@ -254,7 +351,9 @@ func ArchiveTask(slug, taskID string) error { return StatusTransition(slug, task
 
 func TaskEvents(slug, taskID string) ([]TaskEvent, error) {
 	db, err := openDB(slug)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer db.Close()
 	// payload column is `payload` on this host, `payload_json` on newer hermes — probe.
 	payloadCol := "payload"
@@ -266,18 +365,24 @@ func TaskEvents(slug, taskID string) ([]TaskEvent, error) {
 			var dflt any
 			var pk int
 			_ = rows2.Scan(&cid, &cname, &ctype, &nn, &dflt, &pk)
-			if cname == "payload_json" { payloadCol = "payload_json" }
+			if cname == "payload_json" {
+				payloadCol = "payload_json"
+			}
 		}
 		rows2.Close()
 	}
 	q := fmt.Sprintf(`SELECT id, task_id, kind, COALESCE(%s,''), created_at FROM task_events WHERE task_id=? ORDER BY id DESC LIMIT 100`, payloadCol)
 	rows, err := db.Query(q, taskID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	out := []TaskEvent{}
 	for rows.Next() {
 		var e TaskEvent
-		if err := rows.Scan(&e.ID, &e.TaskID, &e.Kind, &e.Payload, &e.CreatedAt); err != nil { return nil, err }
+		if err := rows.Scan(&e.ID, &e.TaskID, &e.Kind, &e.Payload, &e.CreatedAt); err != nil {
+			return nil, err
+		}
 		out = append(out, e)
 	}
 	return out, rows.Err()
@@ -287,7 +392,9 @@ func insertEvent(db *sql.DB, taskID, kind string, payload any) error {
 	raw, _ := json.Marshal(payload)
 	// hermes schema stores json payload in payload_json (newer) or payload (older)
 	cols, err := db.Query(`PRAGMA table_info(task_events)`)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer cols.Close()
 	name := "payload"
 	hasTS := false
@@ -297,9 +404,15 @@ func insertEvent(db *sql.DB, taskID, kind string, payload any) error {
 		var notNull int
 		var dflt any
 		var pk int
-		if err := cols.Scan(&cid, &cname, &ctype, &notNull, &dflt, &pk); err != nil { continue }
-		if cname == "payload_json" { name = "payload_json" }
-		if cname == "created_at" { hasTS = true }
+		if err := cols.Scan(&cid, &cname, &ctype, &notNull, &dflt, &pk); err != nil {
+			continue
+		}
+		if cname == "payload_json" {
+			name = "payload_json"
+		}
+		if cname == "created_at" {
+			hasTS = true
+		}
 	}
 	if hasTS {
 		q := fmt.Sprintf(`INSERT INTO task_events (task_id, kind, %s, created_at) VALUES (?,?,?,?)`, name)
@@ -327,7 +440,9 @@ func ListProfiles() ([]Profile, error) {
 	entries, err := os.ReadDir(root)
 	if err == nil {
 		for _, e := range entries {
-			if !e.IsDir() { continue }
+			if !e.IsDir() {
+				continue
+			}
 			p := Profile{Name: e.Name()}
 			raw, err := os.ReadFile(filepath.Join(root, e.Name(), "config.yaml"))
 			if err == nil {
@@ -370,15 +485,23 @@ func parseModelYAML(src string) (model, provider, baseURL string) {
 			inModel = true
 		case inModel && strings.HasPrefix(trimmed, "  "):
 			k, v, ok := strings.Cut(strings.TrimSpace(trimmed), ":")
-			if !ok { continue }
+			if !ok {
+				continue
+			}
 			v = strings.Trim(strings.TrimSpace(v), `'"`)
 			switch k {
 			case "default":
-				if model == "" { model = v }
+				if model == "" {
+					model = v
+				}
 			case "provider":
-				if provider == "" { provider = v }
+				if provider == "" {
+					provider = v
+				}
 			case "base_url":
-				if baseURL == "" { baseURL = v }
+				if baseURL == "" {
+					baseURL = v
+				}
 			}
 		case inModel && !strings.HasPrefix(trimmed, " "):
 			inModel = false
@@ -392,7 +515,9 @@ func parseModelYAML(src string) (model, provider, baseURL string) {
 // would crash the worker at startup (invalid provider).
 func Assign(slug, taskID, profile string) error {
 	db, err := openDB(slug)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer db.Close()
 	var current string
 	if err := db.QueryRow(`SELECT status FROM tasks WHERE id=?`, taskID).Scan(&current); err != nil {
@@ -404,7 +529,9 @@ func Assign(slug, taskID, profile string) error {
 	profile = strings.TrimSpace(profile)
 	if profile != "" {
 		profiles, err := ListProfiles()
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		found := false
 		for _, p := range profiles {
 			if p.Name == profile {

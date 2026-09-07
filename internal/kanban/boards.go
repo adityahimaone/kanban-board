@@ -22,16 +22,26 @@ func PatchBoard(slug, name, icon, color string) (*Board, error) {
 		return nil, err
 	}
 	b := Board{Slug: slug}
-	if v, ok := meta["icon"].(string); ok { b.Icon = v }
-	if v, ok := meta["color"].(string); ok { b.Color = v }
+	if v, ok := meta["icon"].(string); ok {
+		b.Icon = v
+	}
+	if v, ok := meta["color"].(string); ok {
+		b.Color = v
+	}
 	if name != "" {
 		meta["name"] = name
 		b.Name = name
 	} else if v, ok := meta["name"].(string); ok {
 		b.Name = v
 	}
-	if icon != "" { meta["icon"] = icon; b.Icon = icon }
-	if color != "" { meta["color"] = color; b.Color = color }
+	if icon != "" {
+		meta["icon"] = icon
+		b.Icon = icon
+	}
+	if color != "" {
+		meta["color"] = color
+		b.Color = color
+	}
 	out, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		return nil, err

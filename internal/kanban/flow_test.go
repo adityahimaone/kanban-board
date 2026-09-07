@@ -16,7 +16,9 @@ func TestFlowStageForTaskStatus(t *testing.T) {
 		{"remote todo enters dispatch lane", "todo", "ssh", FlowDispatched, true},
 		{"remote ready enters dispatch lane", "ready", "ssh", FlowDispatched, true},
 		{"remote running enters worker lane", "running", "ssh", FlowRunning, true},
-		{"local todo stays out of remote flow", "todo", "", "", false},
+		{"board todo enters dispatch lane", "todo", "", FlowDispatched, true},
+		{"board ready enters dispatch lane", "ready", "", FlowDispatched, true},
+		{"local running stays out of flow", "running", "", "", false},
 		{"review leaves active flow", "review", "ssh", "", false},
 	}
 	for _, tt := range tests {

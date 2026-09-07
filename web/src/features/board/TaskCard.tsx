@@ -2,7 +2,7 @@ import type { Profile, Status, Task, Workspace } from "../../api"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Apple, ExternalLink, HardDrive, Laptop, X } from "lucide-react"
+import { Apple, ExternalLink, HardDrive, Laptop, Square, X } from "lucide-react"
 import { RunningIndicator } from "./AgentStatus"
 
 const STATUS_TARGETS: Record<Status, Status[]> = {
@@ -10,7 +10,7 @@ const STATUS_TARGETS: Record<Status, Status[]> = {
   todo: ["ready", "blocked", "triage"],
   scheduled: ["ready", "todo"],
   ready: ["todo", "blocked"],
-  running: ["blocked", "review", "done"],
+  running: [],
   blocked: ["todo", "ready"],
   review: ["done", "blocked", "todo"],
   done: [],
@@ -37,13 +37,14 @@ function OsInfo({ ws }: { ws?: Workspace }) {
   return null
 }
 
-export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPage, onMove, onReassign }: {
+export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign }: {
   task: Task
   profiles: Profile[]
   workspaces?: Workspace[]
   onOpen: () => void
   onOpenPage: () => void
   onMove: (s: Status) => void
+  onStop: () => void
   onReassign: (a: string) => void
 }) {
   const targets = STATUS_TARGETS[task.status] ?? []
@@ -120,8 +121,16 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
       </div>
 
       {/* status moves — hover only */}
-      {targets.length > 0 && (
+      {(targets.length > 0 || task.status === "running") && (
         <div className="mt-2 flex flex-wrap gap-1 border-t border-[#1e2430]/40 pt-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          {task.status === "running" && (
+            <button
+              onClick={onStop}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200"
+            >
+              <Square className="size-2.5 fill-current" /> stop
+            </button>
+          )}
           {targets.map((s) => (
             <button
               key={s}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent, type Workspace } from "../../api"
-import { Apple, ExternalLink, HardDrive, Laptop, Monitor } from "lucide-react"
+import { Apple, ExternalLink, HardDrive, Laptop, Monitor, Square } from "lucide-react"
 import { AgentTaskStatus, splitAgentResult } from "./AgentStatus"
 
 const STATUS_CHIP: Record<string, string> = {
@@ -40,6 +40,7 @@ export default function TaskDetail({
   workspaces,
   onClose,
   onMove,
+  onStop,
   onReassign,
   onOpenPage,
 }: {
@@ -49,6 +50,7 @@ export default function TaskDetail({
   workspaces: Workspace[]
   onClose: () => void
   onMove: (s: Status) => Promise<void>
+  onStop: () => Promise<void>
   onReassign: (a: string) => Promise<void>
   onOpenPage: () => void
 }) {
@@ -130,6 +132,7 @@ export default function TaskDetail({
               : "scratch"}
           </Row>
           <Row label="Kind">{task.workspace_kind || "dir"}</Row>
+          <Row label="Execution">{task.executor || "auto"}{task.command ? " · " + task.command : ""}</Row>
           <Row label="Dibuat">{new Date(task.created_at * 1000).toLocaleString()}</Row>
           {task.started_at && <Row label="Mulai">{new Date(task.started_at * 1000).toLocaleString()}</Row>}
           {task.completed_at && <Row label="Selesai">{new Date(task.completed_at * 1000).toLocaleString()}</Row>}
@@ -174,7 +177,17 @@ export default function TaskDetail({
 
         {/* status moves */}
         <div className="flex flex-wrap gap-1.5">
-          {COLUMNS.filter((s) => s !== task.status).map((s) => (
+          {task.status === "running" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onStop().catch((e: Error) => alert(e.message))}
+              className="h-6 gap-1 rounded border-red-500/40 px-2 text-[10px] text-red-300 hover:bg-red-500/10 hover:text-red-200"
+            >
+              <Square className="size-2.5 fill-current" /> Stop task
+            </Button>
+          )}
+          {task.status !== "running" && COLUMNS.filter((s) => s !== task.status).map((s) => (
             <Button
               key={s}
               variant="outline"

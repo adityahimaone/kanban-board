@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Profile, type Status, type Task, type TaskComment, type TaskEvent, type Workspace } from "../../api"
 import { parseEventCards, TONE_BORDER, TONE_DOT, TONE_TEXT } from "./eventCards"
-import { ArrowLeft, Loader2, Send } from "lucide-react"
+import { ArrowLeft, Loader2, Send, Square } from "lucide-react"
 import { AgentTaskStatus, splitAgentResult } from "./AgentStatus"
 
 const STATUS_CHIP: Record<string, string> = {
@@ -107,18 +107,18 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
 
 function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDone: () => void }) {
   const qc = useQueryClient()
-  const [action, setAction] = useState<"commit" | "commit_push" | null>(null)
+  const [action, setAction] = useState<"done" | "commit" | "commit_push" | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
   const diff = useQuery({
     queryKey: ["diff", slug, task.id],
-    queryFn: () => api<{ stat: string; diff: string }>(`/api/boards/${slug}/tasks/${task.id}/diff`),
+    queryFn: () => api<{ stat: string; diff: string; clean: boolean }>(`/api/boards/${slug}/tasks/${task.id}/diff`),
     enabled: task.status === "review",
     retry: false,
   })
 
   const approve = useMutation({
-    mutationFn: (a: "commit" | "commit_push") =>
+    mutationFn: (a: "done" | "commit" | "commit_push") =>
       api<{ status: string }>(`/api/boards/${slug}/tasks/${task.id}/approve`, {
         method: "POST",
         body: JSON.stringify({ action: a }),
@@ -140,23 +140,20 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
         {diff.isLoading && <Loader2 className="size-3 animate-spin text-violet-300" />}
         {diff.data && <span className="text-[10px] text-neutral-500">{diff.data.stat.split("\n").filter(Boolean).length} files</span>}
         <div className="ml-auto flex items-center gap-1.5">
-          <Select value={action ?? ""} onValueChange={(v) => setAction(v as "commit" | "commit_push")}>
-            <SelectTrigger className="h-7 w-[150px] border-[#1e2430] bg-[#11151f] text-[11px]">
-              <SelectValue placeholder="Pilih aksi…" />
-            </SelectTrigger>
-            <SelectContent className="border-[#1e2430] bg-[#11151f]">
-              <SelectItem value="commit" className="text-xs">Commit</SelectItem>
-              <SelectItem value="commit_push" className="text-xs">Commit & Push</SelectItem>
-            </SelectContent>
-          </Select>
+          {diff.data?.clean ? <span className="text-[10px] text-neutral-500">No changes</span> : (
+            <Select value={action ?? ""} onValueChange={(v) => setAction(v as "commit" | "commit_push")}>
+              <SelectTrigger className="h-7 w-[150px] border-[#1e2430] bg-[#11151f] text-[11px]"><SelectValue placeholder="Pilih aksi…" /></SelectTrigger>
+              <SelectContent className="border-[#1e2430] bg-[#11151f]"><SelectItem value="commit" className="text-xs">Commit</SelectItem><SelectItem value="commit_push" className="text-xs">Commit & Push</SelectItem></SelectContent>
+            </Select>
+          )}
           <Button
             size="sm"
-            disabled={!action || approve.isPending}
-            onClick={() => { setErr(null); approve.mutate(action!) }}
+            disabled={(!action && !diff.data?.clean) || approve.isPending}
+            onClick={() => { setErr(null); approve.mutate(diff.data?.clean ? "done" : action!) }}
             className="h-7 gap-1 bg-violet-500 text-white hover:bg-violet-400"
           >
             {approve.isPending ? <Loader2 className="size-3 animate-spin" /> : null}
-            Approve
+            {diff.data?.clean ? "Mark done" : "Approve"}
           </Button>
         </div>
       </div>
@@ -175,6 +172,7 @@ export default function TaskDetailPage({
   workspaces,
   onBack,
   onMove,
+  onStop,
   onReassign,
 }: {
   slug: string
@@ -183,6 +181,7 @@ export default function TaskDetailPage({
   workspaces: Workspace[]
   onBack: () => void
   onMove: (s: Status) => Promise<void>
+  onStop: () => Promise<void>
   onReassign: (a: string) => Promise<void>
 }) {
   const events = useQuery({
@@ -291,7 +290,17 @@ export default function TaskDetailPage({
 
         {/* status moves */}
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {COLUMNS.filter((s) => s !== task.status).map((s) => (
+          {task.status === "running" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onStop().catch((e: Error) => alert(e.message))}
+              className="h-6 gap-1 rounded border-red-500/40 px-2 text-[10px] text-red-300 hover:bg-red-500/10 hover:text-red-200"
+            >
+              <Square className="size-2.5 fill-current" /> Stop task
+            </Button>
+          )}
+          {task.status !== "running" && COLUMNS.filter((s) => s !== task.status).map((s) => (
             <Button
               key={s}
               variant="outline"

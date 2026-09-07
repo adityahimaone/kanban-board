@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { Kanban, Settings } from "lucide-react"
+import { Settings } from "lucide-react"
 import { SidebarFooter } from "@/components/ui/sidebar"
 import { useSidebarPreferences, type Page } from "@/lib/sidebar-preferences"
 
@@ -31,8 +31,8 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="Kanban" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release onClick={() => onSelectPage("board")}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[#10e0dd] text-black">
-                <Kanban className="size-4" />
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[#10e0dd] p-1.5">
+                <img src="/brand/kanban-logo.png" alt="" aria-hidden="true" className="size-full object-contain" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">Kanban</span>

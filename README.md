@@ -1,16 +1,24 @@
 # kanban-board
 
-Control plane untuk alur coding agent Adit. Aplikasi ini menyimpan board dan task, memilih workspace, mengklaim task, mengirim pekerjaan ke executor, lalu menahan hasil di kolom `review` sampai perubahan diperiksa dan di-approve.
+Control plane untuk alur coding agent. Aplikasi ini menyimpan board dan task, memilih workspace, mengklaim task, mengirim pekerjaan ke executor, lalu menahan hasil di kolom `review` sampai perubahan diperiksa dan di-approve.
 
 Stack: Go, SQLite, React, Vite, dan node-agent melalui HTTP long-poll.
 
 ## System model
 
-```text
-Task intent -> dispatcher tunggal di VPS -> node-agent server :8788
-           -> agent pada host workspace
-           -> executor AI atau internal shell dispatch
-           -> result -> review -> approval -> done
+```mermaid
+flowchart LR
+  U[Task intent] --> K[Kanban board]
+  K --> D[Single dispatcher]
+  D --> S[Node-agent server<br/>queue + auth]
+  S --> T[Tailscale transport]
+  T --> M[Mac worker]
+  T --> W[Windows worker]
+  M --> E[Executor runtime]
+  W --> E
+  E --> R[Result]
+  R --> G[Review gate]
+  G --> K
 ```
 
 VPS menjalankan control plane dan scheduler. Node-agent menjalankan execution plane pada host yang memiliki source code. Workspace remote tidak pernah dipakai sebagai `cwd` oleh proses lokal VPS. Workspace `/Users/...` dan `C:\...` dirutekan ke host terdaftar.
@@ -96,7 +104,7 @@ Kanban mengirim payload berikut ke `POST /api/dispatch`:
   "task_id":"t1",
   "board":"saas",
   "message":"Perbaiki validasi login",
-  "workspace":"/Users/aditya/Development/saas",
+  "workspace":"/Users/<user>/Development/saas",
   "executor":"codex"
 }
 ```
@@ -108,7 +116,7 @@ Saat register, node mengumumkan capability:
 ```json
 {
   "node_id":"mac",
-  "workspaces":["/Users/aditya/Development"],
+  "workspaces":["/Users/<user>/Development"],
   "executors":["hermes","codex","commandcode","shell"],
   "versions":{"commandcode":"..."}
 }
@@ -116,7 +124,7 @@ Saat register, node mengumumkan capability:
 
 Server memilih node berdasarkan prefix workspace dan capability executor. Jika executor eksplisit tidak tersedia, dispatch ditolak dengan error `executor unavailable`.
 
-Detail worker ada di repository [node-agent](https://github.com/adityahimaone/node-agent).
+Detail worker ada di repository `node-agent`.
 
 ## Workspace
 
@@ -127,7 +135,7 @@ Sumber kebenaran workspace adalah `~/.hermes/workspaces.json`.
   "workspaces": [
     {
       "id":"saas",
-      "path":"/Users/aditya/Development/saas",
+      "path":"/Users/<user>/Development/saas",
       "host":"mac-tailscale",
       "os":"mac",
       "note":"PHP legacy. Jangan commit dari agent."
@@ -234,7 +242,7 @@ Itu perilaku yang diharapkan. Buka diff, lalu pilih `Commit` atau `Commit & Push
 ## Dokumen terkait
 
 - [Single dispatcher dan review gate](docs/specs/2026-09-07-single-dispatcher-review-gate-design.md)
-- [node-agent](https://github.com/adityahimaone/node-agent)
+- `node-agent` repository
 - [Command Code headless mode](https://commandcode.ai/docs/headless)
 - [Command Code CLI reference](https://commandcode.ai/docs/reference/cli)
 - [RTK](https://github.com/rtk-ai/rtk)

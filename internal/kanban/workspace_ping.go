@@ -11,8 +11,8 @@ import (
 
 // PingPoint is one probe result kept for the wave + logs.
 type PingPoint struct {
-	At  int64    `json:"at"`            // unix seconds
-	Ms  *float64 `json:"ms,omitempty"`  // latency ms when measured
+	At  int64    `json:"at"`           // unix seconds
+	Ms  *float64 `json:"ms,omitempty"` // latency ms when measured
 	Ok  bool     `json:"ok"`
 	Msg string   `json:"msg,omitempty"` // status_message truncated
 }

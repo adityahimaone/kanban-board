@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	syscall "syscall"
 	"time"
 
 	"kanban-board/internal/kanban"
@@ -22,12 +25,54 @@ import (
 // success lands in 'review', never 'done' — approval via /approve only.
 func StartSSHDispatcher() {
 	go func() {
-		for {
-			time.Sleep(30 * time.Second)
+		dispatchSSHTasks()
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
 			dispatchSSHTasks()
 		}
 	}()
 	log.Println("ssh-dispatcher: started (poll 30s)")
+}
+
+var activeRuns = struct {
+	sync.Mutex
+	cancels map[string]context.CancelFunc
+	stopped map[string]bool
+}{cancels: map[string]context.CancelFunc{}, stopped: map[string]bool{}}
+
+func beginTaskRun(taskID string) (context.Context, func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	activeRuns.Lock()
+	activeRuns.cancels[taskID] = cancel
+	if activeRuns.stopped[taskID] {
+		cancel()
+	}
+	activeRuns.Unlock()
+	return ctx, func() {
+		activeRuns.Lock()
+		delete(activeRuns.cancels, taskID)
+		delete(activeRuns.stopped, taskID)
+		activeRuns.Unlock()
+	}
+}
+
+func requestTaskStop(taskID string) bool {
+	activeRuns.Lock()
+	defer activeRuns.Unlock()
+	activeRuns.stopped[taskID] = true
+	cancel := activeRuns.cancels[taskID]
+	if cancel == nil {
+		return false
+	}
+	cancel()
+	return true
+}
+
+func taskStopRequested(taskID string) bool {
+	activeRuns.Lock()
+	defer activeRuns.Unlock()
+	return activeRuns.stopped[taskID]
 }
 
 // hardGuardTransport is the permanent exit-code-3 killer: any todo task whose
@@ -59,16 +104,16 @@ func dispatchSSHTasks() {
 		if err != nil {
 			continue
 		}
-		rows, err := db.Query(`SELECT id, title, COALESCE(body,''), workspace_path, COALESCE(workspace_transport,''), COALESCE(workspace_ssh_target,'') FROM tasks WHERE status IN ('todo','ready') AND workspace_path IS NOT NULL AND workspace_path != '' LIMIT 1`)
+		rows, err := db.Query(`SELECT id, title, COALESCE(body,''), workspace_path, COALESCE(workspace_transport,''), COALESCE(workspace_ssh_target,''), COALESCE(executor,'auto'), COALESCE(command,'') FROM tasks WHERE status IN ('todo','ready') AND workspace_path IS NOT NULL AND workspace_path != '' LIMIT 1`)
 		if err != nil {
 			db.Close()
 			continue
 		}
-		type row struct{ id, title, body, ws, transport, sshTarget string }
+		type row struct{ id, title, body, ws, transport, sshTarget, executor, command string }
 		var pending []row
 		for rows.Next() {
 			var r row
-			if err := rows.Scan(&r.id, &r.title, &r.body, &r.ws, &r.transport, &r.sshTarget); err == nil && r.ws != "" {
+			if err := rows.Scan(&r.id, &r.title, &r.body, &r.ws, &r.transport, &r.sshTarget, &r.executor, &r.command); err == nil && r.ws != "" {
 				pending = append(pending, r)
 			}
 		}
@@ -98,15 +143,33 @@ func dispatchSSHTasks() {
 				target = "mac-tailscale"
 			}
 
-			log.Printf("ssh-dispatcher: running %s (%s) via hermes chat + SSH to %s", r.id, b.Slug, target)
+			log.Printf("ssh-dispatcher: running %s (%s) executor=%s target=%s", r.id, b.Slug, r.executor, target)
 			// sync Flow view: orchestrator (VPS hermes) -> mac lane while running
 			node := "mac"
 			if target == "windows-tailscale" {
 				node = "windows"
 			}
-			kanban.FlowTrack(r.id, r.title, b.Slug, node, kanban.FlowRunning)
+			kanban.FlowTrackExecutor(r.id, r.title, b.Slug, node, r.executor, kanban.FlowRunning)
 
-			output, success := runHemesViaSSH(r.id, r.title, msg, r.ws, target, b.Slug)
+			var output string
+			var success bool
+			if r.executor != "" && r.executor != "auto" {
+				res, err := kanban.DispatchRemote(kanban.NodeDispatchRequest{
+					TaskID: r.id, Title: r.title, Board: b.Slug, Message: msg,
+					Workspace: r.ws, Executor: r.executor, Command: r.command,
+				}, 10*time.Minute)
+				if err != nil {
+					output = err.Error()
+				} else if res != nil {
+					output, success = res.Output, res.Success
+					if !success && res.Error != "" {
+						output += "\n" + res.Error
+					}
+				}
+			} else {
+				output, success = runHemesViaSSH(r.id, r.title, msg, r.ws, target, b.Slug)
+			}
+			stopped := taskStopRequested(r.id)
 
 			// reopen DB for result write
 			db2, err := sql.Open("sqlite", "file:"+dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
@@ -114,10 +177,14 @@ func dispatchSSHTasks() {
 				continue
 			}
 			now := time.Now().Unix()
-			if success {
+			if stopped {
+				_, _ = db2.Exec(`UPDATE tasks SET status='blocked', completed_at=?, last_failure_error=? WHERE id=?`, now, "stopped by user", r.id)
+				kanban.FlowTrackExecutor(r.id, r.title, b.Slug, node, r.executor, kanban.FlowFailed)
+				log.Printf("ssh-dispatcher: %s stopped by user", r.id)
+			} else if success {
 				// review gate: success NEVER lands done — approve flow moves it
 				_, _ = db2.Exec(`UPDATE tasks SET status='review', completed_at=?, result=? WHERE id=?`, now, output, r.id)
-				kanban.FlowTrack(r.id, r.title, b.Slug, node, kanban.FlowDone)
+				kanban.FlowTrackExecutor(r.id, r.title, b.Slug, node, r.executor, kanban.FlowDone)
 				log.Printf("ssh-dispatcher: %s completed -> review", r.id)
 			} else {
 				failures := 1
@@ -128,7 +195,7 @@ func dispatchSSHTasks() {
 				}
 				_, _ = db2.Exec(`UPDATE tasks SET status=?, consecutive_failures=?, last_failure_error=?, completed_at=? WHERE id=?`,
 					newStatus, failures, truncate(output, 500), now, r.id)
-				kanban.FlowTrack(r.id, r.title, b.Slug, node, kanban.FlowFailed)
+				kanban.FlowTrackExecutor(r.id, r.title, b.Slug, node, r.executor, kanban.FlowFailed)
 				log.Printf("ssh-dispatcher: %s failed (attempt %d): %s", r.id, failures, truncate(output, 200))
 			}
 			db2.Close()
@@ -140,6 +207,8 @@ func dispatchSSHTasks() {
 }
 
 func runHemesViaSSH(taskID, title, message, workspacePath, sshTarget, board string) (string, bool) {
+	ctx, cleanup := beginTaskRun(taskID)
+	defer cleanup()
 	systemPrompt := fmt.Sprintf(`You are a coding agent running on a VPS. The project files are on a remote Mac accessible via SSH.
 
 WORKSPACE: %s (on Mac, SSH target: %s)
@@ -168,7 +237,8 @@ Be concise. Do the work. Don't ask questions.`,
 	fullPrompt := fmt.Sprintf("%s\n\nTask details:\n%s", systemPrompt, message)
 
 	// Run hermes chat on VPS (oneshot: answer and exit, no TTY hang)
-	cmd := exec.Command("hermes", "chat", "-q", fullPrompt, "--oneshot", "--cli")
+	cmd := exec.CommandContext(ctx, "hermes", "chat", "-q", fullPrompt, "--oneshot", "--cli")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

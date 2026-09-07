@@ -2,8 +2,8 @@ import { elbowPath, pathLength } from "./elbow"
 import type { FlowStage } from "./useFlowTasks"
 
 export type FlowNodeId =
-  | "orchestrator" | "kanban" | "memory" | "node-agent-server"
-  | "tailscale" | "mac" | "windows"
+  | "orchestrator" | "kanban" | "dispatcher" | "memory" | "node-agent-server"
+  | "tailscale" | "mac" | "windows" | "review"
 
 export type Side = "left" | "right" | "top" | "bottom"
 
@@ -14,22 +14,28 @@ export interface LayoutEdge { from: FlowNodeId; to: FlowNodeId }
 
 // distinct hue per card (icon badge + count badge + active border)
 export const NODES: LayoutNode[] = [
-  { id: "orchestrator",      label: "Orchestrator",      sub: "VPS hermes · 9router",   row: 0, col: 1, hue: "#10e0dd" },
-  { id: "kanban",            label: "Kanban",            sub: "task_events · sqlite",   row: 1, col: 0, hue: "#9a5cff" },
-  { id: "memory",            label: "Memory",            sub: "holographic fact_store", row: 1, col: 2, hue: "#6366f1" },
-  { id: "node-agent-server", label: "node-agent",        sub: "long-poll + auth",       row: 2, col: 1, hue: "#f09a2f" },
-  { id: "tailscale",         label: "Tailscale",         sub: "tailnet · direct",       row: 3, col: 1, hue: "#38bdf8" },
-  { id: "mac",               label: "Mac",               sub: "launchd dial-out",       row: 4, col: 0, hue: "#ec4899" },
-  { id: "windows",           label: "Windows",           sub: "scheduled task",         row: 4, col: 2, hue: "#3b82f6" },
+  { id: "orchestrator",      label: "Orchestrator",      sub: "intent + memory",        row: 0, col: 1, hue: "#10e0dd" },
+  { id: "kanban",            label: "Kanban",            sub: "SQLite · task lifecycle", row: 1, col: 0, hue: "#9a5cff" },
+  { id: "dispatcher",        label: "Dispatcher",        sub: "claim · resolve route",  row: 1, col: 1, hue: "#f59e0b" },
+  { id: "memory",            label: "Memory",            sub: "fact store",              row: 1, col: 2, hue: "#6366f1" },
+  { id: "node-agent-server", label: "Node-agent server", sub: "queue · auth · capability", row: 2, col: 1, hue: "#f09a2f" },
+  { id: "tailscale",         label: "Tailscale",         sub: "tailnet transport",       row: 3, col: 1, hue: "#38bdf8" },
+  { id: "mac",               label: "Mac worker",        sub: "launchd · workspace",     row: 4, col: 0, hue: "#ec4899" },
+  { id: "windows",           label: "Windows worker",    sub: "scheduled task · workspace", row: 4, col: 2, hue: "#3b82f6" },
+  { id: "review",            label: "Review gate",       sub: "diff · approve · commit", row: 5, col: 1, hue: "#22c55e" },
 ]
 
 export const EDGES: LayoutEdge[] = [
   { from: "orchestrator", to: "kanban" },
   { from: "orchestrator", to: "memory" },
-  { from: "orchestrator", to: "node-agent-server" },
+  { from: "kanban", to: "dispatcher" },
+  { from: "dispatcher", to: "node-agent-server" },
   { from: "node-agent-server", to: "tailscale" },
   { from: "tailscale", to: "mac" },
   { from: "tailscale", to: "windows" },
+  { from: "mac", to: "review" },
+  { from: "windows", to: "review" },
+  { from: "review", to: "kanban" },
 ]
 
 export const nodeMap = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<FlowNodeId, LayoutNode>
@@ -39,11 +45,16 @@ export function rowOf(id: FlowNodeId): number {
 }
 
 export function channelPath(stage: FlowStage, nodeId: string): FlowNodeId[] {
-  if (stage === "dispatched") return ["kanban", "node-agent-server"]
+  if (stage === "dispatched") return ["kanban", "dispatcher", "node-agent-server"]
   if (stage === "running") {
-    if (nodeId === "windows") return ["node-agent-server", "tailscale", "windows"]
-    if (nodeId === "mac") return ["node-agent-server", "tailscale", "mac"]
-    return ["orchestrator", "node-agent-server"]
+    if (nodeId === "windows") return ["dispatcher", "node-agent-server", "tailscale", "windows"]
+    if (nodeId === "mac") return ["dispatcher", "node-agent-server", "tailscale", "mac"]
+    return ["kanban", "dispatcher", "node-agent-server"]
+  }
+  if (stage === "done" || stage === "failed") {
+    if (nodeId === "windows") return ["windows", "review", "kanban"]
+    if (nodeId === "mac") return ["mac", "review", "kanban"]
+    return ["node-agent-server", "review", "kanban"]
   }
   return []
 }
@@ -76,11 +87,12 @@ export function channelDistances(
 
 // which single node represents the task for glow/badge (null = legend only)
 export function stageNode(stage: FlowStage, nodeId: string): FlowNodeId | null {
-  if (stage === "dispatched") return "node-agent-server"
+  if (stage === "dispatched") return "dispatcher"
   if (stage === "running") {
     if (nodeId === "mac") return "mac"
     if (nodeId === "windows") return "windows"
     return nodeId ? "node-agent-server" : "orchestrator"
   }
+  if (stage === "done" || stage === "failed") return "review"
   return null
 }

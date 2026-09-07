@@ -34,16 +34,16 @@ func dispatchPendingRemoteTasks() {
 		if err != nil {
 			continue
 		}
-		rows, err := db.Query(`SELECT id, title, COALESCE(body,''), workspace_path FROM tasks WHERE status='todo' AND workspace_transport='ssh' LIMIT 5`)
+		rows, err := db.Query(`SELECT id, title, COALESCE(body,''), workspace_path, COALESCE(executor,'auto'), COALESCE(command,'') FROM tasks WHERE status='todo' AND workspace_transport='ssh' LIMIT 5`)
 		if err != nil {
 			db.Close()
 			continue
 		}
-		type row struct{ id, title, body, ws string }
+		type row struct{ id, title, body, ws, executor, command string }
 		var pending []row
 		for rows.Next() {
 			var r row
-			if err := rows.Scan(&r.id, &r.title, &r.body, &r.ws); err == nil && r.ws != "" {
+			if err := rows.Scan(&r.id, &r.title, &r.body, &r.ws, &r.executor, &r.command); err == nil && r.ws != "" {
 				pending = append(pending, r)
 			}
 		}
@@ -61,6 +61,8 @@ func dispatchPendingRemoteTasks() {
 				Board:     b.Slug,
 				Message:   msg,
 				Workspace: r.ws,
+				Executor:  r.executor,
+				Command:   r.command,
 			}
 			log.Printf("remote-dispatcher: dispatching %s (%s) via node-agent", r.id, b.Slug)
 			_, err := kanban.DispatchRemote(req, 10*time.Minute)

@@ -86,6 +86,12 @@ export default function App() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
   })
 
+  const stop = useMutation({
+    mutationFn: (id: string) =>
+      api(`/api/boards/${slug}/tasks/${id}/stop`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
+  })
+
   const active = (boards.data ?? []).filter((b) => b.slug !== "archived")
   const currentBoard = active.find((b) => b.slug === slug) ?? null
 
@@ -166,6 +172,7 @@ export default function App() {
                   onOpen={() => setDetail(t)}
                   onOpenPage={() => { setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
                   onMove={(s) => move.mutate({ id: t.id, status: s })}
+                  onStop={() => { stop.mutate(t.id) }}
                   onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
                   profiles={profiles.data ?? []}
                   workspaces={workspaces.data ?? []}
@@ -323,6 +330,7 @@ export default function App() {
                 workspaces={workspaces.data ?? []}
                 onBack={() => { setDetailId(null); go(pagePath("board", slug)) }}
                 onMove={(s) => move.mutateAsync({ id: detailPage.id, status: s }).then(() => undefined)}
+                onStop={() => stop.mutateAsync(detailPage.id).then(() => undefined)}
                 onReassign={(a) => reassign.mutateAsync({ id: detailPage.id, assignee: a }).then(() => undefined)}
               />
             )}
@@ -373,6 +381,7 @@ export default function App() {
           workspaces={workspaces.data ?? []}
           onClose={() => setDetail(null)}
           onMove={(s) => move.mutateAsync({ id: detail.id, status: s }).then(() => setDetail({ ...detail, status: s }))}
+          onStop={() => stop.mutateAsync(detail.id).then(() => setDetail({ ...detail, status: "blocked" }))}
           onReassign={(a) =>
             reassign.mutateAsync({ id: detail.id, assignee: a }).then(() => setDetail({ ...detail, assignee: a }))
           }

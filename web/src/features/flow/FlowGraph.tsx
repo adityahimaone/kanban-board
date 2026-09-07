@@ -1,5 +1,5 @@
 import { useRef, useState, useLayoutEffect, useCallback, useMemo } from "react"
-import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban, ZoomIn, ZoomOut, Maximize, RotateCcw } from "lucide-react"
+import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban, GitPullRequest, ZoomIn, ZoomOut, Maximize, RotateCcw } from "lucide-react"
 import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, channelDistances, stageNode, type FlowNodeId, type Point } from "./layout"
 import { elbowPath, elbowPathV, elbowJoints, pathLength } from "./elbow"
 import { FlowNodeCard } from "./FlowNodeCard"
@@ -20,11 +20,13 @@ const MAX_SCALE = 2
 const NODE_ICON: Record<FlowNodeId, typeof Brain> = {
   orchestrator: Brain,
   kanban: Kanban,
+  dispatcher: Server,
   memory: Database,
   "node-agent-server": Server,
   tailscale: Radio,
   mac: Laptop,
   windows: AppWindow,
+  review: GitPullRequest,
 }
 
 /** Edge geometry between two nodes, direction-aware: exit side of `from` and
