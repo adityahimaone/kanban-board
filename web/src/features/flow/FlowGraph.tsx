@@ -1,5 +1,5 @@
 import { useRef, useState, useLayoutEffect, useCallback, useMemo } from "react"
-import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban } from "lucide-react"
+import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban, ZoomIn, ZoomOut, Maximize, RotateCcw } from "lucide-react"
 import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, channelDistances, stageNode, type FlowNodeId, type Point } from "./layout"
 import { elbowPath, elbowPathV, elbowJoints, pathLength } from "./elbow"
 import { FlowNodeCard } from "./FlowNodeCard"
@@ -13,6 +13,9 @@ const PAD_X = 80
 const PAD_TOP = 60
 const CARD_W = 210
 const CARD_H = 56 // fixed FlowNodeCard height (h-14) — anchors must match
+
+const MIN_SCALE = 0.4
+const MAX_SCALE = 2
 
 const NODE_ICON: Record<FlowNodeId, typeof Brain> = {
   orchestrator: Brain,
@@ -57,6 +60,18 @@ function edgeAnchorsFor(
   return [from, to, elbowJoints(from, to, midX), elbowPath(from, to, midX)]
 }
 
+/** bbox of all node cards (graph content bounds, in graph coords) */
+function contentBounds(posOf: (id: FlowNodeId) => Point) {
+  const pts = NODES.map((n) => posOf(n.id))
+  const minX = Math.min(...pts.map((p) => p.x)) - CARD_W / 2
+  const maxX = Math.max(...pts.map((p) => p.x)) + CARD_W / 2
+  const minY = Math.min(...pts.map((p) => p.y)) - CARD_H / 2
+  const maxY = Math.max(...pts.map((p) => p.y)) + CARD_H / 2
+  return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY }
+}
+
+type View = { scale: number; x: number; y: number } // x,y = translate in viewport px
+
 export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
   const ref = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ w: 900, h: 600 })
@@ -64,6 +79,13 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
   // edges stay attached exactly at card mid-sides while dragging.
   const [overrides, setOverrides] = useState<Partial<Record<FlowNodeId, Point>>>({})
   const dragRef = useRef<{ id: FlowNodeId; dx: number; dy: number } | null>(null)
+
+  // viewport (zoom/pan). null = auto "fit & center" mode recomputed per dims.
+  const [view, setView] = useState<View | null>(null)
+  const maxRow = Math.max(...NODES.map((n) => n.row))
+  const maxCol = Math.max(...NODES.map((n) => n.col))
+  const svgH = (maxRow + 1) * ROW_H + PAD_TOP * 2
+  const svgW = (maxCol + 1) * COL_W + PAD_X * 2
 
   useLayoutEffect(() => {
     if (!ref.current) return
@@ -74,15 +96,57 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
     return () => ro.disconnect()
   }, [])
 
-  const maxRow = Math.max(...NODES.map((n) => n.row))
-  const maxCol = Math.max(...NODES.map((n) => n.col))
-  const svgH = (maxRow + 1) * ROW_H + PAD_TOP * 2
-  const svgW = (maxCol + 1) * COL_W + PAD_X * 2
+  // auto fit: whole graph centered both axes (used whenever view === null,
+  // incl. first load -> graph starts dead-center)
+  const bounds = useMemo(() => contentBounds(posOfNoOverride), [])
+  function posOfNoOverride(id: FlowNodeId): Point {
+    const n = nodeMap[id]
+    return { x: PAD_X + n.col * COL_W + COL_W / 2, y: PAD_TOP + n.row * ROW_H + ROW_H / 2 }
+  }
 
-  // fit-to-width, centered both axes
-  const scale = Math.min(1, dims.w / svgW)
-  const offX = Math.max(0, (dims.w - svgW * scale) / 2) / scale
-  const offY = Math.max(0, (dims.h - svgH * scale) / 2) / scale
+  const fit = useMemo(() => {
+    const pad = 24
+    const s = Math.min((dims.w - pad * 2) / bounds.w, (dims.h - pad * 2) / bounds.h, 1)
+    const scale = Math.max(MIN_SCALE, s)
+    // nudge a bit higher so graph feels optically centered (cards have more bottom room)
+    const yBias = -18
+    return {
+      scale,
+      x: (dims.w - bounds.w * scale) / 2 - bounds.minX * scale,
+      y: (dims.h - bounds.h * scale) / 2 - bounds.minY * scale + yBias,
+    }
+  }, [dims, bounds])
+
+  const v = view ?? fit
+
+  const zoomAt = useCallback(
+    (factor: number, cx?: number, cy?: number) => {
+      setView((prev) => {
+        const base = prev ?? fit
+        const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, base.scale * factor))
+        // keep the point under the cursor stationary
+        const px = cx ?? dims.w / 2
+        const py = cy ?? dims.h / 2
+        const gx = (px - base.x) / base.scale
+        const gy = (py - base.y) / base.scale
+        return { scale, x: px - gx * scale, y: py - gy * scale }
+      })
+    },
+    [fit, dims],
+  )
+
+  const fitToView = useCallback(() => setView(null), [])
+
+  // ctrl/cmd + wheel zoom at cursor
+  const onWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const rect = ref.current?.getBoundingClientRect()
+      zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - (rect?.left ?? 0), e.clientY - (rect?.top ?? 0))
+    },
+    [zoomAt],
+  )
 
   const posOf = useCallback((id: FlowNodeId): Point => {
     const n = nodeMap[id]
@@ -163,24 +227,38 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
   const onNodePointerUp = () => { dragRef.current = null }
   const resetLayout = () => setOverrides({})
 
+  const btn = "flex size-7 items-center justify-center rounded-lg border border-[#2a3140] bg-[#11151f] text-neutral-400 transition-colors hover:text-white disabled:opacity-40"
+
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#1e2430]" style={{ background: "#0b0e14" }}>
+      {/* zoom controls (top-right) */}
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+        <button className={btn} title="Zoom in (Ctrl+scroll)" onClick={() => zoomAt(1.2)}><ZoomIn className="size-3.5" /></button>
+        <button className={btn} title="Zoom out (Ctrl+scroll)" onClick={() => zoomAt(1 / 1.2)}><ZoomOut className="size-3.5" /></button>
+        <button className={btn} title="Fit to view" onClick={fitToView}><Maximize className="size-3.5" /></button>
+        <span className="min-w-9 text-center font-mono text-[10px] text-neutral-500">{Math.round(v.scale * 100)}%</span>
+      </div>
       {Object.keys(overrides).length > 0 && (
         <button
           onClick={resetLayout}
-          className="absolute left-3 top-3 z-10 rounded-lg border border-[#2a3140] bg-[#11151f] px-2 py-1 text-[10px] font-mono text-neutral-400 transition-colors hover:text-white"
+          className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border border-[#2a3140] bg-[#11151f] px-2 py-1 text-[10px] font-mono text-neutral-400 transition-colors hover:text-white"
         >
-          reset layout
+          <RotateCcw className="size-3" /> reset layout
         </button>
       )}
       <div
         ref={ref}
         className="absolute inset-0"
-        style={{ background: "radial-gradient(#1e2430 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        onWheel={onWheel}
+        style={{
+          background: "radial-gradient(#1e2430 1px, transparent 1px)",
+          backgroundSize: `${24 * v.scale}px ${24 * v.scale}px`,
+          backgroundPosition: `${v.x}px ${v.y}px`,
+        }}
       >
         <div
-          className="absolute origin-top-left"
-          style={{ transform: `translate(${offX}px, ${offY}px) scale(${scale})`, width: svgW, height: svgH }}
+          className="absolute left-0 top-0 origin-top-left"
+          style={{ transform: `translate(${v.x}px, ${v.y}px) scale(${v.scale})`, width: svgW, height: svgH }}
         >
           <svg width={svgW} height={svgH} className="absolute inset-0 pointer-events-none">
             {edges.map((e) => (
@@ -232,20 +310,18 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
               >
                 <div className="relative">
                   <FlowNodeCard label={n.label} sub={n.sub} Icon={NODE_ICON[n.id]} hue={n.hue} />
-                  {/* shimmer + pulse ring: card glows as the dot wave passes it */}
-                  {pulse && (
-                    <div
-                      className="pointer-events-none absolute inset-0 rounded-2xl animate-[flow-card-pulse_0s_ease-out_infinite]"
-                      style={
-                        {
-                          "--pulse-hue": pulse.hue + "66",
-                          animationDuration: `${pulse.cycle}s`,
-                          animationDelay: `-${pulse.delay}s`,
-                          animationFillMode: "backwards",
-                        } as React.CSSProperties
-                      }
-                    />
-                  )}
+                  {/* idle card shimmer when nothing flows through; ring pulse when dots arrive */}
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-2xl animate-[flow-card-pulse_0s_ease-out_infinite]"
+                    style={
+                      {
+                        "--pulse-hue": (pulse?.hue ?? n.hue) + "66",
+                        animationDuration: `${pulse?.cycle ?? 3.2}s`,
+                        animationDelay: `-${pulse?.delay ?? (rowOf(n.id) * 0.8) % 3.2}s`,
+                        animationFillMode: "backwards",
+                      } as React.CSSProperties
+                    }
+                  />
                   {count > 0 && (
                     <span
                       className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-black"

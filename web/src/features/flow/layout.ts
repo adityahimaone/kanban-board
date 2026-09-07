@@ -17,7 +17,7 @@ export const NODES: LayoutNode[] = [
   { id: "orchestrator",      label: "Orchestrator",      sub: "VPS hermes · 9router",   row: 0, col: 1, hue: "#10e0dd" },
   { id: "kanban",            label: "Kanban",            sub: "task_events · sqlite",   row: 1, col: 0, hue: "#9a5cff" },
   { id: "memory",            label: "Memory",            sub: "holographic fact_store", row: 1, col: 2, hue: "#6366f1" },
-  { id: "node-agent-server", label: "node-agent server", sub: ":8788 long-poll + auth", row: 2, col: 1, hue: "#f09a2f" },
+  { id: "node-agent-server", label: "node-agent",        sub: "long-poll + auth",       row: 2, col: 1, hue: "#f09a2f" },
   { id: "tailscale",         label: "Tailscale",         sub: "tailnet · direct",       row: 3, col: 1, hue: "#38bdf8" },
   { id: "mac",               label: "Mac",               sub: "launchd dial-out",       row: 4, col: 0, hue: "#ec4899" },
   { id: "windows",           label: "Windows",           sub: "scheduled task",         row: 4, col: 2, hue: "#3b82f6" },
