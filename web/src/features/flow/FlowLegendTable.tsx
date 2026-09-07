@@ -22,6 +22,8 @@ export function FlowLegendTable({ tasks }: { tasks: FlowTask[] }) {
             <th className="py-1.5 pr-4 font-medium">Task</th>
             <th className="py-1.5 pr-4 font-medium">Board</th>
             <th className="py-1.5 pr-4 font-medium">Posisi</th>
+            <th className="py-1.5 pr-4 font-medium">Executor</th>
+            <th className="py-1.5 pr-4 font-medium">Transport</th>
             <th className="py-1.5 font-medium">Status</th>
           </tr>
         </thead>
@@ -36,6 +38,8 @@ export function FlowLegendTable({ tasks }: { tasks: FlowTask[] }) {
               <td className="py-1.5 pr-4 text-neutral-500">
                 {channelPath(t.stage, t.node_id).join(" → ") || "—"}
               </td>
+              <td className="py-1.5 pr-4 text-neutral-500">{t.executor || "auto"}</td>
+              <td className="py-1.5 pr-4 text-neutral-500">{t.transport || "—"}</td>
               <td className="py-1.5">
                 <span className={
                   t.stage === "failed" ? "text-red-400" : t.stage === "done" ? "text-emerald-400" : "text-neutral-300"

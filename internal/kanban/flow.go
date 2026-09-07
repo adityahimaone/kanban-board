@@ -21,6 +21,8 @@ type FlowTask struct {
 	Title     string    `json:"title"`
 	Board     string    `json:"board"`
 	NodeID    string    `json:"node_id"`
+	Executor  string    `json:"executor,omitempty"`
+	Transport string    `json:"transport,omitempty"`
 	Stage     FlowStage `json:"stage"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -70,7 +72,14 @@ func FlowSeed(tasks []FlowTask) {
 }
 
 func flowStageForTask(status, transport string) (FlowStage, bool) {
+	// Local/board-dispatched tasks have no workspace_transport set; only
+	// running local tasks stay out (no execution to show). Remote ssh keeps
+	// its stricter lifecycle (dispatched only once a runner picks it up).
 	if transport != "ssh" {
+		switch status {
+		case "todo", "ready":
+			return FlowDispatched, true
+		}
 		return "", false
 	}
 	switch status {
@@ -91,7 +100,9 @@ func flowNodeID(sshTarget string) string {
 }
 
 // syncFlowFromDB makes task DB source of truth. Dispatcher events can be missed;
-// status rows cannot. Remote todo/ready/running tasks always appear on map.
+// status rows cannot. Todo/ready tasks always appear on map; board todos map to
+// the kanban node, ssh todos to their worker node (mac/windows). Running only
+// maps when ssh transport is set — local running has no execution to show.
 func syncFlowFromDB() {
 	boards, err := ListBoards()
 	if err != nil {
@@ -103,22 +114,26 @@ func syncFlowFromDB() {
 		if err != nil {
 			continue
 		}
-		rows, err := db.Query(`SELECT id, title, status, COALESCE(workspace_ssh_target,'') FROM tasks WHERE workspace_transport='ssh' AND status IN ('todo','ready','running')`)
+		rows, err := db.Query(`SELECT id, title, status, COALESCE(workspace_ssh_target,''), COALESCE(workspace_transport,''), COALESCE(executor,'auto') FROM tasks WHERE status IN ('todo','ready','running')`)
 		if err != nil {
 			db.Close()
 			continue
 		}
 		for rows.Next() {
-			var id, title, status, target string
-			if rows.Scan(&id, &title, &status, &target) != nil {
+			var id, title, status, target, transport, executor string
+			if rows.Scan(&id, &title, &status, &target, &transport, &executor) != nil {
 				continue
 			}
-			stage, ok := flowStageForTask(status, "ssh")
+			stage, ok := flowStageForTask(status, transport)
 			if !ok {
 				continue
 			}
+			nodeID := "kanban"
+			if transport == "ssh" {
+				nodeID = flowNodeID(target)
+			}
 			seen[id] = true
-			FlowTrack(id, title, b.Slug, flowNodeID(target), stage)
+			FlowTrackExecutor(id, title, b.Slug, nodeID, executor, stage)
 		}
 		rows.Close()
 		db.Close()
@@ -134,7 +149,14 @@ func syncFlowFromDB() {
 
 // FlowTrack records live dispatcher stage transitions.
 func FlowTrack(taskID, title, board, nodeID string, stage FlowStage) {
-	flowSet(FlowTask{TaskID: taskID, Title: title, Board: board, NodeID: nodeID, Stage: stage})
+	FlowTrackExecutor(taskID, title, board, nodeID, "", stage)
+}
+
+// FlowTrackExecutor records a lifecycle transition together with the selected
+// execution strategy. Keeping this separate preserves the small legacy helper
+// used by callers that do not have task metadata available.
+func FlowTrackExecutor(taskID, title, board, nodeID, executor string, stage FlowStage) {
+	flowSet(FlowTask{TaskID: taskID, Title: title, Board: board, NodeID: nodeID, Executor: executor, Stage: stage})
 }
 
 func FlowActive() []FlowTask {

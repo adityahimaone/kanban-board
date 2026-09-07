@@ -8,6 +8,8 @@ export interface FlowTask {
   title: string
   board: string
   node_id: string
+  executor?: string
+  transport?: "grpc" | "http"
   stage: FlowStage
   updated_at: string
 }
