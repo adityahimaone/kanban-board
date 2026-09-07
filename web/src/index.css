@@ -92,3 +92,10 @@ body { background: var(--color-bg); color: var(--color-foreground); }
   26%       { opacity: 1; offset-distance: 100%; }
   30%, 100% { opacity: 0; offset-distance: 100%; }
 }
+
+/* Agent Flow: card ring pulse when a dot arrives at / departs that node */
+@keyframes flow-card-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--pulse-hue, #10e0dd); opacity: 0.9; }
+  70%  { box-shadow: 0 0 0 10px transparent; opacity: 0; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
+}

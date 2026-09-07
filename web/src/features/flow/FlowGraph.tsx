@@ -1,9 +1,9 @@
 import { useRef, useState, useLayoutEffect, useCallback, useMemo } from "react"
 import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban } from "lucide-react"
-import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, stageNode, type FlowNodeId, type Point } from "./layout"
+import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, channelDistances, stageNode, type FlowNodeId, type Point } from "./layout"
 import { elbowPath, elbowPathV, elbowJoints, pathLength } from "./elbow"
 import { FlowNodeCard } from "./FlowNodeCard"
-import { TravelingDot } from "./TravelingDot"
+import { TravelingDot, cycleFor, timeToDistance } from "./TravelingDot"
 import { ShimmerEdge } from "./ShimmerEdge"
 import type { FlowTask } from "./useFlowTasks"
 
@@ -109,8 +109,8 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
   }
 
   // group live tasks by channel so dots sharing the same path are evenly
-  // spaced (phaseRatio = i/n). That fixes "dot belum sampe child tapi child
-  // udah spawn lagi": they walk the same path in sequence, not piled at 0%.
+  // spaced (phaseRatio = i/n). Each channel also drives card pulses synced to
+  // dot arrival: parent card pulses at t=0, next card when the dot reaches it.
   const channelGroups = useMemo(() => {
     const m = new Map<string, { chain: FlowNodeId[]; items: FlowTask[] }>()
     for (const t of tasks) {
@@ -121,10 +121,33 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
       if (g) g.items.push(t)
       else m.set(key, { chain, items: [t] })
     }
-    // deterministic order inside each channel
     for (const g of m.values()) g.items.sort((a, b) => a.task_id.localeCompare(b.task_id))
     return [...m.values()]
   }, [tasks])
+
+  // per-node card pulse synced to dot arrival: for each channel, the card at
+  // path-distance `dist` pulses exactly when the dot reaches that distance
+  // (timeToDistance), using the channel's own cycle. Exact arc-aware
+  // distances via channelDistances().
+  const pulseFor = useMemo(() => {
+    const map = new Map<FlowNodeId, { delay: number; cycle: number; hue: string }>()
+    for (const g of channelGroups) {
+      const dists = channelDistances(g.chain, edgeAnchors)
+      const len = dists[dists.length - 1] || 1
+      const cycle = cycleFor(len)
+      for (let i = 0; i < g.chain.length; i++) {
+        const nid = g.chain[i]
+        if (map.has(nid)) continue
+        map.set(nid, {
+          delay: ((timeToDistance(len, dists[i]) % cycle) + cycle) % cycle,
+          cycle,
+          hue: nodeMap[nid].hue,
+        })
+      }
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelGroups, edgeAnchors])
 
   const onNodePointerDown = (e: React.PointerEvent, id: FlowNodeId) => {
     e.stopPropagation()
@@ -163,9 +186,6 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
             {edges.map((e) => (
               <g key={`${e.from}-${e.to}`}>
                 <path d={e.d} fill="none" stroke="#2a3140" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" />
-                {e.joints.map((p, i) => (
-                  <circle key={i} cx={p.x} cy={p.y} r={3} fill="#2a3140" />
-                ))}
               </g>
             ))}
           </svg>
@@ -198,6 +218,7 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
           {NODES.map((n) => {
             const p = posOf(n.id)
             const count = byNode.get(n.id) ?? 0
+            const pulse = pulseFor.get(n.id)
             return (
               <div
                 key={n.id}
@@ -211,6 +232,20 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
               >
                 <div className="relative">
                   <FlowNodeCard label={n.label} sub={n.sub} Icon={NODE_ICON[n.id]} hue={n.hue} />
+                  {/* shimmer + pulse ring: card glows as the dot wave passes it */}
+                  {pulse && (
+                    <div
+                      className="pointer-events-none absolute inset-0 rounded-2xl animate-[flow-card-pulse_0s_ease-out_infinite]"
+                      style={
+                        {
+                          "--pulse-hue": pulse.hue + "66",
+                          animationDuration: `${pulse.cycle}s`,
+                          animationDelay: `-${pulse.delay}s`,
+                          animationFillMode: "backwards",
+                        } as React.CSSProperties
+                      }
+                    />
+                  )}
                   {count > 0 && (
                     <span
                       className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-black"

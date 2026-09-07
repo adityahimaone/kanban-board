@@ -1,4 +1,4 @@
-import { elbowPath } from "./elbow"
+import { elbowPath, pathLength } from "./elbow"
 import type { FlowStage } from "./useFlowTasks"
 
 export type FlowNodeId =
@@ -55,6 +55,23 @@ export function joinedPath(nodeIds: FlowNodeId[], edgeAnchors: (a: FlowNodeId, b
     return elbowPath(from, to, midX)
   })
   return segments.join(" ")
+}
+
+/** Distance from the start of a joined channel path to each node anchor —
+ *  exact arc-aware walk (reuses pathLength so turns/curves count). */
+export function channelDistances(
+  nodeIds: FlowNodeId[],
+  edgeAnchors: (a: FlowNodeId, b: FlowNodeId) => [Point, Point],
+): number[] {
+  const out: number[] = [0]
+  let acc = 0
+  for (let i = 0; i < nodeIds.length - 1; i++) {
+    const [from, to] = edgeAnchors(nodeIds[i], nodeIds[i + 1])
+    const midX = (from.x + to.x) / 2
+    acc += pathLength(elbowPath(from, to, midX))
+    out.push(acc)
+  }
+  return out
 }
 
 // which single node represents the task for glow/badge (null = legend only)
