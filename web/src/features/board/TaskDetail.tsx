@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent, type Workspace } from "../../api"
 import { Apple, ExternalLink, HardDrive, Laptop, Monitor } from "lucide-react"
+import { AgentTaskStatus, RunningIndicator } from "./AgentStatus"
 
 const STATUS_CHIP: Record<string, string> = {
   done: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
@@ -53,6 +54,7 @@ export default function TaskDetail({
   const events = useQuery({
     queryKey: ["events", slug, task.id],
     queryFn: () => api<TaskEvent[]>(`/api/boards/${slug}/tasks/${task.id}/events`),
+    refetchInterval: task.status === "running" ? 5_000 : false,
   })
   const profile = profiles.find((p) => p.name === task.assignee)
   const ws = workspaces.find((w) => w.path === task.workspace_path)
@@ -80,6 +82,9 @@ export default function TaskDetail({
             <span className="text-[10px] text-red-400">{task.consecutive_failures} consecutive failures</span>
           )}
         </div>
+
+        {task.status === "running" && <RunningIndicator startedAt={task.started_at} />}
+        <AgentTaskStatus task={task} events={events.data ?? []} />
 
         {/* agent */}
         <div className="rounded-lg border border-[#1e2430] bg-[#0b0e14] p-2.5">

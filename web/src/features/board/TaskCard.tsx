@@ -3,6 +3,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Apple, ExternalLink, HardDrive, Laptop, X } from "lucide-react"
+import { RunningIndicator } from "./AgentStatus"
 
 const STATUS_TARGETS: Record<Status, Status[]> = {
   triage: ["todo", "ready"],
@@ -69,6 +70,12 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
       {/* description */}
       {desc && (
         <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-neutral-400">{desc}</p>
+      )}
+
+      {task.status === "running" && (
+        <div className="mt-2 flex justify-end">
+          <RunningIndicator startedAt={task.started_at} compact />
+        </div>
       )}
 
       {/* metadata — 2-row hierarchy */}

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, COLUMNS, type Profile, type Status, type Task, type TaskComment, type TaskEvent, type Workspace } from "../../api"
 import { parseEventCards, TONE_BORDER, TONE_DOT, TONE_TEXT } from "./eventCards"
 import { ArrowLeft, Loader2, Send } from "lucide-react"
+import { AgentTaskStatus, RunningIndicator } from "./AgentStatus"
 
 const STATUS_CHIP: Record<string, string> = {
   done: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
@@ -187,6 +188,7 @@ export default function TaskDetailPage({
   const events = useQuery({
     queryKey: ["events", slug, task.id],
     queryFn: () => api<TaskEvent[]>(`/api/boards/${slug}/tasks/${task.id}/events`),
+    refetchInterval: task.status === "running" ? 5_000 : false,
   })
   const profile = profiles.find((p) => p.name === task.assignee)
   const ws = workspaces.find((w) => w.path === task.workspace_path)
@@ -213,6 +215,8 @@ export default function TaskDetailPage({
           <span>dibuat {new Date(task.created_at * 1000).toLocaleString()}</span>
           {task.completed_at && <span>· selesai {new Date(task.completed_at * 1000).toLocaleString()}</span>}
         </div>
+        {task.status === "running" && <RunningIndicator startedAt={task.started_at} />}
+        <AgentTaskStatus task={task} events={events.data ?? []} />
 
         {/* meta grid */}
         <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
