@@ -131,16 +131,18 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 		return nil, fmt.Errorf("node-agent dispatch %d: %s", resp.StatusCode, trimErrStr(string(body)))
 	}
 	var ack struct {
-		Status string `json:"status"`
-		NodeID string `json:"node_id"`
+		Status     string `json:"status"`
+		NodeID     string `json:"node_id"`
+		Transport  string `json:"transport"`
+		DeliveryID string `json:"delivery_id"`
 	}
 	if err := json.Unmarshal(body, &ack); err != nil {
 		return nil, fmt.Errorf("node-agent bad ack: %s", trimErrStr(string(body)))
 	}
 
 	// live flow tracking: dispatched + running
-	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Stage: FlowDispatched})
-	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Stage: FlowRunning})
+	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Transport: ack.Transport, Stage: FlowDispatched})
+	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Transport: ack.Transport, Stage: FlowRunning})
 	if db, err := openDB(req.Board); err == nil {
 		_ = insertEvent(db, req.TaskID, "remote_dispatched", map[string]any{"node_id": ack.NodeID})
 		_, _ = db.Exec(`UPDATE tasks SET status='running' WHERE id=?`, req.TaskID)
@@ -183,7 +185,7 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 			stage = FlowFailed
 			evtKind = "failed"
 		}
-		flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Stage: stage})
+		flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Transport: ack.Transport, Stage: stage})
 		if db, err := openDB(req.Board); err == nil {
 			_ = insertEvent(db, req.TaskID, evtKind, map[string]any{"output": res.Output, "error": res.Error})
 			now := time.Now().Unix()
@@ -198,7 +200,7 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 		return &res, nil
 	}
 	// live flow tracking: timeout = failed
-	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Stage: FlowFailed})
+	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Executor: req.Executor, Transport: ack.Transport, Stage: FlowFailed})
 	if db, err := openDB(req.Board); err == nil {
 		_ = insertEvent(db, req.TaskID, "failed", map[string]any{"reason": "timeout"})
 		_, _ = db.Exec(`UPDATE tasks SET status='blocked' WHERE id=?`, req.TaskID)
