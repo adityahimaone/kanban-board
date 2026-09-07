@@ -5,6 +5,30 @@ import (
 	"time"
 )
 
+func TestFlowStageForTaskStatus(t *testing.T) {
+	tests := []struct {
+		name      string
+		status    string
+		transport string
+		want      FlowStage
+		ok        bool
+	}{
+		{"remote todo enters dispatch lane", "todo", "ssh", FlowDispatched, true},
+		{"remote ready enters dispatch lane", "ready", "ssh", FlowDispatched, true},
+		{"remote running enters worker lane", "running", "ssh", FlowRunning, true},
+		{"local todo stays out of remote flow", "todo", "", "", false},
+		{"review leaves active flow", "review", "ssh", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := flowStageForTask(tt.status, tt.transport)
+			if got != tt.want || ok != tt.ok {
+				t.Fatalf("flowStageForTask(%q, %q) = (%q, %v), want (%q, %v)", tt.status, tt.transport, got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
 func TestFlowLifecycle(t *testing.T) {
 	// fresh registry
 	flowMu.Lock()
