@@ -428,6 +428,14 @@ func main() {
 	mux.HandleFunc("GET /api/flow/active", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"tasks": kanban.FlowActive(), "retention_seconds": kanban.FlowRetentionSeconds()})
 	})
+	mux.HandleFunc("GET /api/overview", func(w http.ResponseWriter, r *http.Request) {
+		o, err := kanban.OverviewData()
+		if err != nil {
+			fail(w, err, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, o)
+	})
 	mux.HandleFunc("POST /api/flow/seed", func(w http.ResponseWriter, r *http.Request) {
 		var tasks []kanban.FlowTask
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&tasks); err != nil {

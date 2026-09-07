@@ -18,6 +18,7 @@ import LogsPage from "./features/logs/LogsPage"
 import SkillsPage from "./features/skills/SkillsPage"
 import MemoryPage from "./features/memory/MemoryPage"
 import SettingsPage from "./features/settings/SettingsPage"
+import OverviewPage from "./features/overview/OverviewPage"
 import AgentMappingPage from "./features/flow/AgentMappingPage"
 import { Archive, Pencil, Plus, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
@@ -126,6 +127,7 @@ export default function App() {
     : page === "logs" ? "Logs"
     : page === "skills" ? "Skills"
     : page === "memory" ? "Memory"
+    : page === "overview" ? "Overview"
     : page === "agent-mapping" ? "Flow Map"
     : page === "settings" ? "Settings"
     : detailPage ? detailPage.title
@@ -317,6 +319,7 @@ export default function App() {
             {page === "logs" && <div className="flex min-h-0 flex-1 flex-col"><LogsPage /></div>}
             {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
             {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
+            {page === "overview" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><OverviewPage /></div>}
             {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
             {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
             {page === "board" && detailId && detailPage && (
