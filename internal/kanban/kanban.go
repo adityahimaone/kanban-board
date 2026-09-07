@@ -213,6 +213,20 @@ func CreateTask(slug string, t *Task) error {
 
 // StatusTransition moves a task between board-managed statuses. Refuses to touch
 // dispatcher-owned fields or an in-flight running task's claims.
+// TaskStatus returns the current status of a task (or "" on miss).
+func TaskStatus(slug, taskID string) (string, error) {
+	db, err := openDB(slug)
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+	var cur string
+	if err := db.QueryRow(`SELECT status FROM tasks WHERE id=?`, taskID).Scan(&cur); err != nil {
+		return "", err
+	}
+	return cur, nil
+}
+
 func StatusTransition(slug, taskID, to string) error {
 	if !ValidStatuses[to] { return fmt.Errorf("invalid status %q", to) }
 	if to == "running" { return fmt.Errorf("status 'running' is dispatcher-owned") }

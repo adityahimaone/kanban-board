@@ -55,6 +55,12 @@ func main() {
 	mux.HandleFunc("PATCH /api/boards/{slug}/tasks/{id}/status", func(w http.ResponseWriter, r *http.Request) {
 		var req struct{ Status string `json:"status"` }
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
+		// review gate: review->done only via /approve (commit / commit&push)
+		if req.Status == "done" {
+			if cur, err := kanban.TaskStatus(r.PathValue("slug"), r.PathValue("id")); err == nil && cur == "review" {
+				fail(w, fmt.Errorf("review->done only via approve endpoint"), 400); return
+			}
+		}
 		if err := kanban.StatusTransition(r.PathValue("slug"), r.PathValue("id"), req.Status); err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
 	})
@@ -105,6 +111,10 @@ func main() {
 		if err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusCreated, c)
 	})
+
+	// review gate: diff + approve (commit / commit&push) — only path review->done
+	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/diff", handleTaskDiff)
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/approve", handleTaskApprove)
 
 	// workspaces (shared source of truth: ~/.hermes/workspaces.json)
 	mux.HandleFunc("GET /api/workspaces", func(w http.ResponseWriter, r *http.Request) {
@@ -246,6 +256,15 @@ func main() {
 		if err != nil { fail(w, err, 500); return }
 		writeJSON(w, http.StatusOK, st)
 	})
+	mux.HandleFunc("GET /api/flow/active", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"tasks": kanban.FlowActive()})
+	})
+	mux.HandleFunc("POST /api/flow/seed", func(w http.ResponseWriter, r *http.Request) {
+		var tasks []kanban.FlowTask
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&tasks); err != nil { fail(w, err, 400); return }
+		kanban.FlowSeed(tasks)
+		writeJSON(w, http.StatusOK, map[string]string{"seeded": fmt.Sprintf("%d", len(tasks))})
+	})
 	// remote task dispatch via node-agent (mac/windows workspaces)
 	mux.HandleFunc("POST /api/remote/dispatch", func(w http.ResponseWriter, r *http.Request) {
 		var req kanban.NodeDispatchRequest
@@ -303,6 +322,7 @@ func main() {
 
 	mux.Handle("/", spa(dist))
 
+	StartSSHDispatcher()
 	log.Printf("kanban-board listening on %s (dist=%s)", addr, dist)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }

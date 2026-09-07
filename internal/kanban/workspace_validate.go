@@ -35,6 +35,15 @@ func validateWorkspacePath(p string) error {
 	if isRegisteredRemotePath(p) {
 		return nil
 	}
+	// Sub-paths of a registered remote workspace are fine too: the ssh
+	// dispatcher runs git/agents on the remote host via SSH, so any path
+	// under a registered remote root (e.g. .../saas/gadjian/app under
+	// .../saas) is dispatchable the same way. Exit-3 protection is about
+	// the LOCAL dispatcher never seeing these paths, which hardGuardTransport
+	// in ssh_dispatch.go already guarantees.
+	if isUnderRegisteredRemotePath(p) {
+		return nil
+	}
 	// Windows drive path (C:\ or C:/) — never local on this Linux host.
 	if len(p) >= 2 && p[1] == ':' {
 		return fmt.Errorf(
@@ -68,6 +77,23 @@ func isRegisteredRemotePath(p string) bool {
 	for _, w := range f.Workspaces {
 		if w.Path == p && w.Host != "" && w.Host != "localhost" && w.Host != "127.0.0.1" {
 			return true
+		}
+	}
+	return false
+}
+
+// isUnderRegisteredRemotePath reports whether p is a strict sub-path of any
+// registered remote workspace path.
+func isUnderRegisteredRemotePath(p string) bool {
+	f, err := loadWorkspaces()
+	if err == nil && f != nil {
+		for _, w := range f.Workspaces {
+			if w.Path == "" || w.Host == "" || w.Host == "localhost" || w.Host == "127.0.0.1" {
+				continue
+			}
+			if len(p) > len(w.Path) && p[:len(w.Path)] == w.Path && (p[len(w.Path)] == '/' || p[len(w.Path)] == '\\') {
+				return true
+			}
 		}
 	}
 	return false

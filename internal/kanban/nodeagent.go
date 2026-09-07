@@ -49,6 +49,7 @@ func nodeAgentToken() string {
 // NodeDispatchRequest mirrors transport.DispatchRequest on the node-agent.
 type NodeDispatchRequest struct {
 	TaskID    string `json:"task_id"`
+	Title     string `json:"title,omitempty"`
 	Board     string `json:"board"`
 	Message   string `json:"message"`
 	Workspace string `json:"workspace"`
@@ -132,6 +133,15 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 		return nil, fmt.Errorf("node-agent bad ack: %s", trimErrStr(string(body)))
 	}
 
+	// live flow tracking: dispatched + running
+	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Stage: FlowDispatched})
+	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Stage: FlowRunning})
+	if db, err := openDB(req.Board); err == nil {
+		_ = insertEvent(db, req.TaskID, "remote_dispatched", map[string]any{"node_id": ack.NodeID})
+		_, _ = db.Exec(`UPDATE tasks SET status='running' WHERE id=?`, req.TaskID)
+		db.Close()
+	}
+
 	// poll result
 	deadline := time.Now().Add(wait)
 	pc := &http.Client{Timeout: 5 * time.Second}
@@ -161,7 +171,33 @@ func DispatchRemote(req NodeDispatchRequest, wait time.Duration) (*NodeDispatchR
 		if err := json.Unmarshal(b2, &res); err != nil {
 			continue
 		}
+		// live flow tracking: done / failed
+		stage := FlowDone
+		evtKind := "completed"
+		if !res.Success {
+			stage = FlowFailed
+			evtKind = "failed"
+		}
+		flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Stage: stage})
+		if db, err := openDB(req.Board); err == nil {
+			_ = insertEvent(db, req.TaskID, evtKind, map[string]any{"output": res.Output, "error": res.Error})
+			now := time.Now().Unix()
+			newStatus := "blocked"
+			if res.Success {
+				newStatus = "review"
+			}
+			_, _ = db.Exec(`UPDATE tasks SET status=?, completed_at=?, result=? WHERE id=?`,
+				newStatus, now, res.Output, req.TaskID)
+			db.Close()
+		}
 		return &res, nil
+	}
+	// live flow tracking: timeout = failed
+	flowSet(FlowTask{TaskID: req.TaskID, Title: req.Title, Board: req.Board, NodeID: ack.NodeID, Stage: FlowFailed})
+	if db, err := openDB(req.Board); err == nil {
+		_ = insertEvent(db, req.TaskID, "failed", map[string]any{"reason": "timeout"})
+		_, _ = db.Exec(`UPDATE tasks SET status='blocked' WHERE id=?`, req.TaskID)
+		db.Close()
 	}
 	return nil, fmt.Errorf("timeout after %s waiting for result of %s (node %s)", wait, req.TaskID, ack.NodeID)
 }

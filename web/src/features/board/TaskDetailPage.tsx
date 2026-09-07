@@ -104,6 +104,69 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
   )
 }
 
+function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDone: () => void }) {
+  const qc = useQueryClient()
+  const [action, setAction] = useState<"commit" | "commit_push" | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const diff = useQuery({
+    queryKey: ["diff", slug, task.id],
+    queryFn: () => api<{ stat: string; diff: string }>(`/api/boards/${slug}/tasks/${task.id}/diff`),
+    enabled: task.status === "review",
+    retry: false,
+  })
+
+  const approve = useMutation({
+    mutationFn: (a: "commit" | "commit_push") =>
+      api<{ status: string }>(`/api/boards/${slug}/tasks/${task.id}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ action: a }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks", slug] })
+      qc.invalidateQueries({ queryKey: ["events", slug, task.id] })
+      onDone()
+    },
+    onError: (e: Error) => setErr(e.message),
+  })
+
+  if (task.status !== "review") return null
+
+  return (
+    <div className="mt-3 rounded-lg border border-violet-500/40 bg-[#0b0e14] p-3">
+      <div className="flex items-center gap-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-violet-300">Review changes</h3>
+        {diff.isLoading && <Loader2 className="size-3 animate-spin text-violet-300" />}
+        {diff.data && <span className="text-[10px] text-neutral-500">{diff.data.stat.split("\n").filter(Boolean).length} files</span>}
+        <div className="ml-auto flex items-center gap-1.5">
+          <Select value={action ?? ""} onValueChange={(v) => setAction(v as "commit" | "commit_push")}>
+            <SelectTrigger className="h-7 w-[150px] border-[#1e2430] bg-[#11151f] text-[11px]">
+              <SelectValue placeholder="Pilih aksi…" />
+            </SelectTrigger>
+            <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectItem value="commit" className="text-xs">Commit</SelectItem>
+              <SelectItem value="commit_push" className="text-xs">Commit & Push</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            disabled={!action || approve.isPending}
+            onClick={() => { setErr(null); approve.mutate(action!) }}
+            className="h-7 gap-1 bg-violet-500 text-white hover:bg-violet-400"
+          >
+            {approve.isPending ? <Loader2 className="size-3 animate-spin" /> : null}
+            Approve
+          </Button>
+        </div>
+      </div>
+      {err && <p className="mt-1 text-[11px] text-red-400">{err}</p>}
+      <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded border border-[#1e2430] bg-[#11151f] p-2 font-mono text-[10px] leading-relaxed text-neutral-300">
+        {diff.isLoading ? "Loading diff…" : diff.error ? `Gagal load diff: ${(diff.error as Error).message}` : diff.data ? `${diff.data.stat}\n\n${diff.data.diff}` : "—"}
+      </pre>
+    </div>
+  )
+}
+
 export default function TaskDetailPage({
   slug,
   task,
@@ -224,6 +287,9 @@ export default function TaskDetailPage({
           ))}
         </div>
       </div>
+
+      {/* review gate: diff + approve */}
+      <ReviewSection slug={slug} task={task} onDone={onBack} />
 
       {/* reply */}
       <div className="mt-3">
