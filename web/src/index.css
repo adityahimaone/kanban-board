@@ -125,3 +125,25 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }
+
+.map-control {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  color: #8b8e86;
+  transition: color 150ms ease-out, background-color 150ms ease-out;
+}
+.map-control:hover { background: #1c1e1b; color: #e8e8e3; }
+.map-control:focus-visible { outline: 2px solid #10e0dd; outline-offset: -2px; }
+
+@keyframes map-idle-card {
+  0%, 100% { border-color: rgba(255,255,255,.11); transform: translateY(0); }
+  50% { border-color: rgba(255,255,255,.22); transform: translateY(-1px); }
+}
+@keyframes map-idle-edge {
+  to { stroke-dashoffset: -24; }
+}
+.map-idle-card { animation: map-idle-card 3.6s ease-in-out infinite; }
+.map-idle-edge { stroke-dasharray: 3 9; animation: map-idle-edge 2.8s linear infinite; }
