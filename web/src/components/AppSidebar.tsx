@@ -94,9 +94,9 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "agent-mapping"} onClick={() => onSelectPage("agent-mapping")} tooltip="Agent Mapping" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
+                <SidebarMenuButton isActive={page === "agent-mapping"} onClick={() => onSelectPage("agent-mapping")} tooltip="Flow Map" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
                   <Network />
-                  <span>Agent Mapping</span>
+                  <span>Flow Map</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

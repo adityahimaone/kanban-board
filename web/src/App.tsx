@@ -98,7 +98,7 @@ export default function App() {
     : page === "skills" ? "Skills"
     : page === "memory" ? "Memory"
     : page === "flow" ? "Agent Flow"
-    : page === "agent-mapping" ? "Agent Mapping"
+    : page === "agent-mapping" ? "Flow Map"
     : page === "settings" ? "Settings"
     : detailPage ? detailPage.title
     : "Kanban Board"
