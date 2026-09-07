@@ -21,13 +21,13 @@ function expiry(task: FlowTask, now: number) {
 export function SessionMonitor({ tasks, focused, onFocus }: { tasks: FlowTask[]; focused: string | null; onFocus: (id: string | null) => void }) {
   const [now, setNow] = useState(Date.now())
   const [collapsed, setCollapsed] = useState(false)
-  const [height, setHeight] = useState(190)
+  const [height, setHeight] = useState(210)
   const [query, setQuery] = useState("")
   const [pinned, setPinned] = useState<string | null>(null)
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id) }, [])
   const visible = useMemo(() => tasks.filter((t) => !query || `${t.task_id} ${t.title} ${t.board}`.toLowerCase().includes(query.toLowerCase())), [tasks, query])
   return (
-    <section className="shrink-0 border-t border-white/10 bg-[#11120f]" style={{ height: collapsed ? 38 : height }}>
+    <section className="relative shrink-0 border-t border-white/10 bg-[#11120f]" style={{ height: collapsed ? 38 : height }}>
       <div className="flex h-9 items-center gap-2 border-b border-white/10 px-3 text-[11px]">
         <span className="font-semibold text-[#e8e8e3]">Session Monitor</span>
         <span className="font-mono text-[#8b8e86]">{tasks.length} sessions</span>

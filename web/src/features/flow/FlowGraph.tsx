@@ -38,8 +38,8 @@ export default function FlowGraph({ tasks, focused, onFocus }: { tasks: FlowTask
         <svg width={bounds.w} height={bounds.h} className="pointer-events-none absolute inset-0 overflow-visible">
           <defs><filter id="flow-blur"><feGaussianBlur stdDeviation="4" /></filter></defs>
           {edgeData.map((e) => { const hot = e.active.length > 0; return <g key={`${e.from}-${e.to}`} opacity={routeFocus && !routeFocus.includes(e.from) && !routeFocus.includes(e.to) ? .16 : 1}>
-            <path d={e.d} fill="none" stroke={e.color} strokeWidth={hot ? 10 : 5} opacity={hot ? .3 : .2} filter="url(#flow-blur)" />
-            <path d={e.d} fill="none" stroke={e.color} strokeWidth={hot ? 3 : 2} opacity={hot ? .95 : .7} strokeLinecap="round" />
+            <path d={e.d} fill="none" stroke={e.color} strokeWidth={hot ? 14 : 7} opacity={hot ? .42 : .34} filter="url(#flow-blur)" />
+            <path d={e.d} fill="none" stroke={e.color} strokeWidth={hot ? 4 : 3} opacity={hot ? 1 : .86} strokeLinecap="round" />
             {e.active.map((t) => <path key={t.task_id} d={e.d} fill="none" stroke={colorForTask(t.task_id)} strokeWidth={focused === t.task_id ? 4 : 3} opacity={focused && focused !== t.task_id ? .55 : 1} strokeDasharray="8 5" strokeLinecap="round" />)}
           </g>})}
         </svg>
