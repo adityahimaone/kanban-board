@@ -10,10 +10,11 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { LayoutDashboard, Kanban, FolderGit2, Bot, Server, ScrollText, Puzzle, Brain, Settings, GitBranch, Network } from "lucide-react"
+import { Kanban, Settings } from "lucide-react"
 import { SidebarFooter } from "@/components/ui/sidebar"
+import { useSidebarPreferences, type Page } from "@/lib/sidebar-preferences"
 
-export type Page = "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory" | "flow" | "agent-mapping" | "settings"
+export type { Page } from "@/lib/sidebar-preferences"
 
 export function AppSidebar({
   page,
@@ -22,6 +23,8 @@ export function AppSidebar({
   page: Page
   onSelectPage: (p: Page) => void
 }) {
+  const { visibleItems } = useSidebarPreferences()
+
   return (
     <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader>
@@ -45,60 +48,14 @@ export function AppSidebar({
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "board"} onClick={() => onSelectPage("board")} tooltip="Kanban Board" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <LayoutDashboard />
-                  <span>Kanban Board</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "workspaces"} onClick={() => onSelectPage("workspaces")} tooltip="Workspaces" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <FolderGit2 />
-                  <span>Workspaces</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "profiles"} onClick={() => onSelectPage("profiles")} tooltip="Agent Profiles" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <Bot />
-                  <span>Agent Profiles</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "providers"} onClick={() => onSelectPage("providers")} tooltip="Providers" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <Server />
-                  <span>Providers</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "logs"} onClick={() => onSelectPage("logs")} tooltip="Hermes Logs" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <ScrollText />
-                  <span>Logs</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "skills"} onClick={() => onSelectPage("skills")} tooltip="Skills" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <Puzzle />
-                  <span>Skills</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "memory"} onClick={() => onSelectPage("memory")} tooltip="Memory" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <Brain />
-                  <span>Memory</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "flow"} onClick={() => onSelectPage("flow")} tooltip="Agent Flow" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <GitBranch />
-                  <span>Agent Flow</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={page === "agent-mapping"} onClick={() => onSelectPage("agent-mapping")} tooltip="Flow Map" data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
-                  <Network />
-                  <span>Flow Map</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {visibleItems.map(({ id, label, tooltip, icon: Icon }) => (
+                <SidebarMenuItem key={id}>
+                  <SidebarMenuButton isActive={page === id} onClick={() => onSelectPage(id)} tooltip={tooltip} data-cuelume-hover="tick" data-cuelume-press data-cuelume-release>
+                    <Icon />
+                    <span>{label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

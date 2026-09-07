@@ -2,8 +2,9 @@ import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
-import { Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download } from "lucide-react"
+import { ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download, Eye, EyeOff } from "lucide-react"
 import { setEnabled as setCuelumeEnabled, setVolume } from "cuelume"
+import { useSidebarPreferences } from "@/lib/sidebar-preferences"
 
 const TABS = [
   { id: "general", label: "General" },
@@ -46,6 +47,7 @@ export default function SettingsPage() {
   const [refreshMs, setRefresh] = useLocalStorage(REFRESH_KEY, 15000)
   const [compact, setCompact] = useLocalStorage(COMPACT_KEY, false)
   const [pingMs, setPing] = useLocalStorage(PING_KEY, 30000)
+  const { items, isVisible, move, toggle, reset } = useSidebarPreferences()
 
   // Sync cuelume engine with stored prefs on mount/change
   useEffect(() => {
@@ -161,7 +163,43 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {!show("Compact", "Card", "Density") && (
+              {show("Sidebar", "Navigation", "Order", "Hide", "Show") && (
+                <div className="space-y-3 rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Sidebar Navigation</p>
+                      <p className="text-xs text-neutral-500">Atur urutan fitur dan sembunyikan halaman yang tidak dipakai.</p>
+                    </div>
+                    <button type="button" onClick={reset} title="Reset sidebar" aria-label="Reset sidebar navigation"
+                      className="inline-flex shrink-0 items-center gap-1 rounded border border-[#1e2430] px-2 py-1 text-[11px] text-neutral-400 hover:border-[#10e0dd]/60 hover:text-[#10e0dd]">
+                      <RotateCcw className="size-3" /> Reset
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {items.map((item, index) => {
+                      const Icon = item.icon
+                      const visible = isVisible(item.id)
+                      return (
+                        <div key={item.id} className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${visible ? "border-[#1e2430] bg-[#0b0e14]" : "border-[#1e2430]/60 bg-[#0b0e14]/40 opacity-65"}`}>
+                          <GripVertical className="size-3.5 shrink-0 text-neutral-600" aria-hidden="true" />
+                          <Icon className="size-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{item.label}</span>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button type="button" onClick={() => move(item.id, -1)} disabled={index === 0} title={`Move ${item.label} up`} aria-label={`Move ${item.label} up`}
+                              className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-25"><ArrowUp className="size-3.5" /></button>
+                            <button type="button" onClick={() => move(item.id, 1)} disabled={index === items.length - 1} title={`Move ${item.label} down`} aria-label={`Move ${item.label} down`}
+                              className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-25"><ArrowDown className="size-3.5" /></button>
+                            <button type="button" onClick={() => toggle(item.id, !visible)} disabled={item.id === "board"} title={item.id === "board" ? "Kanban Board selalu tersedia" : visible ? `Hide ${item.label}` : `Show ${item.label}`} aria-label={item.id === "board" ? "Kanban Board always visible" : visible ? `Hide ${item.label}` : `Show ${item.label}`}
+                              className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-40">{visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {!show("Compact", "Card", "Density", "Sidebar", "Navigation", "Order", "Hide", "Show") && (
                 <p className="text-xs text-neutral-600">No match.</p>
               )}
             </TabsContent>

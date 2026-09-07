@@ -1,4 +1,4 @@
-import type { Page } from "@/components/AppSidebar"
+import type { Page } from "@/lib/sidebar-preferences"
 
 export type AppRoute = {
   page: Page
