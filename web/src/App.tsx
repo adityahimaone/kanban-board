@@ -19,7 +19,6 @@ import SkillsPage from "./features/skills/SkillsPage"
 import MemoryPage from "./features/memory/MemoryPage"
 import SettingsPage from "./features/settings/SettingsPage"
 import FlowPage from "./features/flow/FlowPage"
-import AgentMappingPage from "./features/flow/AgentMappingPage"
 import { Archive, Pencil, Plus, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 import LoadingState from "./components/LoadingState"
@@ -321,7 +320,7 @@ export default function App() {
             {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
             {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
             {page === "flow" && <div className="flex min-h-0 flex-1 overflow-hidden"><FlowPage /></div>}
-            {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
+            {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><FlowPage /></div>}
             {page === "board" && detailId && detailPage && (
               <TaskDetailPage
                 slug={slug}

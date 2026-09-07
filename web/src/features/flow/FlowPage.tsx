@@ -15,7 +15,7 @@ export default function FlowPage() {
   if (isLoading) return <div className="flex h-full items-center justify-center text-sm text-[#8b8e86]">Memuat agent flow…</div>
   if (isError) return <div className="flex h-full items-center justify-center text-sm text-[#ef6b73]">Gagal load agent flow.</div>
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#10110f]">
+    <div className="relative flex h-full min-h-0 flex-col bg-[#10110f]">
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-white/10 px-4">
         <div>
           <h2 className="text-sm font-semibold text-[#e8e8e3]">Agent Flow</h2>
