@@ -2,7 +2,6 @@ import { useMemo, useState } from "react"
 import { RefreshCw } from "lucide-react"
 import { useFlowTasks } from "./useFlowTasks"
 import FlowGraph from "./FlowGraph"
-import { SessionMonitor } from "./SessionMonitor"
 
 const STAGES = ["all", "dispatched", "running", "done", "failed"] as const
 
@@ -30,7 +29,6 @@ export default function FlowPage() {
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         <FlowGraph tasks={visible} focused={focused} onFocus={setFocused} />
-        <SessionMonitor tasks={visible} focused={focused} onFocus={setFocused} />
       </div>
     </div>
   )

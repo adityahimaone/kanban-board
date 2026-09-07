@@ -3,7 +3,6 @@ import { AppWindow, Brain, Database, Expand, GitPullRequest, Kanban, Laptop, Min
 import { NODES, EDGES, type FlowNodeId, type Point } from "./layout"
 import { elbowPath, elbowPathV, pathLength } from "./elbow"
 import { TravelingDot } from "./TravelingDot"
-import { SessionMonitor } from "./SessionMonitor"
 import { useFlowTasks, type FlowStage, type FlowTask } from "./useFlowTasks"
 
 const CARD_W = 188
@@ -118,7 +117,6 @@ export default function AgentMappingPage() {
     </div>
     {isError && <div className="border-b border-[#ef6b73]/30 bg-[#ef6b73]/10 px-4 py-2 text-xs text-[#ef6b73]">Flow Map could not load /api/flow/active.</div>}
     <div ref={canvasRef} className="relative min-h-0 flex-1 overflow-hidden select-none" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={(e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.12 : .89) } }} style={{ backgroundImage: "radial-gradient(rgba(16,224,221,.12) 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
-      <SessionMonitor tasks={visibleTasks} focused={selectedTask?.task_id ?? null} onFocus={() => undefined} />
       <div className="absolute left-0 top-0 z-10 origin-top-left" style={{ width: GRAPH_W, height: GRAPH_H, transform: `translate(${actualView.x}px, ${actualView.y}px) scale(${actualView.scale})` }}>
         <svg className="pointer-events-none absolute inset-0" width={GRAPH_W} height={GRAPH_H}>
           <defs><filter id="flow-edge-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" /></filter></defs>
