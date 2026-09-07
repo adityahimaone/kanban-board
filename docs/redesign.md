@@ -361,6 +361,45 @@ type TaskExecutionView = {
 Do not expose internal `command` values to this response. Return only task-level
 information that the user is authorized to see.
 
+### 8.4 Current `agent-chat` scaffold
+
+The branch includes the BoardUI CLI output from:
+
+```bash
+npx boardui@latest add agent-chat
+```
+
+The generated source currently lives under these paths:
+
+```text
+web/components/application/agent-chat/
+web/components/application/agent-thinking/
+web/components/application/app-shell/
+web/components/application/dashboard/
+web/components/base/
+web/app/api/chat/route.ts
+web/styles/
+web/utils/
+```
+
+The existing application still builds from `web/src` with Vite and receives its data
+from the Go HTTP API. The generated `web/app/api/chat/route.ts` is a Next-style route
+and is not active in the current Vite build. The generated chat component is therefore
+a committed scaffold, not a claim that Command Center is already wired to the product
+task stream.
+
+The next implementation agent must choose one of these explicit paths before exposing
+the screen:
+
+1. Move the required BoardUI files into the project's `web/src` ownership model and
+   adapt imports, then mount `AgentChat` behind a real task route.
+2. Keep the generated files as a reference package and compose a smaller
+   `web/src/features/command-center/` implementation from the BoardUI primitives.
+
+Do not expose the generated demo repository, sample conversations, or demo transport
+as product data. Do not deploy `web/app/api/chat/route.ts` alongside the Go API without
+an explicit server-runtime decision and provider secret handling review.
+
 ## 9. Implementation phases
 
 Each phase must build successfully before the next begins. Keep commits small and
