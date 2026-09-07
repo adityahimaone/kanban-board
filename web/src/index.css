@@ -73,10 +73,16 @@ body { background: var(--color-bg); color: var(--color-foreground); }
   to { offset-distance: 100%; }
 }
 
-/* Agent Flow: task dot traveling along its channel, ping-pong via alternate */
+/* Agent Flow: task dot traveling along its channel (offset-distance 0->100).
+   Ping-pong comes from CSS `alternate`; fade at both ends hides the respawn
+   so dots never "teleport" back to the parent in full view. */
 @keyframes flow-travel {
-  from { offset-distance: 0%; }
-  to   { offset-distance: 100%; }
+  0%   { offset-distance: 0%;   opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { offset-distance: 100%; opacity: 1; }
+  58%  { opacity: 0; }
+  61%  { offset-distance: 100%; opacity: 0; }
+  100% { offset-distance: 0%;   opacity: 0; }
 }
 
 /* Agent Flow: idle shimmer cascade root -> leaf */

@@ -1,8 +1,7 @@
-import { useRef, useState, useLayoutEffect, useCallback } from "react"
+import { useRef, useState, useLayoutEffect, useCallback, useMemo } from "react"
 import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban } from "lucide-react"
 import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, stageNode, type FlowNodeId, type Point } from "./layout"
-import { elbowPath, elbowPathV, elbowJoints } from "./elbow"
-import { delayForTask } from "./color"
+import { elbowPath, elbowPathV, elbowJoints, pathLength } from "./elbow"
 import { FlowNodeCard } from "./FlowNodeCard"
 import { TravelingDot } from "./TravelingDot"
 import { ShimmerEdge } from "./ShimmerEdge"
@@ -109,6 +108,24 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
     byNode.set(nid, (byNode.get(nid) ?? 0) + 1)
   }
 
+  // group live tasks by channel so dots sharing the same path are evenly
+  // spaced (phaseRatio = i/n). That fixes "dot belum sampe child tapi child
+  // udah spawn lagi": they walk the same path in sequence, not piled at 0%.
+  const channelGroups = useMemo(() => {
+    const m = new Map<string, { chain: FlowNodeId[]; items: FlowTask[] }>()
+    for (const t of tasks) {
+      const chain = channelPath(t.stage, t.node_id)
+      if (chain.length < 2) continue
+      const key = chain.join(">")
+      const g = m.get(key)
+      if (g) g.items.push(t)
+      else m.set(key, { chain, items: [t] })
+    }
+    // deterministic order inside each channel
+    for (const g of m.values()) g.items.sort((a, b) => a.task_id.localeCompare(b.task_id))
+    return [...m.values()]
+  }, [tasks])
+
   const onNodePointerDown = (e: React.PointerEvent, id: FlowNodeId) => {
     e.stopPropagation()
     const cur = posOf(id)
@@ -145,9 +162,9 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
           <svg width={svgW} height={svgH} className="absolute inset-0 pointer-events-none">
             {edges.map((e) => (
               <g key={`${e.from}-${e.to}`}>
-                <path d={e.d} fill="none" stroke="#2a3140" strokeWidth="1.25" />
+                <path d={e.d} fill="none" stroke="#2a3140" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" />
                 {e.joints.map((p, i) => (
-                  <circle key={i} cx={p.x} cy={p.y} r="3" fill="#2a3140" />
+                  <circle key={i} cx={p.x} cy={p.y} r={3} fill="#2a3140" />
                 ))}
               </g>
             ))}
@@ -162,12 +179,19 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
             />
           ))}
 
-          {/* traveling dots per live task */}
-          {tasks.map((t) => {
-            const chain = channelPath(t.stage, t.node_id)
-            if (chain.length === 0) return null
-            const d = joinedPath(chain, edgeAnchors)
-            return <TravelingDot key={t.task_id} taskId={t.task_id} pathD={d} delayMs={delayForTask(t.task_id)} />
+          {/* traveling dots — one channel at a time, evenly phased */}
+          {channelGroups.map((g) => {
+            const d = joinedPath(g.chain, edgeAnchors)
+            const len = pathLength(d)
+            return g.items.map((t, i) => (
+              <TravelingDot
+                key={t.task_id}
+                taskId={t.task_id}
+                pathD={d}
+                pathLen={len}
+                phaseRatio={g.items.length === 1 ? 0 : i / g.items.length}
+              />
+            ))
           })}
 
           {/* node cards */}
