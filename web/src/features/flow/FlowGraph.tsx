@@ -1,343 +1,54 @@
-import { useRef, useState, useLayoutEffect, useCallback, useMemo } from "react"
-import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban, GitPullRequest, ZoomIn, ZoomOut, Maximize, RotateCcw } from "lucide-react"
-import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, channelDistances, stageNode, type FlowNodeId, type Point } from "./layout"
-import { elbowPath, elbowPathV, elbowJoints, pathLength } from "./elbow"
-import { FlowNodeCard } from "./FlowNodeCard"
-import { TravelingDot, cycleFor, timeToDistance } from "./TravelingDot"
-import { ShimmerEdge } from "./ShimmerEdge"
+import { useCallback, useMemo, useRef, useState } from "react"
+import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban, ZoomIn, ZoomOut, Maximize } from "lucide-react"
+import { EDGES, NODES, nodeMap, type FlowNodeId, type Point, joinedPath, channelPath, stageNode } from "./layout"
+import { elbowPath, pathLength } from "./elbow"
+import { FlowNodeCard, CARD_H, CARD_W } from "./FlowNodeCard"
+import { TravelingDot } from "./TravelingDot"
 import type { FlowTask } from "./useFlowTasks"
+import { colorForTask } from "./color"
 
-const ROW_H = 120
-const COL_W = 270
-const PAD_X = 80
-const PAD_TOP = 60
-const CARD_W = 210
-const CARD_H = 56 // fixed FlowNodeCard height (h-14) — anchors must match
-
-const MIN_SCALE = 0.4
+const MIN_SCALE = .35
 const MAX_SCALE = 2
+const ICONS: Partial<Record<FlowNodeId, typeof Brain>> = { kanban: Kanban, orchestrator: Brain, memory: Database, "node-agent-server": Server, tailscale: Radio, mac: Laptop, windows: AppWindow, dispatcher: Server, review: Server }
 
-const NODE_ICON: Record<FlowNodeId, typeof Brain> = {
-  orchestrator: Brain,
-  kanban: Kanban,
-  dispatcher: Server,
-  memory: Database,
-  "node-agent-server": Server,
-  tailscale: Radio,
-  mac: Laptop,
-  windows: AppWindow,
-  review: GitPullRequest,
+function anchor(a: FlowNodeId, b: FlowNodeId): [Point, Point] {
+  const from = nodeMap[a], to = nodeMap[b]
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  if (Math.abs(dx) >= Math.abs(dy)) return [{ x: from.x + Math.sign(dx) * CARD_W / 2, y: from.y }, { x: to.x - Math.sign(dx) * CARD_W / 2, y: to.y }]
+  return [{ x: from.x, y: from.y + Math.sign(dy) * CARD_H / 2 }, { x: to.x, y: to.y - Math.sign(dy) * CARD_H / 2 }]
 }
 
-/** Edge geometry between two nodes, direction-aware: exit side of `from` and
- *  entry side of `to` face each other; anchor sits at the CENTER of that side.
- *  Same column -> bottom->top (vertical elbow). Target left -> exit left/enter
- *  right (reversed horizontal elbow). Target right -> exit right/enter left. */
-function edgeAnchorsFor(
-  fromId: FlowNodeId,
-  toId: FlowNodeId,
-  posOf: (id: FlowNodeId) => Point,
-): [Point, Point, Point[], string] {
-  const fc = posOf(fromId)
-  const tc = posOf(toId)
-  const dx = tc.x - fc.x
-
-  if (Math.abs(dx) < 1) {
-    // same column: straight-ish vertical, bottom -> top
-    const from = { x: fc.x, y: fc.y + CARD_H / 2 }
-    const to = { x: tc.x, y: tc.y - CARD_H / 2 }
-    return [from, to, [] as Point[], elbowPathV(from, to, (from.y + to.y) / 2)]
-  }
-  if (dx < 0) {
-    // target is to the LEFT: exit left side, enter right side
-    const from = { x: fc.x - CARD_W / 2, y: fc.y }
-    const to = { x: tc.x + CARD_W / 2, y: tc.y }
-    const midX = (from.x + to.x) / 2
-    return [from, to, elbowJoints(from, to, midX), elbowPath(from, to, midX)]
-  }
-  // target is to the RIGHT: exit right side, enter left side
-  const from = { x: fc.x + CARD_W / 2, y: fc.y }
-  const to = { x: tc.x - CARD_W / 2, y: tc.y }
-  const midX = (from.x + to.x) / 2
-  return [from, to, elbowJoints(from, to, midX), elbowPath(from, to, midX)]
-}
-
-/** bbox of all node cards (graph content bounds, in graph coords) */
-function contentBounds(posOf: (id: FlowNodeId) => Point) {
-  const pts = NODES.map((n) => posOf(n.id))
-  const minX = Math.min(...pts.map((p) => p.x)) - CARD_W / 2
-  const maxX = Math.max(...pts.map((p) => p.x)) + CARD_W / 2
-  const minY = Math.min(...pts.map((p) => p.y)) - CARD_H / 2
-  const maxY = Math.max(...pts.map((p) => p.y)) + CARD_H / 2
-  return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY }
-}
-
-type View = { scale: number; x: number; y: number } // x,y = translate in viewport px
-
-export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
+export default function FlowGraph({ tasks, focused, onFocus }: { tasks: FlowTask[]; focused: string | null; onFocus: (id: string | null) => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [dims, setDims] = useState({ w: 900, h: 600 })
-  // node drag: overrides store center position; anchors recompute live so
-  // edges stay attached exactly at card mid-sides while dragging.
-  const [overrides, setOverrides] = useState<Partial<Record<FlowNodeId, Point>>>({})
-  const dragRef = useRef<{ id: FlowNodeId; dx: number; dy: number } | null>(null)
-
-  // viewport (zoom/pan). null = auto "fit & center" mode recomputed per dims.
-  const [view, setView] = useState<View | null>(null)
-  const maxRow = Math.max(...NODES.map((n) => n.row))
-  const maxCol = Math.max(...NODES.map((n) => n.col))
-  const svgH = (maxRow + 1) * ROW_H + PAD_TOP * 2
-  const svgW = (maxCol + 1) * COL_W + PAD_X * 2
-
-  useLayoutEffect(() => {
-    if (!ref.current) return
-    const ro = new ResizeObserver(([e]) => {
-      setDims({ w: e.contentRect.width, h: Math.max(e.contentRect.height, 520) })
-    })
-    ro.observe(ref.current)
-    return () => ro.disconnect()
-  }, [])
-
-  // auto fit: whole graph centered both axes (used whenever view === null,
-  // incl. first load -> graph starts dead-center)
-  const bounds = useMemo(() => contentBounds(posOfNoOverride), [])
-  function posOfNoOverride(id: FlowNodeId): Point {
-    const n = nodeMap[id]
-    return { x: PAD_X + n.col * COL_W + COL_W / 2, y: PAD_TOP + n.row * ROW_H + ROW_H / 2 }
-  }
-
-  const fit = useMemo(() => {
-    const pad = 24
-    const s = Math.min((dims.w - pad * 2) / bounds.w, (dims.h - pad * 2) / bounds.h, 1)
-    const scale = Math.max(MIN_SCALE, s)
-    // nudge a bit higher so graph feels optically centered (cards have more bottom room)
-    const yBias = -18
-    return {
-      scale,
-      x: (dims.w - bounds.w * scale) / 2 - bounds.minX * scale,
-      y: (dims.h - bounds.h * scale) / 2 - bounds.minY * scale + yBias,
-    }
-  }, [dims, bounds])
-
-  const v = view ?? fit
-
-  const zoomAt = useCallback(
-    (factor: number, cx?: number, cy?: number) => {
-      setView((prev) => {
-        const base = prev ?? fit
-        const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, base.scale * factor))
-        // keep the point under the cursor stationary
-        const px = cx ?? dims.w / 2
-        const py = cy ?? dims.h / 2
-        const gx = (px - base.x) / base.scale
-        const gy = (py - base.y) / base.scale
-        return { scale, x: px - gx * scale, y: py - gy * scale }
-      })
-    },
-    [fit, dims],
-  )
-
-  const fitToView = useCallback(() => setView(null), [])
-
-  // ctrl/cmd + wheel zoom at cursor
-  const onWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return
-      e.preventDefault()
-      const rect = ref.current?.getBoundingClientRect()
-      zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - (rect?.left ?? 0), e.clientY - (rect?.top ?? 0))
-    },
-    [zoomAt],
-  )
-
-  const posOf = useCallback((id: FlowNodeId): Point => {
-    const n = nodeMap[id]
-    const base = { x: PAD_X + n.col * COL_W + COL_W / 2, y: PAD_TOP + n.row * ROW_H + ROW_H / 2 }
-    return overrides[id] ?? base
-  }, [overrides])
-
-  const edgeAnchors = useCallback(
-    (a: FlowNodeId, b: FlowNodeId): [Point, Point] => edgeAnchorsFor(a, b, posOf).slice(0, 2) as [Point, Point],
-    [posOf],
-  )
-
-  const edges = EDGES.map((e) => {
-    const [from, to, joints, d] = edgeAnchorsFor(e.from, e.to, posOf)
-    return { ...e, from, to, joints, d }
-  })
-
-  // node glow/badge: count tasks currently represented by each node
-  const byNode = new Map<FlowNodeId, number>()
-  for (const t of tasks) {
-    const nid = stageNode(t.stage, t.node_id)
-    if (!nid) continue
-    byNode.set(nid, (byNode.get(nid) ?? 0) + 1)
-  }
-
-  // group live tasks by channel so dots sharing the same path are evenly
-  // spaced (phaseRatio = i/n). Each channel also drives card pulses synced to
-  // dot arrival: parent card pulses at t=0, next card when the dot reaches it.
-  const channelGroups = useMemo(() => {
-    const m = new Map<string, { chain: FlowNodeId[]; items: FlowTask[] }>()
-    for (const t of tasks) {
-      const chain = channelPath(t.stage, t.node_id)
-      if (chain.length < 2) continue
-      const key = chain.join(">")
-      const g = m.get(key)
-      if (g) g.items.push(t)
-      else m.set(key, { chain, items: [t] })
-    }
-    for (const g of m.values()) g.items.sort((a, b) => a.task_id.localeCompare(b.task_id))
-    return [...m.values()]
-  }, [tasks])
-
-  // per-node card pulse synced to dot arrival: for each channel, the card at
-  // path-distance `dist` pulses exactly when the dot reaches that distance
-  // (timeToDistance), using the channel's own cycle. Exact arc-aware
-  // distances via channelDistances().
-  const pulseFor = useMemo(() => {
-    const map = new Map<FlowNodeId, { delay: number; cycle: number; hue: string }>()
-    for (const g of channelGroups) {
-      const dists = channelDistances(g.chain, edgeAnchors)
-      const len = dists[dists.length - 1] || 1
-      const cycle = cycleFor(len)
-      for (let i = 0; i < g.chain.length; i++) {
-        const nid = g.chain[i]
-        if (map.has(nid)) continue
-        map.set(nid, {
-          delay: ((timeToDistance(len, dists[i]) % cycle) + cycle) % cycle,
-          cycle,
-          hue: nodeMap[nid].hue,
-        })
-      }
-    }
-    return map
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelGroups, edgeAnchors])
-
-  const onNodePointerDown = (e: React.PointerEvent, id: FlowNodeId) => {
-    e.stopPropagation()
-    const cur = posOf(id)
-    dragRef.current = { id, dx: e.clientX - cur.x, dy: e.clientY - cur.y }
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-  const onNodePointerMove = (e: React.PointerEvent) => {
-    const d = dragRef.current
-    if (!d) return
-    setOverrides((prev) => ({ ...prev, [d.id]: { x: e.clientX - d.dx, y: e.clientY - d.dy } }))
-  }
-  const onNodePointerUp = () => { dragRef.current = null }
-  const resetLayout = () => setOverrides({})
-
-  const btn = "flex size-7 items-center justify-center rounded-lg border border-[#2a3140] bg-[#11151f] text-neutral-400 transition-colors hover:text-white disabled:opacity-40"
-
-  return (
-    <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#1e2430]" style={{ background: "#0b0e14" }}>
-      {/* zoom controls (top-right) */}
-      <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-        <button className={btn} title="Zoom in (Ctrl+scroll)" onClick={() => zoomAt(1.2)}><ZoomIn className="size-3.5" /></button>
-        <button className={btn} title="Zoom out (Ctrl+scroll)" onClick={() => zoomAt(1 / 1.2)}><ZoomOut className="size-3.5" /></button>
-        <button className={btn} title="Fit to view" onClick={fitToView}><Maximize className="size-3.5" /></button>
-        <span className="min-w-9 text-center font-mono text-[10px] text-neutral-500">{Math.round(v.scale * 100)}%</span>
-      </div>
-      {Object.keys(overrides).length > 0 && (
-        <button
-          onClick={resetLayout}
-          className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border border-[#2a3140] bg-[#11151f] px-2 py-1 text-[10px] font-mono text-neutral-400 transition-colors hover:text-white"
-        >
-          <RotateCcw className="size-3" /> reset layout
-        </button>
-      )}
-      <div
-        ref={ref}
-        className="absolute inset-0"
-        onWheel={onWheel}
-        style={{
-          background: "radial-gradient(#1e2430 1px, transparent 1px)",
-          backgroundSize: `${24 * v.scale}px ${24 * v.scale}px`,
-          backgroundPosition: `${v.x}px ${v.y}px`,
-        }}
-      >
-        <div
-          className="absolute left-0 top-0 origin-top-left"
-          style={{ transform: `translate(${v.x}px, ${v.y}px) scale(${v.scale})`, width: svgW, height: svgH }}
-        >
-          <svg width={svgW} height={svgH} className="absolute inset-0 pointer-events-none">
-            {edges.map((e) => (
-              <g key={`${e.from}-${e.to}`}>
-                <path d={e.d} fill="none" stroke="#2a3140" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-            ))}
-          </svg>
-
-          {/* idle shimmer cascade root -> leaf */}
-          {tasks.length === 0 && EDGES.map((e) => (
-            <ShimmerEdge
-              key={`${e.from}-${e.to}-shimmer`}
-              pathD={edgeAnchorsFor(e.from, e.to, posOf)[3]}
-              depth={rowOf(e.to)}
-            />
-          ))}
-
-          {/* traveling dots — one channel at a time, evenly phased */}
-          {channelGroups.map((g) => {
-            const d = joinedPath(g.chain, edgeAnchors)
-            const len = pathLength(d)
-            return g.items.map((t, i) => (
-              <TravelingDot
-                key={t.task_id}
-                taskId={t.task_id}
-                pathD={d}
-                pathLen={len}
-                phaseRatio={g.items.length === 1 ? 0 : i / g.items.length}
-              />
-            ))
-          })}
-
-          {/* node cards */}
-          {NODES.map((n) => {
-            const p = posOf(n.id)
-            const count = byNode.get(n.id) ?? 0
-            const pulse = pulseFor.get(n.id)
-            return (
-              <div
-                key={n.id}
-                data-node={n.id}
-                className="absolute cursor-grab touch-none select-none active:cursor-grabbing"
-                style={{ left: p.x, top: p.y, width: CARD_W, transform: "translate(-50%, -50%)" }}
-                onPointerDown={(e) => onNodePointerDown(e, n.id)}
-                onPointerMove={onNodePointerMove}
-                onPointerUp={onNodePointerUp}
-                onPointerCancel={onNodePointerUp}
-              >
-                <div className="relative">
-                  <FlowNodeCard label={n.label} sub={n.sub} Icon={NODE_ICON[n.id]} hue={n.hue} />
-                  {/* idle card shimmer when nothing flows through; ring pulse when dots arrive */}
-                  <div
-                    className="pointer-events-none absolute inset-0 rounded-2xl animate-[flow-card-pulse_0s_ease-out_infinite]"
-                    style={
-                      {
-                        "--pulse-hue": (pulse?.hue ?? n.hue) + "66",
-                        animationDuration: `${pulse?.cycle ?? 3.2}s`,
-                        animationDelay: `-${pulse?.delay ?? (rowOf(n.id) * 0.8) % 3.2}s`,
-                        animationFillMode: "backwards",
-                      } as React.CSSProperties
-                    }
-                  />
-                  {count > 0 && (
-                    <span
-                      className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-black"
-                      style={{ background: n.hue }}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+  const [view, setView] = useState({ scale: .72, x: 20, y: 30 })
+  const [selected, setSelected] = useState<FlowNodeId | null>(null)
+  const [drag, setDrag] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  const bounds = { w: 1370, h: 460 }
+  const zoom = useCallback((factor: number, cx = 600, cy = 250) => setView((v) => { const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, v.scale * factor)); const gx = (cx - v.x) / v.scale; const gy = (cy - v.y) / v.scale; return { scale, x: cx - gx * scale, y: cy - gy * scale } }), [])
+  const fit = () => setView({ scale: .72, x: 20, y: 30 })
+  const onWheel = (e: React.WheelEvent) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const r = ref.current?.getBoundingClientRect(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - (r?.left ?? 0), e.clientY - (r?.top ?? 0)) }
+  const activeByNode = useMemo(() => { const m = new Map<FlowNodeId, FlowTask[]>(); for (const t of tasks) { const n = stageNode(t.stage, t.node_id); if (n) m.set(n, [...(m.get(n) ?? []), t]) } return m }, [tasks])
+  const activeEdges = useMemo(() => { const m = new Map<string, FlowTask[]>(); for (const t of tasks) { const route = channelPath(t.stage, t.node_id); for (let i = 0; i < route.length - 1; i++) { const key = `${route[i]}-${route[i + 1]}`; const reverse = `${route[i + 1]}-${route[i]}`; m.set(key, [...(m.get(key) ?? []), t]); m.set(reverse, [...(m.get(reverse) ?? []), t]) } } return m }, [tasks])
+  const edgeData = EDGES.map((e) => { const [from, to] = anchor(e.from, e.to); return { ...e, d: elbowPath(from, to, (from.x + to.x) / 2), active: activeEdges.get(`${e.from}-${e.to}`) ?? [] } })
+  const routeFocus = focused ? channelPath(tasks.find((t) => t.task_id === focused)?.stage ?? "running", tasks.find((t) => t.task_id === focused)?.node_id ?? "") : null
+  return <div className="relative min-h-0 flex-1 overflow-hidden" ref={ref} onWheel={onWheel} onPointerMove={(e) => drag && setView((v) => ({ ...v, x: drag.ox + e.clientX - drag.x, y: drag.oy + e.clientY - drag.y }))} onPointerUp={() => setDrag(null)} onPointerCancel={() => setDrag(null)}>
+    <div className="absolute inset-0" style={{ backgroundColor: "#10110f", backgroundImage: "radial-gradient(rgba(255,255,255,.075) 1px, transparent 1px)", backgroundSize: "16px 16px", backgroundPosition: `${view.x}px ${view.y}px` }} onPointerDown={(e) => { if (e.target === e.currentTarget) setDrag({ x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }) }}>
+      <div className="absolute left-0 top-0 origin-top-left" style={{ width: bounds.w, height: bounds.h, transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})` }}>
+        <svg width={bounds.w} height={bounds.h} className="pointer-events-none absolute inset-0 overflow-visible">
+          <defs><filter id="flow-blur"><feGaussianBlur stdDeviation="4" /></filter></defs>
+          {edgeData.map((e) => <g key={`${e.from}-${e.to}`} opacity={routeFocus && !routeFocus.includes(e.from) ? .18 : 1}>
+            <path d={e.d} fill="none" stroke={e.color} strokeWidth="5" opacity=".18" filter="url(#flow-blur)" />
+            <path d={e.d} fill="none" stroke={e.color} strokeWidth="1.5" opacity=".55" />
+            {e.active.map((t) => <path key={t.task_id} d={e.d} fill="none" stroke={colorForTask(t.task_id)} strokeWidth={focused === t.task_id ? 3 : 2} opacity={focused && focused !== t.task_id ? .55 : .9} strokeDasharray="4 6" />)}
+          </g>)}
+        </svg>
+        {tasks.slice(0, 24).map((t, i) => { const route = channelPath(t.stage, t.node_id); const d = joinedPath(route, anchor); return <TravelingDot key={t.task_id} taskId={t.task_id} pathD={d} pathLen={Math.max(1, pathLength(d))} phaseRatio={tasks.length > 1 ? i / tasks.length : 0} /> })}
+        {NODES.map((n) => { const Icon = ICONS[n.id] ?? Server; const nodeTasks = activeByNode.get(n.id) ?? []; return <div key={n.id} className="absolute" style={{ left: n.x, top: n.y, transform: "translate(-50%,-50%)" }}><FlowNodeCard label={n.label} sub={n.sub} Icon={Icon} hue={n.hue} activeCount={nodeTasks.length} latest={nodeTasks[0]} selected={selected === n.id} onClick={() => { setSelected(n.id); onFocus(null) }} /></div> })}
       </div>
     </div>
-  )
+    <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1 rounded-md border border-white/10 bg-[#171816] p-1"><button aria-label="Zoom in" title="Zoom in" onClick={() => zoom(1.2)} className="map-control"><ZoomIn className="size-3.5" /></button><button aria-label="Zoom out" title="Zoom out" onClick={() => zoom(1 / 1.2)} className="map-control"><ZoomOut className="size-3.5" /></button><button aria-label="Fit map" title="Fit map" onClick={fit} className="map-control"><Maximize className="size-3.5" /></button><span className="px-1 font-mono text-[10px] text-[#8b8e86]">{Math.round(view.scale * 100)}%</span></div>
+    <div className="absolute bottom-3 right-3 z-10 hidden h-[104px] w-40 cursor-pointer rounded border border-white/10 bg-[#171816]/95 p-1 md:block" onClick={fit} title="Fit map"><div className="relative h-full w-full" style={{ transform: "scale(.105)", transformOrigin: "top left", width: bounds.w, height: bounds.h }}>{NODES.map((n) => <span key={n.id} className="absolute block rounded-sm" style={{ left: n.x - CARD_W / 2, top: n.y - CARD_H / 2, width: CARD_W, height: CARD_H, background: n.hue }} />)}<span className="absolute border-2 border-white" style={{ left: -view.x / view.scale, top: -view.y / view.scale, width: 900 / view.scale, height: 400 / view.scale }} /></div></div>
+    {selected && <aside className="absolute right-3 top-3 z-10 w-72 max-w-[calc(100%-24px)] rounded-md border border-white/10 bg-[#171816]/95 p-3 shadow-xl backdrop-blur-sm"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold text-[#e8e8e3]">{nodeMap[selected].label}</p><p className="mt-1 font-mono text-[10px] text-[#8b8e86]">{nodeMap[selected].group} · {activeByNode.get(selected)?.length ?? 0} active</p></div><button aria-label="Close inspector" onClick={() => setSelected(null)} className="text-[#8b8e86] hover:text-white">×</button></div><div className="mt-3 border-t border-white/10 pt-2 text-[10px] text-[#8b8e86]"><p>{nodeMap[selected].sub}</p><p className="mt-2 font-mono">{activeByNode.get(selected)?.map((t) => t.task_id).join(", ") || "No active task"}</p></div></aside>}
+  </div>
 }

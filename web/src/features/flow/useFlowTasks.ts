@@ -14,7 +14,7 @@ export interface FlowTask {
   updated_at: string
 }
 
-interface FlowResponse { tasks: FlowTask[] }
+interface FlowResponse { tasks: FlowTask[]; retention_seconds?: number }
 
 export function useFlowTasks() {
   return useQuery({

@@ -2,6 +2,7 @@ package kanban
 
 import (
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -28,10 +29,40 @@ type FlowTask struct {
 }
 
 var (
-	flowMu    sync.Mutex
-	flowTasks = map[string]FlowTask{}
-	doneTTL   = 30 * time.Second
+	flowMu                sync.Mutex
+	flowTasks                           = map[string]FlowTask{}
+	flowRetentionOverride time.Duration = -1
 )
+
+const (
+	defaultFlowRetention = 10 * time.Minute
+	minFlowRetention     = 5 * time.Minute
+	maxFlowRetention     = 10 * time.Minute
+)
+
+func flowRetention() time.Duration {
+	if flowRetentionOverride >= 0 {
+		return flowRetentionOverride
+	}
+	d := defaultFlowRetention
+	if raw := strings.TrimSpace(os.Getenv("FLOW_SESSION_RETENTION")); raw != "" {
+		if parsed, err := time.ParseDuration(raw); err == nil {
+			d = parsed
+		}
+	}
+	if d < minFlowRetention {
+		return minFlowRetention
+	}
+	if d > maxFlowRetention {
+		return maxFlowRetention
+	}
+	return d
+}
+
+func setFlowRetentionForTest(d time.Duration) { flowRetentionOverride = d }
+
+// FlowRetentionSeconds exposes the configured terminal-session retention window.
+func FlowRetentionSeconds() int { return int(flowRetention().Seconds()) }
 
 func init() {
 	go func() {
@@ -55,7 +86,7 @@ func flowEvict() {
 	flowMu.Lock()
 	defer flowMu.Unlock()
 	for id, t := range flowTasks {
-		if (t.Stage == FlowDone || t.Stage == FlowFailed) && now.Sub(t.UpdatedAt) > doneTTL {
+		if (t.Stage == FlowDone || t.Stage == FlowFailed) && now.Sub(t.UpdatedAt) > flowRetention() {
 			delete(flowTasks, id)
 		}
 	}

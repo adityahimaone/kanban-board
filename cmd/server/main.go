@@ -426,7 +426,7 @@ func main() {
 		writeJSON(w, http.StatusOK, st)
 	})
 	mux.HandleFunc("GET /api/flow/active", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"tasks": kanban.FlowActive()})
+		writeJSON(w, http.StatusOK, map[string]any{"tasks": kanban.FlowActive(), "retention_seconds": kanban.FlowRetentionSeconds()})
 	})
 	mux.HandleFunc("POST /api/flow/seed", func(w http.ResponseWriter, r *http.Request) {
 		var tasks []kanban.FlowTask

@@ -1,98 +1,67 @@
 import { elbowPath, pathLength } from "./elbow"
 import type { FlowStage } from "./useFlowTasks"
 
-export type FlowNodeId =
-  | "orchestrator" | "kanban" | "dispatcher" | "memory" | "node-agent-server"
-  | "tailscale" | "mac" | "windows" | "review"
-
-export type Side = "left" | "right" | "top" | "bottom"
-
+export type FlowNodeId = "kanban" | "orchestrator" | "memory" | "dispatcher" | "node-agent-server" | "tailscale" | "mac" | "windows" | "review"
 export interface Point { x: number; y: number }
+export interface LayoutNode { id: FlowNodeId; label: string; sub: string; x: number; y: number; hue: string; group: string }
+export interface LayoutEdge { from: FlowNodeId; to: FlowNodeId; color: string }
 
-export interface LayoutNode { id: FlowNodeId; label: string; sub: string; row: number; col: number; hue: string }
-export interface LayoutEdge { from: FlowNodeId; to: FlowNodeId }
-
-// distinct hue per card (icon badge + count badge + active border)
 export const NODES: LayoutNode[] = [
-  { id: "orchestrator",      label: "Orchestrator",      sub: "intent + memory",        row: 0, col: 1, hue: "#10e0dd" },
-  { id: "kanban",            label: "Kanban",            sub: "SQLite · task lifecycle", row: 1, col: 0, hue: "#9a5cff" },
-  { id: "dispatcher",        label: "Dispatcher",        sub: "claim · resolve route",  row: 1, col: 1, hue: "#f59e0b" },
-  { id: "memory",            label: "Memory",            sub: "fact store",              row: 1, col: 2, hue: "#6366f1" },
-  { id: "node-agent-server", label: "Node-agent server", sub: "queue · auth · capability", row: 2, col: 1, hue: "#f09a2f" },
-  { id: "tailscale",         label: "Tailscale",         sub: "tailnet transport",       row: 3, col: 1, hue: "#38bdf8" },
-  { id: "mac",               label: "Mac worker",        sub: "launchd · workspace",     row: 4, col: 0, hue: "#ec4899" },
-  { id: "windows",           label: "Windows worker",    sub: "scheduled task · workspace", row: 4, col: 2, hue: "#3b82f6" },
-  { id: "review",            label: "Review gate",       sub: "diff · approve · commit", row: 5, col: 1, hue: "#22c55e" },
+  { id: "kanban", label: "Kanban Queue", sub: "task intake", x: 120, y: 190, hue: "#8f83ff", group: "Task Intake" },
+  { id: "orchestrator", label: "Hermes Orchestrator", sub: "control plane", x: 390, y: 190, hue: "#e5a84b", group: "Control Plane" },
+  { id: "memory", label: "Memory and Prequest", sub: "context", x: 390, y: 340, hue: "#6477ff", group: "Context" },
+  { id: "node-agent-server", label: "Node Agent Gateway", sub: "dispatch + auth", x: 660, y: 190, hue: "#e5a84b", group: "Dispatch" },
+  { id: "tailscale", label: "Tailscale Tunnel", sub: "tailnet transport", x: 930, y: 190, hue: "#43c6d9", group: "Network" },
+  { id: "mac", label: "Mac Worker", sub: "launchd · workspace", x: 1200, y: 120, hue: "#5a9cff", group: "Execution" },
+  { id: "windows", label: "Windows Worker", sub: "service · workspace", x: 1200, y: 280, hue: "#e87baf", group: "Execution" },
 ]
 
 export const EDGES: LayoutEdge[] = [
-  { from: "orchestrator", to: "kanban" },
-  { from: "orchestrator", to: "memory" },
-  { from: "kanban", to: "dispatcher" },
-  { from: "dispatcher", to: "node-agent-server" },
-  { from: "node-agent-server", to: "tailscale" },
-  { from: "tailscale", to: "mac" },
-  { from: "tailscale", to: "windows" },
-  { from: "mac", to: "review" },
-  { from: "windows", to: "review" },
-  { from: "review", to: "kanban" },
+  { from: "kanban", to: "orchestrator", color: "#8f83ff" },
+  { from: "memory", to: "orchestrator", color: "#6477ff" },
+  { from: "orchestrator", to: "node-agent-server", color: "#e5a84b" },
+  { from: "node-agent-server", to: "tailscale", color: "#43c6d9" },
+  { from: "tailscale", to: "mac", color: "#5a9cff" },
+  { from: "tailscale", to: "windows", color: "#e87baf" },
 ]
-
 export const nodeMap = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<FlowNodeId, LayoutNode>
-
-export function rowOf(id: FlowNodeId): number {
-  return nodeMap[id]?.row ?? 0
-}
+export const rowOf = (id: FlowNodeId) => nodeMap[id]?.y ?? 0
 
 export function channelPath(stage: FlowStage, nodeId: string): FlowNodeId[] {
-  if (stage === "dispatched") return ["kanban", "dispatcher", "node-agent-server"]
+  const base: FlowNodeId[] = ["kanban", "orchestrator"]
+  if (stage === "dispatched") return [...base, "node-agent-server"]
   if (stage === "running") {
-    if (nodeId === "windows") return ["dispatcher", "node-agent-server", "tailscale", "windows"]
-    if (nodeId === "mac") return ["dispatcher", "node-agent-server", "tailscale", "mac"]
-    return ["kanban", "dispatcher", "node-agent-server"]
+    if (nodeId === "mac" || nodeId === "windows") return [...base, "node-agent-server", "tailscale", nodeId]
+    return [...base, "node-agent-server"]
   }
   if (stage === "done" || stage === "failed") {
-    if (nodeId === "windows") return ["windows", "review", "kanban"]
-    if (nodeId === "mac") return ["mac", "review", "kanban"]
-    return ["node-agent-server", "review", "kanban"]
+    if (nodeId === "mac" || nodeId === "windows") return [nodeId, "tailscale", "node-agent-server", "orchestrator", "kanban"]
+    return ["node-agent-server", "orchestrator", "kanban"]
   }
   return []
 }
 
-export function joinedPath(nodeIds: FlowNodeId[], edgeAnchors: (a: FlowNodeId, b: FlowNodeId) => [Point, Point]): string {
-  const segments = nodeIds.slice(0, -1).map((id, i) => {
-    const [from, to] = edgeAnchors(id, nodeIds[i + 1])
-    const midX = (from.x + to.x) / 2
-    return elbowPath(from, to, midX)
-  })
-  return segments.join(" ")
+export function joinedPath(ids: FlowNodeId[], anchors: (a: FlowNodeId, b: FlowNodeId) => [Point, Point]) {
+  return ids.slice(0, -1).map((id, i) => {
+    const [from, to] = anchors(id, ids[i + 1])
+    return elbowPath(from, to, (from.x + to.x) / 2)
+  }).join(" ")
 }
 
-/** Distance from the start of a joined channel path to each node anchor —
- *  exact arc-aware walk (reuses pathLength so turns/curves count). */
-export function channelDistances(
-  nodeIds: FlowNodeId[],
-  edgeAnchors: (a: FlowNodeId, b: FlowNodeId) => [Point, Point],
-): number[] {
-  const out: number[] = [0]
-  let acc = 0
-  for (let i = 0; i < nodeIds.length - 1; i++) {
-    const [from, to] = edgeAnchors(nodeIds[i], nodeIds[i + 1])
-    const midX = (from.x + to.x) / 2
-    acc += pathLength(elbowPath(from, to, midX))
-    out.push(acc)
+export function channelDistances(ids: FlowNodeId[], anchors: (a: FlowNodeId, b: FlowNodeId) => [Point, Point]) {
+  const out = [0]
+  let total = 0
+  for (let i = 0; i < ids.length - 1; i++) {
+    const [from, to] = anchors(ids[i], ids[i + 1])
+    total += pathLength(elbowPath(from, to, (from.x + to.x) / 2))
+    out.push(total)
   }
   return out
 }
 
-// which single node represents the task for glow/badge (null = legend only)
 export function stageNode(stage: FlowStage, nodeId: string): FlowNodeId | null {
-  if (stage === "dispatched") return "dispatcher"
-  if (stage === "running") {
-    if (nodeId === "mac") return "mac"
-    if (nodeId === "windows") return "windows"
-    return nodeId ? "node-agent-server" : "orchestrator"
-  }
-  if (stage === "done" || stage === "failed") return "review"
+  if (stage === "dispatched") return "node-agent-server"
+  if (stage === "running") return nodeId === "mac" || nodeId === "windows" ? nodeId : "node-agent-server"
+  if (stage === "done" || stage === "failed") return nodeId === "mac" || nodeId === "windows" ? nodeId : "node-agent-server"
   return null
 }

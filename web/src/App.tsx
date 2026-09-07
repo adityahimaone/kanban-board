@@ -320,7 +320,7 @@ export default function App() {
             {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
             {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
             {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
-            {page === "flow" && <div className="flex-1 overflow-hidden p-6"><FlowPage /></div>}
+            {page === "flow" && <div className="flex min-h-0 flex-1 overflow-hidden"><FlowPage /></div>}
             {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
             {page === "board" && detailId && detailPage && (
               <TaskDetailPage

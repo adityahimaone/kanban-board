@@ -57,20 +57,49 @@ func TestFlowLifecycle(t *testing.T) {
 		t.Errorf("t_dummy2 want dispatched, got %s", byID["t_dummy2"].Stage)
 	}
 
-	// done -> expired after TTL
+	// done -> retained until session retention elapses
 	flowSet(FlowTask{TaskID: "t_dummy1", Board: "default", NodeID: "mac-1", Stage: FlowDone})
-	doneTTL = 0 // force expiry
+	retention := flowRetention()
+	if retention < 5*time.Minute || retention > 10*time.Minute {
+		t.Errorf("retention = %v, want within 5m-10m window", retention)
+	}
+
+	// still visible immediately after terminal stage
+	if act := FlowActive(); len(act) != 2 {
+		t.Fatalf("want done task retained, got %+v", act)
+	}
+
+	// expired only after retention window passes
+	setFlowRetentionForTest(0)
 	time.Sleep(10 * time.Millisecond)
 	act = FlowActive()
 	if len(act) != 1 || act[0].TaskID != "t_dummy2" {
-		t.Fatalf("want only t_dummy2 after done expiry, got %+v", act)
+		t.Fatalf("want only t_dummy2 after retention expiry, got %+v", act)
 	}
 
-	// failed also expires
+	// failed also expires on the same window
 	flowSet(FlowTask{TaskID: "t_dummy2", Board: "default", NodeID: "win-1", Stage: FlowFailed})
 	time.Sleep(10 * time.Millisecond)
 	if act := FlowActive(); len(act) != 0 {
 		t.Fatalf("want 0 after failed expiry, got %+v", act)
 	}
-	doneTTL = 30 * time.Second // restore
+	setFlowRetentionForTest(-1) // restore env-backed retention
+}
+
+func TestFlowRetentionConfig(t *testing.T) {
+	cases := map[string]time.Duration{
+		"":        10 * time.Minute, // default
+		"10m":     10 * time.Minute,
+		"5m":      5 * time.Minute,
+		"300s":    5 * time.Minute,
+		"1m":      5 * time.Minute, // below window clamps up to 5m
+		"1h":      10 * time.Minute,
+		"garbage": 10 * time.Minute,
+	}
+	for env, want := range cases {
+		t.Setenv("FLOW_SESSION_RETENTION", env)
+		if got := flowRetention(); got != want {
+			t.Errorf("FLOW_SESSION_RETENTION=%q -> %v, want %v", env, got, want)
+		}
+	}
 }
