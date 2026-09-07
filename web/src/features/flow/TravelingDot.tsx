@@ -1,35 +1,40 @@
 import { colorForTask } from "./color"
 
-const SPEED_PX_S = 130 // px/s -> consistent pace regardless of edge length
+const SPEED_IDLE = 80 // px/s one-way for permanent idle dots
+const SPEED_ACTIVE = 260 // px/s one-way when a session drives the hop
+const SPEED_DEFAULT = 130
 
 /** Full cycle (s) of the ping-pong travel animation for a path of `pathLen` px.
  *  Keyframe timeline: 0-50% forward, 50-100% return (with end fades). */
-export function cycleFor(pathLen: number): number {
-  const oneWay = Math.max(1, pathLen) / SPEED_PX_S
+export function cycleFor(pathLen: number, speed = SPEED_DEFAULT): number {
+  const oneWay = Math.max(1, pathLen) / speed
   return oneWay * 2.55
 }
 
 /** Time (s) from cycle start until the dot reaches `dist` px along the path
  *  (forward pass). Used to sync card shimmers to dot arrival. */
-export function timeToDistance(pathLen: number, dist: number): number {
-  return 0.5 * (dist / Math.max(1, pathLen)) * cycleFor(pathLen)
+export function timeToDistance(pathLen: number, dist: number, speed = SPEED_DEFAULT): number {
+  return 0.5 * (dist / Math.max(1, pathLen)) * cycleFor(pathLen, speed)
 }
 
-/** Dot travels the full channel at constant speed. The offset-path wrapper is
- *  0x0 so the moving point IS the exact path point; the visible dot is centered
- *  inside it via translate(-50%,-50%) -> always dead-center on the line,
- *  including through corners. */
+/** Dot travels its hop at constant speed. The offset-path wrapper is 0x0 so the
+ *  moving point IS the exact path point; the visible dot is centered inside it
+ *  via translate(-50%,-50%) -> always dead-center on the line, corners included.
+ *  idle  = permanent ambient dot (dim, slow)
+ *  active= session-driven dot (bright, bigger, fast) */
 export function TravelingDot({
-  taskId, pathD, pathLen, phaseRatio, idle = false,
+  taskId, pathD, pathLen, phaseRatio, idle = false, active = false,
 }: {
   taskId: string
   pathD: string
   pathLen: number
   phaseRatio: number // 0..1 position in the shared cycle (even spacing)
   idle?: boolean
+  active?: boolean
 }) {
   const color = idle ? "#a7ada0" : colorForTask(taskId)
-  const cycle = cycleFor(pathLen)
+  const cycle = cycleFor(pathLen, idle ? SPEED_IDLE : active ? SPEED_ACTIVE : SPEED_DEFAULT)
+  const size = idle ? 8 : active ? 11 : 10
 
   return (
     <div
@@ -41,13 +46,18 @@ export function TravelingDot({
           animationDuration: `${cycle}s`,
           animationDelay: `-${phaseRatio * cycle}s`,
           animationFillMode: "backwards",
-          animationTimingFunction: idle ? "linear" : "linear",
         } as React.CSSProperties
       }
     >
       <span
-        className="pointer-events-auto absolute left-0 top-0 block size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{ background: color, boxShadow: `0 0 6px 1px ${color}` }}
+        className="pointer-events-auto absolute left-0 top-0 block -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: size,
+          height: size,
+          background: color,
+          opacity: idle ? 0.55 : 1,
+          boxShadow: idle ? "none" : `0 0 ${active ? 10 : 6}px ${active ? 2 : 1}px ${color}`,
+        }}
         title={taskId}
       />
     </div>

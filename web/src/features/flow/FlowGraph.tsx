@@ -37,21 +37,26 @@ export default function FlowGraph({ tasks, focused, onFocus }: { tasks: FlowTask
       <div className="absolute left-0 top-0 origin-top-left" style={{ width: bounds.w, height: bounds.h, transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})` }}>
         <svg width={bounds.w} height={bounds.h} className="pointer-events-none absolute inset-0 overflow-visible">
           <defs><filter id="flow-blur"><feGaussianBlur stdDeviation="4" /></filter></defs>
-          {edgeData.map((e) => <g key={`${e.from}-${e.to}`} opacity={routeFocus && !routeFocus.includes(e.from) && !routeFocus.includes(e.to) ? .18 : 1}>
-            <path d={e.d} fill="none" stroke={e.color} strokeWidth="5" opacity=".18" filter="url(#flow-blur)" />
-            <path d={e.d} fill="none" stroke={e.color} strokeWidth="1.5" opacity=".55" />
-            {e.active.map((t) => <path key={t.task_id} d={e.d} fill="none" stroke={colorForTask(t.task_id)} strokeWidth={focused === t.task_id ? 3 : 2} opacity={focused && focused !== t.task_id ? .55 : .9} strokeDasharray="4 6" />)}
-          </g>)}
+          {edgeData.map((e) => { const hot = e.active.length > 0; return <g key={`${e.from}-${e.to}`} opacity={routeFocus && !routeFocus.includes(e.from) && !routeFocus.includes(e.to) ? .16 : 1}>
+            <path d={e.d} fill="none" stroke={e.color} strokeWidth={hot ? 10 : 5} opacity={hot ? .3 : .2} filter="url(#flow-blur)" />
+            <path d={e.d} fill="none" stroke={e.color} strokeWidth={hot ? 3 : 2} opacity={hot ? .95 : .7} strokeLinecap="round" />
+            {e.active.map((t) => <path key={t.task_id} d={e.d} fill="none" stroke={colorForTask(t.task_id)} strokeWidth={focused === t.task_id ? 4 : 3} opacity={focused && focused !== t.task_id ? .55 : 1} strokeDasharray="8 5" strokeLinecap="round" />)}
+          </g>})}
         </svg>
-        {/* Idle signal: every physical edge keeps one moving dot, even with no tasks. */}
-        {edgeData.map((e, i) => <TravelingDot key={`idle-${e.from}-${e.to}`} taskId={`idle-${e.from}-${e.to}`} pathD={e.d} pathLen={Math.max(1, pathLength(e.d))} phaseRatio={(i % 5) / 5} idle />)}
-        {/* Active signals: each task gets one dot per route hop, so it follows real connectors without jumps. */}
-        {tasks.slice(0, 24).flatMap((t, taskIndex) => channelPath(t.stage, t.node_id).slice(0, -1).map((from, hop) => {
-          const to = channelPath(t.stage, t.node_id)[hop + 1]
-          const [a, b] = anchor(from, to)
-          const d = elbowPath(a, b, (a.x + b.x) / 2)
-          return <TravelingDot key={`${t.task_id}-${from}-${to}`} taskId={t.task_id} pathD={d} pathLen={Math.max(1, pathLength(d))} phaseRatio={(taskIndex + hop) / Math.max(1, tasks.length + 4)} />
-        }))}
+        {/* Idle signal: every physical edge keeps three ambient dots even with no tasks. */}
+        {edgeData.flatMap((e, i) => [0, 1, 2].map((phase) => <TravelingDot key={`idle-${e.from}-${e.to}-${phase}`} taskId={`idle-${e.from}-${e.to}`} pathD={e.d} pathLen={Math.max(1, pathLength(e.d))} phaseRatio={(i * .17 + phase / 3) % 1} idle />))}
+        {/* Active signals: four faster dots per route hop per task, following real connectors without jumps. */}
+        {tasks.slice(0, 24).flatMap((t, taskIndex) => {
+          const route = channelPath(t.stage, t.node_id)
+          return route.slice(0, -1).flatMap((from, hop) => {
+            const to = route[hop + 1]
+            const [a, b] = anchor(from, to)
+            const d = elbowPath(a, b, (a.x + b.x) / 2)
+            return [0, 1, 2, 3].map((dot) => (
+              <TravelingDot key={`${t.task_id}-${from}-${to}-${dot}`} taskId={t.task_id} pathD={d} pathLen={Math.max(1, pathLength(d))} phaseRatio={(taskIndex + hop + dot / 4) / Math.max(1, tasks.length + 4)} active />
+            ))
+          })
+        })}
         {NODES.map((n) => { const Icon = ICONS[n.id] ?? Server; const nodeTasks = activeByNode.get(n.id) ?? []; return <div key={n.id} className="absolute" style={{ left: n.x, top: n.y, transform: "translate(-50%,-50%)" }}><FlowNodeCard label={n.label} sub={n.sub} Icon={Icon} hue={n.hue} activeCount={nodeTasks.length} latest={nodeTasks[0]} selected={selected === n.id} onClick={() => { setSelected(n.id); onFocus(null) }} /></div> })}
       </div>
     </div>
