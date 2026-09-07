@@ -5,19 +5,22 @@ export type FlowNodeId =
   | "orchestrator" | "kanban" | "memory" | "node-agent-server"
   | "tailscale" | "mac" | "windows"
 
+export type Side = "left" | "right" | "top" | "bottom"
+
 export interface Point { x: number; y: number }
 
-export interface LayoutNode { id: FlowNodeId; label: string; sub: string; row: number; col: number }
+export interface LayoutNode { id: FlowNodeId; label: string; sub: string; row: number; col: number; hue: string }
 export interface LayoutEdge { from: FlowNodeId; to: FlowNodeId }
 
+// distinct hue per card (icon badge + count badge + active border)
 export const NODES: LayoutNode[] = [
-  { id: "orchestrator",      label: "Orchestrator",      sub: "VPS hermes · 9router",   row: 0, col: 1 },
-  { id: "kanban",            label: "Kanban",            sub: "task_events · sqlite",   row: 1, col: 0 },
-  { id: "memory",            label: "Memory",            sub: "holographic fact_store", row: 1, col: 2 },
-  { id: "node-agent-server", label: "node-agent server", sub: ":8788 long-poll + auth", row: 2, col: 1 },
-  { id: "tailscale",         label: "Tailscale",         sub: "tailnet · direct",       row: 3, col: 1 },
-  { id: "mac",               label: "Mac",               sub: "launchd dial-out",       row: 4, col: 0 },
-  { id: "windows",           label: "Windows",           sub: "scheduled task",         row: 4, col: 2 },
+  { id: "orchestrator",      label: "Orchestrator",      sub: "VPS hermes · 9router",   row: 0, col: 1, hue: "#10e0dd" },
+  { id: "kanban",            label: "Kanban",            sub: "task_events · sqlite",   row: 1, col: 0, hue: "#9a5cff" },
+  { id: "memory",            label: "Memory",            sub: "holographic fact_store", row: 1, col: 2, hue: "#6366f1" },
+  { id: "node-agent-server", label: "node-agent server", sub: ":8788 long-poll + auth", row: 2, col: 1, hue: "#f09a2f" },
+  { id: "tailscale",         label: "Tailscale",         sub: "tailnet · direct",       row: 3, col: 1, hue: "#38bdf8" },
+  { id: "mac",               label: "Mac",               sub: "launchd dial-out",       row: 4, col: 0, hue: "#ec4899" },
+  { id: "windows",           label: "Windows",           sub: "scheduled task",         row: 4, col: 2, hue: "#3b82f6" },
 ]
 
 export const EDGES: LayoutEdge[] = [
@@ -45,11 +48,10 @@ export function channelPath(stage: FlowStage, nodeId: string): FlowNodeId[] {
   return []
 }
 
-export function joinedPath(nodeIds: FlowNodeId[], anchorOf: (id: FlowNodeId, side: "left" | "right") => Point): string {
+export function joinedPath(nodeIds: FlowNodeId[], edgeAnchors: (a: FlowNodeId, b: FlowNodeId) => [Point, Point]): string {
   const segments = nodeIds.slice(0, -1).map((id, i) => {
-    const from = anchorOf(id, "right")
-    const to = anchorOf(nodeIds[i + 1], "left")
-    const midX = from.x + (to.x - from.x) * 0.4
+    const [from, to] = edgeAnchors(id, nodeIds[i + 1])
+    const midX = (from.x + to.x) / 2
     return elbowPath(from, to, midX)
   })
   return segments.join(" ")

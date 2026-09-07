@@ -1,18 +1,19 @@
 import { useRef, useState, useLayoutEffect, useCallback } from "react"
 import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban } from "lucide-react"
 import { NODES, EDGES, nodeMap, rowOf, channelPath, joinedPath, stageNode, type FlowNodeId, type Point } from "./layout"
-import { elbowPath, elbowJoints } from "./elbow"
+import { elbowPath, elbowPathV, elbowJoints } from "./elbow"
 import { delayForTask } from "./color"
 import { FlowNodeCard } from "./FlowNodeCard"
 import { TravelingDot } from "./TravelingDot"
 import { ShimmerEdge } from "./ShimmerEdge"
 import type { FlowTask } from "./useFlowTasks"
 
-const ROW_H = 110
-const COL_W = 240
-const PAD_X = 90
-const PAD_TOP = 50
-const CARD_W = 210 // FlowNodeCard width; anchors computed from this
+const ROW_H = 120
+const COL_W = 270
+const PAD_X = 80
+const PAD_TOP = 60
+const CARD_W = 210
+const CARD_H = 56 // fixed FlowNodeCard height (h-14) — anchors must match
 
 const NODE_ICON: Record<FlowNodeId, typeof Brain> = {
   orchestrator: Brain,
@@ -24,9 +25,46 @@ const NODE_ICON: Record<FlowNodeId, typeof Brain> = {
   windows: AppWindow,
 }
 
+/** Edge geometry between two nodes, direction-aware: exit side of `from` and
+ *  entry side of `to` face each other; anchor sits at the CENTER of that side.
+ *  Same column -> bottom->top (vertical elbow). Target left -> exit left/enter
+ *  right (reversed horizontal elbow). Target right -> exit right/enter left. */
+function edgeAnchorsFor(
+  fromId: FlowNodeId,
+  toId: FlowNodeId,
+  posOf: (id: FlowNodeId) => Point,
+): [Point, Point, Point[], string] {
+  const fc = posOf(fromId)
+  const tc = posOf(toId)
+  const dx = tc.x - fc.x
+
+  if (Math.abs(dx) < 1) {
+    // same column: straight-ish vertical, bottom -> top
+    const from = { x: fc.x, y: fc.y + CARD_H / 2 }
+    const to = { x: tc.x, y: tc.y - CARD_H / 2 }
+    return [from, to, [] as Point[], elbowPathV(from, to, (from.y + to.y) / 2)]
+  }
+  if (dx < 0) {
+    // target is to the LEFT: exit left side, enter right side
+    const from = { x: fc.x - CARD_W / 2, y: fc.y }
+    const to = { x: tc.x + CARD_W / 2, y: tc.y }
+    const midX = (from.x + to.x) / 2
+    return [from, to, elbowJoints(from, to, midX), elbowPath(from, to, midX)]
+  }
+  // target is to the RIGHT: exit right side, enter left side
+  const from = { x: fc.x + CARD_W / 2, y: fc.y }
+  const to = { x: tc.x - CARD_W / 2, y: tc.y }
+  const midX = (from.x + to.x) / 2
+  return [from, to, elbowJoints(from, to, midX), elbowPath(from, to, midX)]
+}
+
 export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
   const ref = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ w: 900, h: 600 })
+  // node drag: overrides store center position; anchors recompute live so
+  // edges stay attached exactly at card mid-sides while dragging.
+  const [overrides, setOverrides] = useState<Partial<Record<FlowNodeId, Point>>>({})
+  const dragRef = useRef<{ id: FlowNodeId; dx: number; dy: number } | null>(null)
 
   useLayoutEffect(() => {
     if (!ref.current) return
@@ -42,25 +80,26 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
   const svgH = (maxRow + 1) * ROW_H + PAD_TOP * 2
   const svgW = (maxCol + 1) * COL_W + PAD_X * 2
 
-  // fit-to-width: scale down so all columns stay visible; keep centered
+  // fit-to-width, centered both axes
   const scale = Math.min(1, dims.w / svgW)
   const offX = Math.max(0, (dims.w - svgW * scale) / 2) / scale
   const offY = Math.max(0, (dims.h - svgH * scale) / 2) / scale
 
-  // anchors on card edges: right side = exit, left side = entry
-  const anchor = useCallback((id: FlowNodeId, side: "left" | "right"): Point => {
+  const posOf = useCallback((id: FlowNodeId): Point => {
     const n = nodeMap[id]
-    const cx = PAD_X + n.col * COL_W + COL_W / 2
-    const cy = PAD_TOP + n.row * ROW_H + ROW_H / 2
-    return { x: cx + (side === "right" ? CARD_W / 2 : -CARD_W / 2), y: cy }
-  }, [])
+    const base = { x: PAD_X + n.col * COL_W + COL_W / 2, y: PAD_TOP + n.row * ROW_H + ROW_H / 2 }
+    return overrides[id] ?? base
+  }, [overrides])
 
-  const edgePath = (e: { from: FlowNodeId; to: FlowNodeId }) => {
-    const from = anchor(e.from, "right")
-    const to = anchor(e.to, "left")
-    const midX = from.x + (to.x - from.x) * 0.4
-    return elbowPath(from, to, midX)
-  }
+  const edgeAnchors = useCallback(
+    (a: FlowNodeId, b: FlowNodeId): [Point, Point] => edgeAnchorsFor(a, b, posOf).slice(0, 2) as [Point, Point],
+    [posOf],
+  )
+
+  const edges = EDGES.map((e) => {
+    const [from, to, joints, d] = edgeAnchorsFor(e.from, e.to, posOf)
+    return { ...e, from, to, joints, d }
+  })
 
   // node glow/badge: count tasks currently represented by each node
   const byNode = new Map<FlowNodeId, number>()
@@ -70,8 +109,30 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
     byNode.set(nid, (byNode.get(nid) ?? 0) + 1)
   }
 
+  const onNodePointerDown = (e: React.PointerEvent, id: FlowNodeId) => {
+    e.stopPropagation()
+    const cur = posOf(id)
+    dragRef.current = { id, dx: e.clientX - cur.x, dy: e.clientY - cur.y }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  const onNodePointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current
+    if (!d) return
+    setOverrides((prev) => ({ ...prev, [d.id]: { x: e.clientX - d.dx, y: e.clientY - d.dy } }))
+  }
+  const onNodePointerUp = () => { dragRef.current = null }
+  const resetLayout = () => setOverrides({})
+
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#1e2430]" style={{ background: "#0b0e14" }}>
+      {Object.keys(overrides).length > 0 && (
+        <button
+          onClick={resetLayout}
+          className="absolute left-3 top-3 z-10 rounded-lg border border-[#2a3140] bg-[#11151f] px-2 py-1 text-[10px] font-mono text-neutral-400 transition-colors hover:text-white"
+        >
+          reset layout
+        </button>
+      )}
       <div
         ref={ref}
         className="absolute inset-0"
@@ -79,57 +140,57 @@ export default function FlowGraph({ tasks }: { tasks: FlowTask[] }) {
       >
         <div
           className="absolute origin-top-left"
-          style={{
-            transform: `translate(${offX}px, ${offY}px) scale(${scale})`,
-            width: svgW,
-            height: svgH,
-          }}
+          style={{ transform: `translate(${offX}px, ${offY}px) scale(${scale})`, width: svgW, height: svgH }}
         >
           <svg width={svgW} height={svgH} className="absolute inset-0 pointer-events-none">
-            {EDGES.map((e) => {
-              const from = anchor(e.from, "right")
-              const to = anchor(e.to, "left")
-              const midX = from.x + (to.x - from.x) * 0.4
-              return (
-                <g key={`${e.from}-${e.to}`}>
-                  <path d={elbowPath(from, to, midX)} fill="none" stroke="#2a3140" strokeWidth="1.25" />
-                  {elbowJoints(from, to, midX).map((p, i) => (
-                    <circle key={i} cx={p.x} cy={p.y} r="3" fill="#2a3140" />
-                  ))}
-                </g>
-              )
-            })}
+            {edges.map((e) => (
+              <g key={`${e.from}-${e.to}`}>
+                <path d={e.d} fill="none" stroke="#2a3140" strokeWidth="1.25" />
+                {e.joints.map((p, i) => (
+                  <circle key={i} cx={p.x} cy={p.y} r="3" fill="#2a3140" />
+                ))}
+              </g>
+            ))}
           </svg>
 
           {/* idle shimmer cascade root -> leaf */}
           {tasks.length === 0 && EDGES.map((e) => (
-            <ShimmerEdge key={`${e.from}-${e.to}-shimmer`} pathD={edgePath(e)} depth={rowOf(e.to)} />
+            <ShimmerEdge
+              key={`${e.from}-${e.to}-shimmer`}
+              pathD={edgeAnchorsFor(e.from, e.to, posOf)[3]}
+              depth={rowOf(e.to)}
+            />
           ))}
 
           {/* traveling dots per live task */}
           {tasks.map((t) => {
             const chain = channelPath(t.stage, t.node_id)
             if (chain.length === 0) return null
-            const d = joinedPath(chain, anchor)
+            const d = joinedPath(chain, edgeAnchors)
             return <TravelingDot key={t.task_id} taskId={t.task_id} pathD={d} delayMs={delayForTask(t.task_id)} />
           })}
 
           {/* node cards */}
           {NODES.map((n) => {
-            const cx = PAD_X + n.col * COL_W + COL_W / 2
-            const cy = PAD_TOP + n.row * ROW_H + ROW_H / 2
+            const p = posOf(n.id)
             const count = byNode.get(n.id) ?? 0
             return (
               <div
                 key={n.id}
-                className="absolute"
-                style={{ left: cx, top: cy, width: CARD_W, transform: "translate(-50%, -50%)" }}
+                data-node={n.id}
+                className="absolute cursor-grab touch-none select-none active:cursor-grabbing"
+                style={{ left: p.x, top: p.y, width: CARD_W, transform: "translate(-50%, -50%)" }}
+                onPointerDown={(e) => onNodePointerDown(e, n.id)}
+                onPointerMove={onNodePointerMove}
+                onPointerUp={onNodePointerUp}
+                onPointerCancel={onNodePointerUp}
               >
                 <div className="relative">
-                  <FlowNodeCard label={n.label} sub={n.sub} Icon={NODE_ICON[n.id]} />
+                  <FlowNodeCard label={n.label} sub={n.sub} Icon={NODE_ICON[n.id]} hue={n.hue} />
                   {count > 0 && (
                     <span
-                      className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#10e0dd] px-1 text-[9px] font-bold text-black"
+                      className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-black"
+                      style={{ background: n.hue }}
                     >
                       {count}
                     </span>
