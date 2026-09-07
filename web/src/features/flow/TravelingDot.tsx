@@ -20,19 +20,20 @@ export function timeToDistance(pathLen: number, dist: number): number {
  *  inside it via translate(-50%,-50%) -> always dead-center on the line,
  *  including through corners. */
 export function TravelingDot({
-  taskId, pathD, pathLen, phaseRatio,
+  taskId, pathD, pathLen, phaseRatio, idle = false,
 }: {
   taskId: string
   pathD: string
   pathLen: number
   phaseRatio: number // 0..1 position in the shared cycle (even spacing)
+  idle?: boolean
 }) {
-  const color = colorForTask(taskId)
+  const color = idle ? "#a7ada0" : colorForTask(taskId)
   const cycle = cycleFor(pathLen)
 
   return (
     <div
-      className="pointer-events-none absolute left-0 top-0 size-0 animate-[flow-travel_0s_linear_infinite_alternate]"
+      className={`pointer-events-none absolute left-0 top-0 size-0 ${idle ? "animate-[flow-idle_0s_linear_infinite]" : "animate-[flow-travel_0s_linear_infinite_alternate]"}`}
       style={
         {
           offsetPath: `path("${pathD}")`,
@@ -40,6 +41,7 @@ export function TravelingDot({
           animationDuration: `${cycle}s`,
           animationDelay: `-${phaseRatio * cycle}s`,
           animationFillMode: "backwards",
+          animationTimingFunction: idle ? "linear" : "linear",
         } as React.CSSProperties
       }
     >

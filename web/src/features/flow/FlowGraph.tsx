@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { Brain, Database, Server, Radio, Laptop, AppWindow, Kanban, ZoomIn, ZoomOut, Maximize } from "lucide-react"
-import { EDGES, NODES, nodeMap, type FlowNodeId, type Point, joinedPath, channelPath, stageNode } from "./layout"
+import { EDGES, NODES, nodeMap, type FlowNodeId, type Point, channelPath, stageNode } from "./layout"
 import { elbowPath, pathLength } from "./elbow"
 import { FlowNodeCard, CARD_H, CARD_W } from "./FlowNodeCard"
 import { TravelingDot } from "./TravelingDot"
@@ -24,7 +24,7 @@ export default function FlowGraph({ tasks, focused, onFocus }: { tasks: FlowTask
   const [view, setView] = useState({ scale: .72, x: 20, y: 30 })
   const [selected, setSelected] = useState<FlowNodeId | null>(null)
   const [drag, setDrag] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null)
-  const bounds = { w: 1370, h: 460 }
+  const bounds = { w: 940, h: 820 }
   const zoom = useCallback((factor: number, cx = 600, cy = 250) => setView((v) => { const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, v.scale * factor)); const gx = (cx - v.x) / v.scale; const gy = (cy - v.y) / v.scale; return { scale, x: cx - gx * scale, y: cy - gy * scale } }), [])
   const fit = () => setView({ scale: .72, x: 20, y: 30 })
   const onWheel = (e: React.WheelEvent) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const r = ref.current?.getBoundingClientRect(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - (r?.left ?? 0), e.clientY - (r?.top ?? 0)) }
@@ -37,13 +37,21 @@ export default function FlowGraph({ tasks, focused, onFocus }: { tasks: FlowTask
       <div className="absolute left-0 top-0 origin-top-left" style={{ width: bounds.w, height: bounds.h, transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})` }}>
         <svg width={bounds.w} height={bounds.h} className="pointer-events-none absolute inset-0 overflow-visible">
           <defs><filter id="flow-blur"><feGaussianBlur stdDeviation="4" /></filter></defs>
-          {edgeData.map((e) => <g key={`${e.from}-${e.to}`} opacity={routeFocus && !routeFocus.includes(e.from) ? .18 : 1}>
+          {edgeData.map((e) => <g key={`${e.from}-${e.to}`} opacity={routeFocus && !routeFocus.includes(e.from) && !routeFocus.includes(e.to) ? .18 : 1}>
             <path d={e.d} fill="none" stroke={e.color} strokeWidth="5" opacity=".18" filter="url(#flow-blur)" />
             <path d={e.d} fill="none" stroke={e.color} strokeWidth="1.5" opacity=".55" />
             {e.active.map((t) => <path key={t.task_id} d={e.d} fill="none" stroke={colorForTask(t.task_id)} strokeWidth={focused === t.task_id ? 3 : 2} opacity={focused && focused !== t.task_id ? .55 : .9} strokeDasharray="4 6" />)}
           </g>)}
         </svg>
-        {tasks.slice(0, 24).map((t, i) => { const route = channelPath(t.stage, t.node_id); const d = joinedPath(route, anchor); return <TravelingDot key={t.task_id} taskId={t.task_id} pathD={d} pathLen={Math.max(1, pathLength(d))} phaseRatio={tasks.length > 1 ? i / tasks.length : 0} /> })}
+        {/* Idle signal: every physical edge keeps one moving dot, even with no tasks. */}
+        {edgeData.map((e, i) => <TravelingDot key={`idle-${e.from}-${e.to}`} taskId={`idle-${e.from}-${e.to}`} pathD={e.d} pathLen={Math.max(1, pathLength(e.d))} phaseRatio={(i % 5) / 5} idle />)}
+        {/* Active signals: each task gets one dot per route hop, so it follows real connectors without jumps. */}
+        {tasks.slice(0, 24).flatMap((t, taskIndex) => channelPath(t.stage, t.node_id).slice(0, -1).map((from, hop) => {
+          const to = channelPath(t.stage, t.node_id)[hop + 1]
+          const [a, b] = anchor(from, to)
+          const d = elbowPath(a, b, (a.x + b.x) / 2)
+          return <TravelingDot key={`${t.task_id}-${from}-${to}`} taskId={t.task_id} pathD={d} pathLen={Math.max(1, pathLength(d))} phaseRatio={(taskIndex + hop) / Math.max(1, tasks.length + 4)} />
+        }))}
         {NODES.map((n) => { const Icon = ICONS[n.id] ?? Server; const nodeTasks = activeByNode.get(n.id) ?? []; return <div key={n.id} className="absolute" style={{ left: n.x, top: n.y, transform: "translate(-50%,-50%)" }}><FlowNodeCard label={n.label} sub={n.sub} Icon={Icon} hue={n.hue} activeCount={nodeTasks.length} latest={nodeTasks[0]} selected={selected === n.id} onClick={() => { setSelected(n.id); onFocus(null) }} /></div> })}
       </div>
     </div>

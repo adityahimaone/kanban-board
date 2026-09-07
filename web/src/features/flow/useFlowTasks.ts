@@ -20,7 +20,7 @@ export function useFlowTasks() {
   return useQuery({
     queryKey: ["flow-active"],
     queryFn: () => api<FlowResponse>("/api/flow/active"),
-    refetchInterval: 5000,
+    refetchInterval: 1000,
     select: (d) => d.tasks,
   })
 }
