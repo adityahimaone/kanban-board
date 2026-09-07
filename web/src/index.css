@@ -30,6 +30,17 @@
   --color-warning: #f59e0b;
   --color-info: #38bdf8;
   --color-danger: #ef4444;
+  --color-surface: #11151f;
+  --color-inset: #161b27;
+  --color-line: #1e2430;
+  --color-ink: #e6e9ef;
+  --color-ink-2: #b5bdcc;
+  --color-ink-3: #8b93a7;
+  --color-red: #ef4444;
+  --color-green: #22c55e;
+  --color-red-tint: rgba(239, 68, 68, 0.14);
+  --color-green-tint: rgba(34, 197, 94, 0.14);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 :root {
@@ -120,6 +131,15 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 @keyframes pixel-on {
   0%, 100% { opacity: 0.12; transform: scale(0.85); }
   50% { opacity: 0.9; transform: scale(1); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ring-sweep { from { stroke-dashoffset: 0; } to { stroke-dashoffset: var(--ring-c, -100); } }
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes pixel-on { from, to { opacity: 0.18; transform: none; } }
 }
 
 @media (prefers-reduced-motion: reduce) {
