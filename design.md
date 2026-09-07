@@ -381,3 +381,151 @@ On mobile, keep the sidebar off-canvas; show the selected inspector as a bottom 
 3. Verify 1280x720 and 1440x900: fit view, readable labels, no clipped controls/minimap.
 4. Verify keyboard focus, reduced-motion, and mobile.
 5. Verify browser network traffic contains only the existing /api/flow/active polling request for live map data.
+
+
+---
+
+# Agent Flow: Active Route, Glow, and Session Monitor Addendum
+
+## Decision
+
+Use a **session-route model**.
+
+One tracked task is one session. When a session is running, every connector that belongs to its resolved route lights up continuously from its parent to its child, then from that child to the next child. This answers the important visibility question: the active state is not only on the final worker node; it visibly occupies the complete parent-to-child chain.
+
+Example for a task executing on Mac:
+
+    Kanban Queue -> Hermes Orchestrator -> Node Agent Gateway -> Tailscale Tunnel -> Mac Worker
+
+The complete chain is active. Earlier segments are slightly dimmer than the current executing segment, so the viewer can identify both the route history and the present location.
+
+This is preferable to lighting a single edge only: a single edge loses the parent/child context, while an entire route makes remote dispatch understandable at a glance.
+
+## Edge colour system
+
+Every physical line gets a stable base colour so the map remains legible when idle. Active sessions add their own visible signal layer without changing the underlying topology.
+
+| Edge / hop | Idle base colour | Active route colour |
+| --- | --- | --- |
+| Kanban Queue -> Hermes Orchestrator | violet #8f83ff | session colour plus violet underlay |
+| Memory -> Hermes Orchestrator | indigo #6477ff | session colour plus indigo underlay |
+| Hermes Orchestrator -> Node Agent Gateway | amber #e5a84b | session colour plus amber underlay |
+| Node Agent Gateway -> Tailscale Tunnel | cyan #43c6d9 | session colour plus cyan underlay |
+| Tailscale Tunnel -> Mac Worker | blue #5a9cff | session colour plus blue underlay |
+| Tailscale Tunnel -> Windows Worker | rose #e87baf | session colour plus rose underlay |
+
+Rules:
+
+- Idle lines must still be visible: 1.5px stroke at 45-60% opacity, with a restrained 2-4px diffuse glow.
+- Each task session receives a deterministic highlight colour derived from task_id. It is used for its dots, focused route, session badge, and active overlay.
+- When multiple sessions share an edge, preserve the base-colour underlay and render one narrow active lane per session. Do not blend all session colours into one muddy glow.
+- The first six simultaneous sessions use a high-contrast palette: lime, yellow, cyan, violet, orange, rose. Additional sessions reuse colours with a dash pattern and a session ID label in the monitor.
+- A selected session has priority: its overlay becomes 3px and 100% opacity; other active sessions remain 2px and 55% opacity.
+
+## Edge glow and active intensity
+
+Render each connector as stacked SVG paths, not a single stroke:
+
+1. Base path: 1.5px, stable edge colour, 50% opacity.
+2. Ambient glow: same colour, 5px blur, 20% opacity. This exists even with no task, matching the subtle luminous reference image.
+3. Active route underglow: 8-12px blur, 35-45% opacity.
+4. Active route core: 2.5px; 3px for selected/current segment.
+5. Optional moving lane: 1px dotted/dashed overlay only when the session is running.
+
+Intensity must follow the session state:
+
+| State | Route treatment | Dot density and speed |
+| --- | --- | --- |
+| dispatched | Parent chain from Kanban to dispatcher uses 2px core and mild pulse | 2 dots; 1.4s per route |
+| running | Whole resolved parent -> child -> child chain stays lit; current edge is strongest | 4 dots per short route, up to 8 for long route; 0.55-0.8s per route |
+| waiting / queued visual state | Current route is visible but lower intensity | 1-2 dots; 1.8s per route |
+| done | Green completion sweep over full route, then fade to history state | 3 dots for one 900ms sweep only |
+| failed | Red core and soft pulse stops at the failing node; upstream route stays muted red | 1-2 slow dots; no looping after 3 pulses |
+
+The maximum is 24 moving dots across all sessions. When demand is higher, keep each route glow active but reduce dot count fairly, and show the actual active-session count in the session monitor.
+
+For accessibility, reduced-motion keeps the core/underglow and replaces moving dots with a static dashed line plus a state icon.
+
+## Parent-child route resolution
+
+The existing channelPath logic should be extended only as a client-side visual resolver. It must always return every ordered hop from the starting parent to the target node.
+
+- A dispatched task resolves through Kanban Queue -> Hermes Orchestrator -> Node Agent Gateway.
+- A running Mac task resolves through Kanban Queue -> Hermes Orchestrator -> Node Agent Gateway -> Tailscale Tunnel -> Mac Worker.
+- A running Windows task resolves through Kanban Queue -> Hermes Orchestrator -> Node Agent Gateway -> Tailscale Tunnel -> Windows Worker.
+- A task without a known worker still shows its known parent chain and marks the unresolved next hop as pending.
+- If a task is manually focused in the session monitor, dim all non-route edges/nodes to 15-20% opacity.
+
+Do not infer a route from DOM position. Resolve it from FlowTask stage and node_id using the existing topology.
+
+## Draggable session monitor below the canvas
+
+Replace the previous static bottom legend with **Session Monitor**: a bottom dock containing active and recently finished task sessions.
+
+### Composition
+
+- Default location: below the map canvas, full width, 180-240px height.
+- Header: “Session Monitor”, total active count, history-retention countdown, search/filter, and collapse button.
+- Body: compact table. One row equals one task session.
+- The entire panel can be dragged vertically between 120px and 50% of viewport height. Its height persists in localStorage only.
+- On desktop, users can drag a row into a dedicated Focus zone in the monitor header; this focuses its route on the canvas. This is a view interaction only, not a task-status or dispatch mutation.
+- On mobile, use a bottom sheet with snap points rather than free dragging.
+
+### Required table columns
+
+| Column | Purpose |
+| --- | --- |
+| State | Coloured dot/icon and label: Dispatched, Running, Done, Failed |
+| Session | Task ID plus truncated title |
+| Route | Parent -> child chain; horizontally scrollable within the cell if necessary |
+| Current node | The currently active/failing node |
+| Age / ended | Relative duration and timestamp |
+| Retention | Countdown until the completed/failed session is removed |
+| Action | Focus route, open task detail, pin/unpin |
+
+Rows are draggable only for ordering/focusing inside the client. No drag action may change backend task routing, status, or queue priority.
+
+## Five-to-ten-minute session retention
+
+Recommended default: **10 minutes** for terminal sessions, configurable from 5 to 10 minutes.
+
+The current server registry removes done and failed FlowTask entries after 30 seconds. To support the monitor, change the server retention policy to a configuration-backed value:
+
+    FLOW_SESSION_RETENTION=10m
+
+Requirements:
+
+- Keep running and dispatched sessions until their stage changes as today.
+- Keep done and failed snapshots in /api/flow/active for the configured 5-10 minute window.
+- Keep FlowTask JSON fields unchanged; retention is derived from updated_at.
+- The frontend labels terminal rows as Recent, not Running.
+- The monitor shows a countdown such as “expires in 08:42”.
+- Eviction runs at least every 10 seconds, as it does now.
+- On API/server restart, in-memory session history is naturally lost. This is acceptable for the first implementation; do not introduce persistence unless restart-survivable history is explicitly needed.
+- Add backend test coverage for 5m, 10m, and expiry behaviour.
+
+This is a deliberate backend adjustment required by the new UX. It does not alter dispatch, review, approval, or task status transitions.
+
+## Suggested implementation additions
+
+| Area | Change |
+| --- | --- |
+| internal/kanban/flow.go | Replace fixed doneTTL with configurable session-retention duration, default 10m |
+| internal/kanban/flow_test.go | Test terminal-session visibility before and after retention expiry |
+| web/src/features/flow/layout.ts | Add full-route resolver for all stages and service hops |
+| web/src/features/flow/FlowGraph.tsx | Render stacked base/glow/core SVG paths; support per-session active lanes |
+| web/src/features/flow/TravelingDot.tsx | Accept session state, route length, density, speed, and deterministic session colour |
+| web/src/features/flow/FlowLegendTable.tsx | Replace with draggable SessionMonitor table |
+| web/src/features/flow/SessionMonitor.tsx | New resizable/dockable monitor and route-focus interaction |
+| web/src/features/flow/color.ts | Stable palette for physical edges and deterministic palette for sessions |
+
+## Additional acceptance criteria
+
+- [ ] Every idle physical edge has a distinct, visible base colour with thin ambient glow.
+- [ ] A running task lights the complete resolved parent -> child -> child chain, with the current edge/node brightest.
+- [ ] Active edge core is visibly thicker than idle edge without obscuring nearby routes.
+- [ ] Running sessions show more and faster dots; rendering stays capped at 24 total dots.
+- [ ] Multiple sessions on the same edge remain individually distinguishable.
+- [ ] Session Monitor is below the map, resizable/drag-dockable, and its rows can focus a canvas route.
+- [ ] Done/failed sessions remain visible for a configurable 5-10 minutes; default is 10 minutes.
+- [ ] Session retention and monitor interactions do not mutate dispatch, task status, review, or queue priority.
