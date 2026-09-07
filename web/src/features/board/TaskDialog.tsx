@@ -62,10 +62,20 @@ export default function TaskDialog({
     }
     if (aiBusy) return
     setAiBusy(true); setAiMode(mode); setErr(null)
+    const requestBody = body.trim()
+    const requestTitle = title.trim()
     try {
+      if (mode === "deep") {
+        // Show deterministic structure while model works. User sees useful output now.
+        const fast = await api<{ improved: string }>("/api/ai/improve-prompt", {
+          method: "POST",
+          body: JSON.stringify({ title: requestTitle, body: requestBody, mode: "fast" }),
+        })
+        setBody(fast.improved)
+      }
       const res = await api<{ improved: string }>("/api/ai/improve-prompt", {
         method: "POST",
-        body: JSON.stringify({ title: title.trim(), body: body.trim(), mode }),
+        body: JSON.stringify({ title: requestTitle, body: requestBody, mode }),
       })
       improveCache.current.set(cacheKey, res.improved)
       setBody(res.improved)
