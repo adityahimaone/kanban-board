@@ -2,7 +2,7 @@
 
 Control plane untuk alur coding agent. Aplikasi ini menyimpan board dan task, memilih workspace, mengklaim task, mengirim pekerjaan ke executor, lalu menahan hasil di kolom `review` sampai perubahan diperiksa dan di-approve.
 
-Stack: Go, SQLite, React, Vite, dan node-agent melalui HTTP long-poll.
+Stack: Go, SQLite, React, Vite, dan node-agent melalui gRPC hybrid dengan HTTP fallback.
 
 ## System model
 
@@ -34,7 +34,16 @@ VPS menjalankan control plane dan scheduler. Node-agent menjalankan execution pl
 | `codex` | node-agent | Codex di host workspace |
 | `commandcode` | node-agent | Command Code di host workspace |
 
-`auto` dipertahankan untuk kompatibilitas task lama. Task baru yang membutuhkan worker lokal sebaiknya memilih executor secara eksplisit.
+`auto` dipertahankan untuk kompatibilitas task lama. Task baru yang membutuhkan worker lokal sebaiknya memilih executor secara eksplisit. Node-agent memilih gRPC bila tersedia, lalu fallback ke HTTP long-poll saat koneksi gRPC gagal.
+
+Transport dapat dipaksa lewat konfigurasi node-agent:
+
+```text
+NODE_AGENT_TRANSPORT=auto  # auto, grpc, http
+NODE_AGENT_GRPC_TARGET=<VPS_TAILSCALE_IP>:8789
+```
+
+Mode `grpc` fail-closed saat gRPC tidak tersedia. Mode `http` memaksa compatibility lane. Port gRPC `8789` harus tetap private di Tailscale.
 
 ### Hard guard, claim, dan retry
 
@@ -124,7 +133,9 @@ Saat register, node mengumumkan capability:
 
 Server memilih node berdasarkan prefix workspace dan capability executor. Jika executor eksplisit tidak tersedia, dispatch ditolak dengan error `executor unavailable`.
 
-Detail worker ada di repository `node-agent`.
+Ack dispatch mengembalikan `transport` dan `delivery_id`. Metadata ini diteruskan ke Flow diagnostics Kanban agar operator dapat melihat jalur aktual (`grpc` atau `http`) yang dipakai task.
+
+Detail worker dan kontrak gRPC ada di repository `node-agent`, termasuk `docs/specs/2026-09-07-grpc-hybrid-node-agent-transport.md`.
 
 ## Workspace
 
@@ -175,7 +186,8 @@ Codegraph sudah dijalankan sebagai preflight node-agent. Integrasi RTK saat ini 
 - `~/.hermes/config.yaml`: set `kanban.dispatch_in_gateway: false` agar tidak ada dispatcher kedua.
 - `~/.hermes/workspaces.json`: workspace, host, OS, dan prequest note.
 - `~/.hermes/node-agent.env`: `NODE_AGENT_TOKEN`, mode file `0600`.
-- `KANBAN_NODE_AGENT`: override base URL node-agent, default `http://127.0.0.1:8788`.
+- `KANBAN_NODE_AGENT`: override base URL node-agent HTTP, default `http://127.0.0.1:8788`.
+- `KANBAN_NODE_AGENT_TOKEN`: shared auth token untuk node-agent HTTP dan gRPC metadata.
 - `KANBAN_SSH_TARGET`: override target SSH untuk review dan legacy transport.
 
 ## Build dan deploy
@@ -185,11 +197,12 @@ Codegraph sudah dijalankan sebagai preflight node-agent. Integrasi RTK saat ini 
 Untuk rollout bertahap, VPS dapat diperbarui lebih dulu. Agent Mac atau Windows tidak
 perlu langsung di-upgrade; selama itu node lama tetap berjalan dengan capability lama.
 
-1. Build dan restart `node-agent` server di VPS.
+1. Build dan restart `node-agent` server di VPS; expose HTTP `:8788` dan gRPC `:8789`.
 2. Build dan restart `kanban-board` di VPS.
-3. Uji task dengan executor `auto` atau executor yang sudah tersedia di node lama.
-4. Pada waktu berikutnya, install ulang binary agent di Mac atau Windows.
-5. Setelah agent register ulang, pastikan capability baru muncul di `/api/nodes`.
+3. Build target worker host (`GOOS=darwin GOARCH=arm64` untuk Mac Apple Silicon atau target Windows yang sesuai).
+4. Install ulang binary agent di Mac atau Windows, lalu restart LaunchAgent/service.
+5. Pastikan node `idle` dan capability plus `transports` baru muncul di `/api/nodes`.
+6. Jalankan dispatch canary dan pastikan result punya `success=true`, `delivery_id`, serta transport `grpc` atau fallback `http`.
 
 ```sh
 go vet ./...
@@ -226,6 +239,14 @@ Pastikan binary tersedia pada host worker dan node-agent sudah restart agar capa
 ```sh
 curl -H "X-Node-Agent-Token: <token>" http://<vps>:8788/api/nodes
 ```
+
+Health check hybrid:
+
+```sh
+curl -H "X-Node-Agent-Token: <token>" http://<vps>:8788/health
+```
+
+Node sehat berstatus `idle`. Worker gRPC menampilkan `transports: ["grpc", "http"]`. Jika gRPC putus, mode `auto` memakai HTTP fallback dan status transport pada flow berubah menjadi `http`.
 
 Jika server VPS sudah baru tetapi agent Mac belum di-upgrade, executor baru seperti
 `commandcode` belum akan muncul pada node tersebut. Itu kondisi yang diharapkan sampai
