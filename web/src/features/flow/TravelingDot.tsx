@@ -1,4 +1,3 @@
-import { colorForTask } from "./color"
 
 const SPEED_IDLE = 80 // px/s one-way for permanent idle dots
 const SPEED_ACTIVE = 260 // px/s one-way when a session drives the hop
@@ -32,9 +31,9 @@ export function TravelingDot({
   idle?: boolean
   active?: boolean
 }) {
-  const color = idle ? "#a7ada0" : colorForTask(taskId)
+  const color = "#f5f7f2"
   const cycle = cycleFor(pathLen, idle ? SPEED_IDLE : active ? SPEED_ACTIVE : SPEED_DEFAULT)
-  const size = idle ? 8 : active ? 11 : 10
+  const size = idle ? 4 : active ? 5 : 4.5
 
   return (
     <div
@@ -55,8 +54,8 @@ export function TravelingDot({
           width: size,
           height: size,
           background: color,
-          opacity: idle ? 0.55 : 1,
-          boxShadow: idle ? "none" : `0 0 ${active ? 10 : 6}px ${active ? 2 : 1}px ${color}`,
+          opacity: idle ? 0.75 : 1,
+          boxShadow: `0 0 ${active ? 6 : 3}px ${active ? 1.5 : 1}px rgba(245,247,242,.8)`,
         }}
         title={taskId}
       />
