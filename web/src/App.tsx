@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar, type Page } from "@/components/AppSidebar"
@@ -22,6 +22,8 @@ import FlowPage from "./features/flow/FlowPage"
 import AgentMappingPage from "./features/flow/AgentMappingPage"
 import { Archive, Pencil, Plus, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
+import LoadingState from "./components/LoadingState"
+import { pagePath, parseRoute } from "./lib/routes"
 
 const BOARD_COLUMNS: Status[] = [...COLUMNS, "archived"]
 
@@ -29,13 +31,14 @@ const PROFILE_OPTIONS = [{ value: "__all", label: "Semua agent" }]
 const WORKSPACE_OPTIONS = [{ value: "__all", label: "Semua workspace" }]
 
 export default function App() {
-  const [page, setPage] = useState<Page>("board")
-  const [slug, setSlug] = useState("f8-saas")
+  const initialRoute = useMemo(() => parseRoute(window.location.pathname), [])
+  const [page, setPage] = useState<Page>(initialRoute.page)
+  const [slug, setSlug] = useState(initialRoute.slug ?? "f8-saas")
   const [creating, setCreating] = useState(false)
   const [creatingBoard, setCreatingBoard] = useState(false)
   const [editingBoard, setEditingBoard] = useState(false)
   const [detail, setDetail] = useState<Task | null>(null)
-  const [detailPage, setDetailPage] = useState<Task | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(initialRoute.taskId ?? null)
   const [filtersOpen, setFiltersOpen] = useState(true)
   const [q, setQ] = useState("")
   const [fStatus, setFStatus] = useState("__all")
@@ -49,6 +52,27 @@ export default function App() {
   const tasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`), enabled: page === "board", refetchInterval: refreshMs > 0 ? refreshMs : false })
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => api<Workspace[]>("/api/workspaces") })
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: () => api<Profile[]>("/api/profiles") })
+
+  const detailPage = detailId ? (tasks.data ?? []).find((task) => task.id === detailId) ?? null : null
+
+  useEffect(() => {
+    if (window.location.pathname === "/") {
+      window.history.replaceState({}, "", pagePath(initialRoute.page, initialRoute.slug ?? "f8-saas", initialRoute.taskId))
+    }
+    const onPopState = () => {
+      const route = parseRoute(window.location.pathname)
+      setPage(route.page)
+      setSlug(route.slug ?? "f8-saas")
+      setDetailId(route.taskId ?? null)
+      setDetail(null)
+    }
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [])
+
+  function go(path: string) {
+    window.history.pushState({}, "", path)
+  }
 
   const move = useMutation({
     mutationFn: ({ id, status }: { id: string; status: Status }) =>
@@ -105,18 +129,20 @@ export default function App() {
 
   function handleSelectPage(p: Page) {
     if (p === "board") {
-      if (detailPage) { setDetailPage(null); setPage("board"); return }
+      if (detailId) { setDetail(null); setDetailId(null); setPage("board"); go(pagePath("board", slug)); return }
       if (page === "board") { setFiltersOpen((v) => !v); return }
-      setPage("board")
+      setDetail(null); setPage("board"); go(pagePath("board", slug))
       return
     }
-    setDetailPage(null)
+    setDetail(null)
+    setDetailId(null)
     setPage(p)
+    go(pagePath(p, slug))
   }
 
   const boardBody =
     tasks.isLoading ? (
-      <p className="p-6 text-sm text-neutral-400">Loading…</p>
+      <LoadingState variant="board" label="Memuat kanban" />
     ) : tasks.isError ? (
       <p className="p-6 text-sm text-red-400">Gagal load tasks: {(tasks.error as Error).message}</p>
     ) : (
@@ -138,7 +164,7 @@ export default function App() {
                   key={t.id}
                   task={t}
                   onOpen={() => setDetail(t)}
-                  onOpenPage={() => setDetailPage(t)}
+                  onOpenPage={() => { setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
                   onMove={(s) => move.mutate({ id: t.id, status: s })}
                   onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
                   profiles={profiles.data ?? []}
@@ -155,7 +181,7 @@ export default function App() {
       </main>
     )
 
-  const filterRail = page === "board" && !detailPage && filtersOpen && (
+  const filterRail = page === "board" && !detailId && filtersOpen && (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[#1e2430] bg-[#11151f]">
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-[#1e2430] px-3">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Filters</span>
@@ -243,9 +269,9 @@ export default function App() {
           <Separator orientation="vertical" className="mr-1 h-5" />
           <h1 className="truncate text-sm font-semibold tracking-tight">{pageTitle}</h1>
 
-          {page === "board" && !detailPage && (
+          {page === "board" && !detailId && (
             <>
-              <Select value={slug} onValueChange={setSlug}>
+              <Select value={slug} onValueChange={(next) => { setSlug(next); go(pagePath("board", next)) }}>
                 <SelectTrigger size="sm" className="ml-2 w-auto gap-1.5 border-[#1e2430] bg-[#0b0e14] text-xs">
                   <SelectValue placeholder="board" />
                 </SelectTrigger>
@@ -272,8 +298,8 @@ export default function App() {
               </Button>
             </>
           )}
-          {page === "board" && detailPage && (
-            <span className="ml-2 rounded bg-[#0b0e14] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">{detailPage.id}</span>
+          {page === "board" && detailId && (
+            <span className="ml-2 rounded bg-[#0b0e14] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">{detailId}</span>
           )}
         </header>
 
@@ -289,18 +315,19 @@ export default function App() {
             {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
             {page === "flow" && <div className="flex-1 overflow-hidden p-6"><FlowPage /></div>}
             {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
-            {page === "board" && detailPage && (
+            {page === "board" && detailId && detailPage && (
               <TaskDetailPage
                 slug={slug}
                 task={detailPage}
                 profiles={profiles.data ?? []}
                 workspaces={workspaces.data ?? []}
-                onBack={() => setDetailPage(null)}
-                onMove={(s) => move.mutateAsync({ id: detailPage.id, status: s }).then(() => setDetailPage({ ...detailPage, status: s }))}
-                onReassign={(a) => reassign.mutateAsync({ id: detailPage.id, assignee: a }).then(() => setDetailPage({ ...detailPage, assignee: a }))}
+                onBack={() => { setDetailId(null); go(pagePath("board", slug)) }}
+                onMove={(s) => move.mutateAsync({ id: detailPage.id, status: s }).then(() => undefined)}
+                onReassign={(a) => reassign.mutateAsync({ id: detailPage.id, assignee: a }).then(() => undefined)}
               />
             )}
-            {page === "board" && !detailPage && boardBody}
+            {page === "board" && detailId && !detailPage && (tasks.isLoading ? <LoadingState variant="detail" label="Memuat detail task" /> : <div className="flex flex-1 items-center justify-center p-6 text-sm text-red-400">Task `{detailId}` tidak ditemukan di board ini.</div>)}
+            {page === "board" && !detailId && boardBody}
           </div>
         </div>
       </SidebarInset>
@@ -338,7 +365,7 @@ export default function App() {
           }}
         />
       )}
-      {detail && !detailPage && (
+      {detail && !detailId && (
         <TaskDetail
           slug={slug}
           task={detail}
@@ -349,7 +376,7 @@ export default function App() {
           onReassign={(a) =>
             reassign.mutateAsync({ id: detail.id, assignee: a }).then(() => setDetail({ ...detail, assignee: a }))
           }
-          onOpenPage={() => { const t = detail; setDetail(null); setDetailPage(t) }}
+          onOpenPage={() => { const t = detail; setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
         />
       )}
     </SidebarProvider>

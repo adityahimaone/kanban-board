@@ -3,6 +3,7 @@ import { api } from "@/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Brain, User, Sparkles } from "lucide-react"
+import LoadingState from "@/components/LoadingState"
 
 interface MemorySnapshot {
   memory: string
@@ -44,7 +45,7 @@ function MemoryCard({ icon: Icon, title, path, mtime, content }: { icon: typeof 
 export default function MemoryPage() {
   const mem = useQuery({ queryKey: ["memory"], queryFn: () => api<MemorySnapshot>("/api/memory") })
 
-  if (mem.isLoading) return <p className="p-4 text-sm text-neutral-400">Loading…</p>
+  if (mem.isLoading) return <LoadingState label="Memuat memory" />
   if (mem.isError) return <p className="p-4 text-sm text-red-400">Gagal load memory: {(mem.error as Error).message}</p>
   const d = mem.data!
 

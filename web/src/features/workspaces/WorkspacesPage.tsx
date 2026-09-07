@@ -12,6 +12,7 @@ import { useSettings } from "@/hooks/useSettings"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { FolderGit2, Plus, RefreshCw, ScrollText, Trash2, Pencil, Loader2, Monitor, Apple, Laptop, HardDrive, Radio } from "lucide-react"
+import LoadingState from "@/components/LoadingState"
 
 type WsStatus = "connected" | "unreachable" | "unknown" | "local"
 
@@ -436,7 +437,7 @@ export default function WorkspacesPage() {
       </p>
 
       {workspaces.isLoading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <LoadingState label="Memuat workspaces" />
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(workspaces.data ?? []).map((ws) => {

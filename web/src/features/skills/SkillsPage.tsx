@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Puzzle, Search, X } from "lucide-react"
+import LoadingState from "@/components/LoadingState"
 
 interface SkillMeta {
   name: string
@@ -71,7 +72,7 @@ export default function SkillsPage() {
       <Separator className="my-3" />
 
       {skills.isLoading ? (
-        <p className="text-sm text-neutral-400">Loading…</p>
+        <LoadingState label="Memuat skills" />
       ) : skills.isError ? (
         <p className="text-sm text-red-400">Gagal load skills: {(skills.error as Error).message}</p>
       ) : (

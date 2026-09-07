@@ -73,6 +73,50 @@
 html, body, #root { height: 100%; }
 body { background: var(--color-bg); color: var(--color-foreground); }
 
+/* Loading uses the app's existing signal language: one sweep and a few quiet
+   geometry-preserving bars. It communicates progress without taking over the
+   screen like a spinner or adding a new visual system. */
+@keyframes signal-sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(260%); }
+}
+@keyframes signal-drop {
+  0%, 100% { opacity: 0.34; background-position: -180% 0; }
+  45% { opacity: 0.72; background-position: 180% 0; }
+}
+.signal-loading__line {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  height: 1px;
+  width: 34%;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(16, 224, 221, 0.45);
+  animation: signal-sweep 1.8s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+.signal-skeleton {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #161b27;
+}
+.signal-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 20%, rgba(16, 224, 221, 0.14) 48%, transparent 76%);
+  background-size: 220% 100%;
+  animation: signal-drop 1.8s ease-in-out infinite;
+}
+.signal-skeleton:nth-child(2n)::after { animation-delay: 160ms; }
+.signal-skeleton:nth-child(3n)::after { animation-delay: 300ms; }
+@media (prefers-reduced-motion: reduce) {
+  .signal-loading__line { animation: none; opacity: 0.55; left: 0; width: 100%; }
+  .signal-skeleton::after { animation: none; opacity: 0.16; }
+}
+
 /* thin scrollbars to match dark theme */
 * { scrollbar-width: thin; scrollbar-color: #2a3140 transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { RefreshCw } from "lucide-react"
+import LoadingState from "@/components/LoadingState"
 
 interface LogTail {
   file: string
@@ -111,7 +112,7 @@ export default function LogsPage() {
       <Separator className="my-3" />
 
       {logs.isLoading ? (
-        <p className="text-sm text-neutral-400">Loading…</p>
+        <LoadingState label="Memuat logs" />
       ) : logs.isError ? (
         <p className="text-sm text-red-400">Gagal load logs: {(logs.error as Error).message}</p>
       ) : (

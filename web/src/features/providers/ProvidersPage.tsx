@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Server, Search, X, KeyRound } from "lucide-react"
+import LoadingState from "@/components/LoadingState"
 
 export default function ProvidersPage({ onUseInProfile }: { onUseInProfile?: (name: string, model: string) => void }) {
   const [q, setQ] = useState("")
@@ -44,7 +45,7 @@ export default function ProvidersPage({ onUseInProfile }: { onUseInProfile?: (na
       </p>
 
       {providers.isLoading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <LoadingState label="Memuat providers" />
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map((p) => (

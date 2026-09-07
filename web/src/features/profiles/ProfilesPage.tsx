@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Bot, Plus, Trash2, Pencil, ShieldAlert, ShieldCheck, Activity } from "lucide-react"
+import LoadingState from "@/components/LoadingState"
 
 const FALLBACK_PROVIDERS = [
   "custom", "auto", "anthropic", "openai", "openrouter", "google",
@@ -190,7 +191,7 @@ export default function ProfilesPage() {
       </p>
 
       {profiles.isLoading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <LoadingState label="Memuat agent profiles" />
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(profiles.data ?? []).map((p) => (
