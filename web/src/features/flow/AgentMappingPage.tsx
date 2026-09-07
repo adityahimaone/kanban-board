@@ -123,8 +123,8 @@ export default function AgentMappingPage() {
         <svg className="pointer-events-none absolute inset-0" width={GRAPH_W} height={GRAPH_H}>
           <defs><filter id="flow-edge-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" /></filter></defs>
           {edgePaths.map((e) => <g key={`${e.from}-${e.to}`}>
-            <path d={e.path} fill="none" stroke={e.color} strokeWidth={e.active ? 14 : 7} opacity={e.active ? .5 : .3} filter="url(#flow-edge-blur)" />
-            <path d={e.path} fill="none" stroke={e.color} strokeWidth={e.active ? 4 : 2.5} opacity={e.active ? 1 : .8} strokeLinecap="round" />
+            <path d={e.path} fill="none" stroke={e.color} strokeWidth={e.active ? 18 : 9} opacity={e.active ? .5 : .3} filter="url(#flow-edge-blur)" />
+            <path d={e.path} fill="none" stroke={e.color} strokeWidth={e.active ? 5 : 3.5} opacity={e.active ? 1 : .8} strokeLinecap="round" />
           </g>)}
         </svg>
         {visibleTasks.slice(0, 24).flatMap((t, i) => { const chain = channelChain(t); return chain.slice(0, -1).flatMap((from, hop) => { const to = chain[hop + 1]; const path = anchor(from, to, positions)[2]; return [0, 1, 2, 3, 4, 5, 6, 7].map((dot) => <TravelingDot key={`${t.task_id}-${from}-${to}-${dot}`} taskId={`${t.task_id}-${i}`} pathD={path} pathLen={pathLength(path)} phaseRatio={(i + hop + dot / 8) / Math.max(1, visibleTasks.length + 8)} active />) }) })}
