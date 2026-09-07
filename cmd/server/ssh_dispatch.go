@@ -78,8 +78,9 @@ func dispatchSSHTasks() {
 			// hard guard runs before claim: never spawn local for remote paths
 			r.transport, r.sshTarget = hardGuardTransport(db, r.id, r.ws, r.transport, r.sshTarget)
 
-			// claim: set running so other pollers skip it
-			_, _ = db.Exec(`UPDATE tasks SET status='running', consecutive_failures=0 WHERE id=? AND status='todo'`, r.id)
+			// claim: persist start time so every UI surface measures same run
+			startedAt := time.Now().Unix()
+			_, _ = db.Exec(`UPDATE tasks SET status='running', started_at=?, completed_at=NULL, consecutive_failures=0 WHERE id=? AND status='todo'`, startedAt, r.id)
 			db.Close()
 
 			msg := r.body

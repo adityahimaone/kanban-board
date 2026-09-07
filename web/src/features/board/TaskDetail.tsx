@@ -1,10 +1,11 @@
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api, COLUMNS, type Profile, type Status, type Task, type TaskEvent, type Workspace } from "../../api"
 import { Apple, ExternalLink, HardDrive, Laptop, Monitor } from "lucide-react"
-import { AgentTaskStatus, RunningIndicator } from "./AgentStatus"
+import { AgentTaskStatus, splitAgentResult } from "./AgentStatus"
 
 const STATUS_CHIP: Record<string, string> = {
   done: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
@@ -59,6 +60,8 @@ export default function TaskDetail({
   const profile = profiles.find((p) => p.name === task.assignee)
   const ws = workspaces.find((w) => w.path === task.workspace_path)
   const wsIsSsh = !!ws?.host && ws.host !== "localhost" && ws.host !== "127.0.0.1"
+  const [showWorking, setShowWorking] = useState(false)
+  const resultSplit = task.result ? splitAgentResult(task.result) : null
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
@@ -83,7 +86,6 @@ export default function TaskDetail({
           )}
         </div>
 
-        {task.status === "running" && <RunningIndicator startedAt={task.started_at} />}
         <AgentTaskStatus task={task} events={events.data ?? []} />
 
         {/* agent */}
@@ -147,10 +149,26 @@ export default function TaskDetail({
             <p className="mt-1 max-h-20 overflow-y-auto break-words text-[11px] leading-relaxed text-red-300">{task.last_failure_error}</p>
           </div>
         )}
-        {task.result && (
+        {resultSplit?.working && (
+          <div className="rounded-lg border border-[#1e2430] bg-[#11151f] p-2.5">
+            <button
+              type="button"
+              onClick={() => setShowWorking((v) => !v)}
+              aria-expanded={showWorking}
+              className="flex w-full items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-200"
+            >
+              <span className={`transition-transform duration-200 ${showWorking ? "rotate-90" : ""}`}>▸</span>
+              Working log{showWorking ? "" : " (tap untuk buka)"}
+            </button>
+            {showWorking && (
+              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-[#1e2430] bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-neutral-400">{resultSplit.working}</pre>
+            )}
+          </div>
+        )}
+        {resultSplit && (
           <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-emerald-300">Result</label>
-            <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-emerald-100/90">{task.result}</p>
+            <pre className="mt-1.5 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-500/20 bg-[#0b0e14] p-2 font-mono text-[11px] leading-relaxed text-emerald-100/90">{resultSplit.final || resultSplit.working}</pre>
           </div>
         )}
 
