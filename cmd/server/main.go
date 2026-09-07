@@ -58,8 +58,18 @@ func main() {
 		// review gate: review->done only via /approve (commit / commit&push)
 		if req.Status == "done" {
 			if cur, err := kanban.TaskStatus(r.PathValue("slug"), r.PathValue("id")); err == nil && cur == "review" {
-				fail(w, fmt.Errorf("review->done only via approve endpoint"), 400); return
+				t, loadErr := loadReviewTask(r.PathValue("slug"), r.PathValue("id"))
+				if loadErr != nil || t.Transport != "ssh" {
+					fail(w, fmt.Errorf("review->done requires a clean ssh workspace"), 400); return
+				}
+				clean, _, statusCode := reviewWorkspaceClean(t)
+				if statusCode != 0 || !clean {
+					fail(w, fmt.Errorf("review has changes; approve with commit or commit_push"), 400); return
+				}
 			}
+		}
+		if cur, err := kanban.TaskStatus(r.PathValue("slug"), r.PathValue("id")); err == nil && cur == "running" {
+			fail(w, fmt.Errorf("running task can only be stopped via stop endpoint"), 400); return
 		}
 		if err := kanban.StatusTransition(r.PathValue("slug"), r.PathValue("id"), req.Status); err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
@@ -110,6 +120,18 @@ func main() {
 		c, err := kanban.AddComment(r.PathValue("slug"), r.PathValue("id"), req.Author, req.Body)
 		if err != nil { fail(w, err, 400); return }
 		writeJSON(w, http.StatusCreated, c)
+	})
+
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/stop", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		cur, err := kanban.TaskStatus(r.PathValue("slug"), id)
+		if err != nil { fail(w, err, 404); return }
+		if cur != "running" { fail(w, fmt.Errorf("task is not running (status=%s)", cur), 400); return }
+		if !requestTaskStop(id) {
+			fail(w, fmt.Errorf("active worker for task was not found"), 409)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]string{"status": "stopping"})
 	})
 
 	// review gate: diff + approve (commit / commit&push) — only path review->done
@@ -244,12 +266,17 @@ func main() {
 		var req struct {
 			Title string `json:"title"`
 			Body  string `json:"body"`
+			Mode  string `json:"mode"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil { fail(w, err, 400); return }
 		if strings.TrimSpace(req.Body) == "" { fail(w, fmt.Errorf("body required"), 400); return }
+		if req.Mode == "fast" {
+			writeJSON(w, http.StatusOK, map[string]string{"improved": kanban.ImprovePromptFast(req.Title, req.Body), "mode": "fast"})
+			return
+		}
 		improved, err := kanban.ImprovePrompt(req.Title, req.Body)
 		if err != nil { fail(w, err, 502); return }
-		writeJSON(w, http.StatusOK, map[string]string{"improved": improved})
+		writeJSON(w, http.StatusOK, map[string]string{"improved": improved, "mode": "deep"})
 	})
 	mux.HandleFunc("GET /api/nodes", func(w http.ResponseWriter, r *http.Request) {
 		st, err := kanban.NodeAgentHealth()

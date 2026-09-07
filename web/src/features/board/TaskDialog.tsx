@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { Profile, Workspace } from "../../api"
 import { api } from "../../api"
 import { Button } from "@/components/ui/button"
@@ -48,21 +48,31 @@ export default function TaskDialog({
   const [priority, setPriority] = useState("0")
   const [busy, setBusy] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
+  const [aiMode, setAiMode] = useState<"fast" | "deep" | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const improveCache = useRef(new Map<string, string>())
 
-  async function improveBody() {
-    if (!body.trim() || aiBusy) return
-    setAiBusy(true); setErr(null)
+  async function improveBody(mode: "fast" | "deep") {
+    if (!body.trim()) return
+    const cacheKey = `${title.trim()}::${body.trim()}::${mode}`
+    const cached = improveCache.current.get(cacheKey)
+    if (cached) {
+      setBody(cached)
+      return
+    }
+    if (aiBusy) return
+    setAiBusy(true); setAiMode(mode); setErr(null)
     try {
       const res = await api<{ improved: string }>("/api/ai/improve-prompt", {
         method: "POST",
-        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+        body: JSON.stringify({ title: title.trim(), body: body.trim(), mode }),
       })
+      improveCache.current.set(cacheKey, res.improved)
       setBody(res.improved)
     } catch (e) {
       setErr((e as Error).message)
     } finally {
-      setAiBusy(false)
+      setAiBusy(false); setAiMode(null)
     }
   }
 
@@ -92,16 +102,28 @@ export default function TaskDialog({
           className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
         <div className="mt-3 flex items-center justify-between">
           <Label className="text-xs text-neutral-400">Body</Label>
-          <Button
-            variant="outline" size="sm"
-            disabled={aiBusy || !body.trim()}
-            onClick={improveBody}
-            className="h-6 gap-1 border-[#10e0dd]/40 px-2 text-[11px] text-[#10e0dd] hover:bg-[#10e0dd]/10 hover:text-[#10e0dd]"
-            title="Improve prompt pakai AI"
-          >
-            {aiBusy ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
-            {aiBusy ? "Improving…" : "AI improve"}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline" size="sm"
+              disabled={aiBusy || !body.trim()}
+              onClick={() => improveBody("fast")}
+              className="h-6 gap-1 border-[#10e0dd]/40 px-2 text-[11px] text-[#10e0dd] hover:bg-[#10e0dd]/10 hover:text-[#10e0dd]"
+              title="Improve instan pakai template (tanpa AI call)"
+            >
+              <Sparkles className="size-3" />
+              Fast
+            </Button>
+            <Button
+              variant="outline" size="sm"
+              disabled={aiBusy || !body.trim()}
+              onClick={() => improveBody("deep")}
+              className="h-6 gap-1 border-[#1e2430] px-2 text-[11px] text-neutral-300 hover:bg-[#10e0dd]/10 hover:text-[#10e0dd]"
+              title="Improve pakai AI model (lebih lambat, hasil lebih kontekstual)"
+            >
+              {aiMode === "deep" ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+              {aiMode === "deep" ? "Improving…" : "Deep"}
+            </Button>
+          </div>
         </div>
         <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} placeholder="Deskripsi (opsional) — klik AI improve biar prompt-nya dirapikan"
           className="mt-1 border-[#1e2430] bg-[#0b0e14] text-sm" />
