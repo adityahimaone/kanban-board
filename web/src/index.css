@@ -157,4 +157,16 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 .decorative-card > * { position: relative; z-index: 1; }
 .decorative-card:hover { border-color: var(--color-line-strong); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.14), 0 0 26px color-mix(in srgb,var(--color-blue-glow) 30%,transparent); }
 .provider-card-grid, .provider-card-scan { display: none; }
+.kanban-column { border-top-color: color-mix(in srgb, var(--column-accent) 55%, var(--color-line)) !important; }
+.kanban-column-title { color: color-mix(in srgb, var(--column-accent) 72%, var(--color-ink-2)); }
+.kanban-column-title > span:last-child { border: 1px solid color-mix(in srgb, var(--column-accent) 28%, var(--color-line)); background: color-mix(in srgb, var(--column-accent) 10%, var(--color-bg)); }
+.kanban-column-cyan { --column-accent: #38d9ff; }
+.kanban-column-blue { --column-accent: #58a9ff; }
+.kanban-column-violet { --column-accent: #9b8cff; }
+.kanban-column-indigo { --column-accent: #7c8cff; }
+.kanban-column-amber { --column-accent: #f6b44a; }
+.kanban-column-red { --column-accent: #ff7185; }
+.kanban-column-purple { --column-accent: #c084fc; }
+.kanban-column-emerald { --column-accent: #42d392; }
+.kanban-column-slate { --column-accent: #94a0b5; }
 @media (prefers-reduced-motion: reduce) { .decorative-card { transition: none; } }

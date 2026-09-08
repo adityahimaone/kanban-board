@@ -28,6 +28,18 @@ import { SIDEBAR_ITEMS, type Page } from "./lib/sidebar-preferences"
 
 const BOARD_COLUMNS: Status[] = [...COLUMNS, "archived"]
 
+const COLUMN_TONES: Record<Status, string> = {
+  triage: "kanban-column-cyan",
+  todo: "kanban-column-blue",
+  scheduled: "kanban-column-violet",
+  ready: "kanban-column-indigo",
+  running: "kanban-column-amber",
+  blocked: "kanban-column-red",
+  review: "kanban-column-purple",
+  done: "kanban-column-emerald",
+  archived: "kanban-column-slate",
+}
+
 const PROFILE_OPTIONS = [{ value: "__all", label: "Semua agent" }]
 const WORKSPACE_OPTIONS = [{ value: "__all", label: "Semua workspace" }]
 
@@ -157,8 +169,8 @@ export default function App() {
         {BOARD_COLUMNS.map((col) => {
           const cards = byCol(col)
           return (
-          <section key={col} className={`flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-line/70 bg-surface/60 backdrop-blur supports-[backdrop-filter]:bg-surface/60 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
-            <h2 className="flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <section key={col} className={`kanban-column ${COLUMN_TONES[col]} flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-line/70 bg-surface/60 backdrop-blur supports-[backdrop-filter]:bg-surface/60 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
+            <h2 className="kanban-column-title flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               <span className="flex items-center gap-1.5">
                 {col === "archived" && <Archive className="size-3" />}
                 {col}

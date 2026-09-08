@@ -53,7 +53,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
   const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
   const desc = task.result || task.body
   return (
-    <article className="group relative rounded-lg border border-line/60 bg-surface/45 p-3.5 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-line-strong hover:bg-inset/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/45">
+    <article className="decorative-card group rounded-lg border border-line/60 bg-surface/45 p-3.5 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-line-strong hover:bg-inset/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/45">
       {/* title + open-page icon */}
       <div className="flex items-start justify-between gap-2">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
