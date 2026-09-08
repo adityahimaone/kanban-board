@@ -81,6 +81,7 @@ export default function SettingsPage() {
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[var(--color-accent)]">Hermes Studio</p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-neutral-100">Settings</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink-3)]">Tune interaction, appearance, navigation, and workspace runtime preferences.</p>
         </div>
         <div className="relative ml-auto w-64">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" />
