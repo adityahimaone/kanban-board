@@ -62,7 +62,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
         <button
           onClick={onOpenPage}
           title="Buka detail page"
-          className="shrink-0 rounded p-1 text-neutral-600 opacity-0 transition-opacity hover:text-[var(--color-accent)] focus:opacity-100 group-hover:opacity-100"
+          className="shrink-0 rounded p-1 text-neutral-500 hover:text-[var(--color-accent)]"
         >
           <ExternalLink className="size-3.5" />
         </button>
@@ -122,7 +122,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
 
       {/* status moves — hover only */}
       {(targets.length > 0 || task.status === "running") && (
-        <div className="mt-2 flex flex-wrap gap-1 border-t border-[var(--color-line)]/40 pt-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-[var(--color-line)]/40 pt-2">
           {task.status === "running" && (
             <button
               onClick={onStop}
