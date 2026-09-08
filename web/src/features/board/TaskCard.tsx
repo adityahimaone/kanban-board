@@ -52,6 +52,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
   const ws = (workspaces ?? []).find((w) => w.path === task.workspace_path)
   const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
   const desc = task.result || task.body
+  const settled = task.status === "done" || task.status === "archived"
   return (
     <article className="decorative-card group rounded-lg border border-line/60 bg-surface/45 p-3.5 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-line-strong hover:bg-inset/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/45">
       {/* title + open-page icon */}
@@ -70,7 +71,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
 
       {/* description */}
       {desc && (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-neutral-400">{desc}</p>
+        <p className={`mt-1.5 text-xs leading-5 text-neutral-400 ${settled ? "" : "line-clamp-2"}`}>{desc}</p>
       )}
 
       {task.status === "running" && (

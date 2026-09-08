@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
-import { Activity, AlertTriangle, CheckCircle2, CircleDot, Cpu, Database, Gauge, Layers3, MemoryStick, Radio, Server, Users, Workflow, XCircle } from "lucide-react"
+import { Activity, CheckCircle2, Cpu, Database, Gauge, Layers3, MemoryStick, Radio, Server, Users, Workflow, XCircle } from "lucide-react"
+import { LabelList, Pie, PieChart } from "recharts"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { api } from "../../api"
 
 type Overview = {
@@ -14,6 +16,40 @@ type Overview = {
 
 type Tone = "accent" | "success" | "warning" | "danger" | "info"
 
+const STATUS_COLORS = ["var(--color-accent)", "var(--color-info)", "var(--color-success)", "var(--color-danger)"]
+const STATUS_LABELS = ["Todo / ready", "Running", "Completed", "Failed"]
+
+function statusRows(data: Overview) {
+  const finished = data.completed_tasks + data.failed_tasks
+  return [
+    { category: STATUS_LABELS[0], value: Math.max(0, data.total_tasks - finished - data.running_tasks), fill: STATUS_COLORS[0] },
+    { category: STATUS_LABELS[1], value: data.running_tasks, fill: STATUS_COLORS[1] },
+    { category: STATUS_LABELS[2], value: data.completed_tasks, fill: STATUS_COLORS[2] },
+    { category: STATUS_LABELS[3], value: data.failed_tasks, fill: STATUS_COLORS[3] },
+  ]
+}
+
+function TaskHealthChart({ data }: { data: Overview }) {
+  const rows = statusRows(data)
+  return (
+    <div className="grid items-center gap-4 sm:grid-cols-[minmax(180px,1fr)_minmax(150px,.8fr)]">
+      <div className="h-64 min-w-0">
+        <PieChart width={260} height={250} className="mx-auto max-w-full">
+          <Pie data={rows} dataKey="value" nameKey="category" innerRadius={62} outerRadius="84%" cornerRadius={5} paddingAngle={2} stroke="var(--color-surface)" strokeWidth={4}>
+            <LabelList dataKey="value" position="inside" className="fill-background text-xs font-semibold" stroke="none" formatter={(value) => Number(value) > 0 ? value : ""} />
+          </Pie>
+        </PieChart>
+      </div>
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const pct = data.total_tasks > 0 ? Math.round((row.value / data.total_tasks) * 100) : 0
+          return <div key={row.category} className="flex items-center justify-between gap-3 text-xs"><span className="flex min-w-0 items-center gap-2 text-[var(--color-ink-3)]"><i className="size-2 rounded-full" style={{ background: row.fill, boxShadow: `0 0 8px ${row.fill}` }} />{row.category}</span><span className="font-mono tabular-nums text-[var(--color-ink-2)]">{row.value} <small className="text-[var(--color-ink-4)]">({pct}%)</small></span></div>
+        })}
+      </div>
+    </div>
+  )
+}
+
 const tones: Record<Tone, { icon: string; tint: string }> = {
   accent: { icon: "var(--color-accent)", tint: "var(--color-accent-tint)" },
   success: { icon: "var(--color-success)", tint: "var(--color-success-tint)" },
@@ -25,17 +61,19 @@ const tones: Record<Tone, { icon: string; tint: string }> = {
 function StatCard({ icon: Icon, label, value, note, tone = "accent" }: { icon: typeof Activity; label: string; value: string | number; note: string; tone?: Tone }) {
   const color = tones[tone]
   return (
-    <section className="aurora-stat decorative-card rounded-xl border border-[var(--color-line)] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.14em] text-[var(--color-ink-3)]">
-          <span className="flex size-7 items-center justify-center rounded-lg" style={{ background: color.tint }}><Icon className="size-3.5" style={{ color: color.icon }} /></span>
-          {label}
+    <Card className="aurora-stat decorative-card rounded-xl border-[var(--color-line)]">
+      <CardHeader className="p-4 pb-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.14em] text-[var(--color-ink-3)]">
+            <span className="flex size-7 items-center justify-center rounded-lg" style={{ background: color.tint }}><Icon className="size-3.5" style={{ color: color.icon }} /></span>
+            {label}
+          </div>
+          <span className="size-1.5 rounded-full" style={{ background: color.icon, boxShadow: `0 0 10px ${color.icon}` }} />
         </div>
-        <span className="size-1.5 rounded-full" style={{ background: color.icon, boxShadow: `0 0 10px ${color.icon}` }} />
-      </div>
-      <p className="mt-4 font-mono text-3xl font-semibold tracking-tight text-[var(--color-ink)]">{value}</p>
-      <p className="mt-1 text-[10px] text-[var(--color-ink-4)]">{note}</p>
-    </section>
+      </CardHeader>
+      <CardContent className="p-4"><p className="font-mono text-3xl font-semibold tracking-tight text-[var(--color-ink)]">{value}</p></CardContent>
+      <CardFooter className="p-4 pt-0 text-[10px] text-[var(--color-ink-4)]">{note}</CardFooter>
+    </Card>
   )
 }
 
@@ -54,18 +92,6 @@ function ResourceBar({ icon: Icon, label, value, detail, tone = "accent" }: { ic
   )
 }
 
-function BreakdownRow({ icon: Icon, label, value, total, tone }: { icon: typeof CircleDot; label: string; value: number; total: number; tone: Tone }) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0
-  const color = tones[tone].icon
-  return (
-    <div className="flex items-center gap-3">
-      <Icon className="size-3.5 shrink-0" style={{ color }} />
-      <span className="w-20 text-xs text-[var(--color-ink-3)]">{label}</span>
-      <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--color-bg)]"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} /></div>
-      <span className="w-14 text-right font-mono text-xs tabular-nums text-[var(--color-ink-2)]">{value} <small className="text-[var(--color-ink-4)]">({pct}%)</small></span>
-    </div>
-  )
-}
 
 export default function OverviewPage() {
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => api<Overview>("/api/overview"), refetchInterval: 5000 })
@@ -107,7 +133,7 @@ export default function OverviewPage() {
 
           <section className="decorative-card rounded-xl border border-[var(--color-line)] p-4">
             <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-[var(--color-accent)]">Task health</p><h2 className="mt-1 text-sm font-semibold">Status distribution</h2></div><Workflow className="size-4 text-[var(--color-accent)]" /></div>
-            <div className="mt-6 space-y-5"><BreakdownRow icon={CircleDot} label="Todo / ready" value={Math.max(0, data.total_tasks - finished - data.running_tasks)} total={data.total_tasks} tone="accent" /><BreakdownRow icon={Activity} label="Running" value={data.running_tasks} total={data.total_tasks} tone="info" /><BreakdownRow icon={CheckCircle2} label="Completed" value={data.completed_tasks} total={data.total_tasks} tone="success" /><BreakdownRow icon={AlertTriangle} label="Failed" value={data.failed_tasks} total={data.total_tasks} tone="danger" /></div>
+            <TaskHealthChart data={data} />
             <div className="mt-6 rounded-lg border border-[var(--color-line)] bg-[var(--color-inset)]/45 p-3"><div className="flex items-center justify-between text-xs"><span className="text-[var(--color-ink-3)]">Completion rate</span><b className="font-mono text-[var(--color-success)]">{completionRate}%</b></div><div className="mt-2 h-1.5 rounded-full bg-[var(--color-bg)]"><div className="h-full rounded-full bg-[var(--color-success)]" style={{ width: `${completionRate}%` }} /></div></div>
           </section>
         </div>
