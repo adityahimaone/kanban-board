@@ -89,15 +89,20 @@ func NodeAgentHealth() (*NodeAgentStatus, error) {
 	c := &http.Client{Timeout: 2 * time.Second}
 	resp, err := c.Get(nodeAgentBase() + "/health")
 	if err != nil {
-		return &NodeAgentStatus{Status: "down", Error: err.Error()}, nil
+		st := &NodeAgentStatus{Status: "down", Error: err.Error()}
+		broadcastEvent("node_health", st)
+		return st, nil
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 	var st NodeAgentStatus
 	if err := json.Unmarshal(body, &st); err != nil {
-		return &NodeAgentStatus{Status: "down", Error: err.Error()}, nil
+		down := &NodeAgentStatus{Status: "down", Error: err.Error()}
+		broadcastEvent("node_health", down)
+		return down, nil
 	}
 	st.Status = "up"
+	broadcastEvent("node_health", st)
 	return &st, nil
 }
 

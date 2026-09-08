@@ -278,12 +278,26 @@ func taskByID(db *sql.DB, taskID string) (Task, error) {
 	return t, nil
 }
 
-// insertEventTx mirrors insertEvent inside an explicit transaction
-// (insertEvent opens its own PRAGMA probe on the parent db handle).
+// insertEventTx mirrors insertEvent inside an explicit transaction and supports
+// both Hermes task_events schemas (payload and payload_json).
 func insertEventTx(tx *sql.Tx, taskID, kind string, payload any) error {
 	raw, _ := json.Marshal(payload)
-	q := `INSERT INTO task_events (task_id, kind, payload, created_at) VALUES (?,?,?,?)`
-	_, err := tx.Exec(q, taskID, kind, string(raw), time.Now().Unix())
+	name := "payload"
+	rows, err := tx.Query(`PRAGMA table_info(task_events)`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var cid, notNull, pk int
+		var cname, ctype string
+		var dflt any
+		if err := rows.Scan(&cid, &cname, &ctype, &notNull, &dflt, &pk); err == nil && cname == "payload_json" {
+			name = "payload_json"
+		}
+	}
+	rows.Close()
+	q := fmt.Sprintf(`INSERT INTO task_events (task_id, kind, %s, created_at) VALUES (?,?,?,?)`, name)
+	_, err = tx.Exec(q, taskID, kind, string(raw), time.Now().Unix())
 	return err
 }
 

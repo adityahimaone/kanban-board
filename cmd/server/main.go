@@ -358,6 +358,7 @@ func main() {
 				raw := kanban.PingWorkspace(&e)
 				eff := kanban.DebouncedStatus(raw.ID, raw)
 				kanban.AppendPingHistory(raw.ID, raw) // raw fail goes to history/EKG
+				kanban.BroadcastEvent("workspace_ping", map[string]any{"workspace_id": raw.ID, "status": eff.Status, "status_message": eff.StatusMsg, "ping_ms": eff.PingMs})
 				writeJSON(w, http.StatusOK, eff)
 				return
 			}

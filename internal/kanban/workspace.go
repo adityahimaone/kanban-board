@@ -213,7 +213,11 @@ func SaveWorkspace(w *Workspace) error {
 	if !found {
 		f.Workspaces = append(f.Workspaces, *w)
 	}
-	return saveWorkspaces(f)
+	if err := saveWorkspaces(f); err != nil {
+		return err
+	}
+	broadcastEvent("workspace_updated", map[string]any{"workspace_id": w.ID})
+	return nil
 }
 
 // DeleteWorkspace removes an entry by id.
@@ -237,7 +241,11 @@ func DeleteWorkspace(id string) error {
 		return fmt.Errorf("workspace %q not found", id)
 	}
 	f.Workspaces = kept
-	return saveWorkspaces(f)
+	if err := saveWorkspaces(f); err != nil {
+		return err
+	}
+	broadcastEvent("workspace_deleted", map[string]any{"workspace_id": id})
+	return nil
 }
 
 // PingWorkspace probes the workspace: local → stat path; remote → ssh

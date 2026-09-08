@@ -50,7 +50,7 @@ Repo: `~/apps/kanban-board`, deploy VPS :8790, share `~/.hermes/kanban/boards/<s
 
 Spec: `docs/specs/2026-09-08-agent-control-plane-reliability-design.md`
 
-Status: implementation slice complete; verification passed. UI health actions remain limited to task detail page.
+Status: reliability follow-up slice complete; verification passed. Board-card health badge and authenticated/live smoke tests remain.
 
 ### Discovery/design
 
@@ -72,7 +72,7 @@ Status: implementation slice complete; verification passed. UI health actions re
 - [x] Overview health summary
 - [x] SSE event hub + stream route
 - [x] Board task/status mutation broadcasts
-- [ ] Workspace/node mutation broadcasts
+- [x] Workspace/node mutation broadcasts
 - [ ] Backend HTTP tests
 
 ### Frontend

@@ -156,6 +156,7 @@ func PingAll() ([]Workspace, error) {
 		raw := PingWorkspace(&ws[i])
 		eff := debouncedStatus(raw.ID, raw)
 		AppendPingHistory(raw.ID, raw) // store raw, not debounced
+		broadcastEvent("workspace_ping", map[string]any{"workspace_id": raw.ID, "status": eff.Status, "status_message": eff.StatusMsg, "ping_ms": eff.PingMs})
 		out = append(out, eff)
 	}
 	return out, nil
