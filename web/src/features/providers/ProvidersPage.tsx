@@ -53,7 +53,7 @@ export default function ProvidersPage({ onUseInProfile }: { onUseInProfile?: (na
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map((p) => (
-            <Card key={p.name} className={`provider-card relative cursor-pointer overflow-hidden border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/40 ${active === p.name ? "border-[var(--color-accent)]/60" : ""}`}
+            <Card key={p.name} className={`provider-card decorative-card relative cursor-pointer overflow-hidden border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/40 ${active === p.name ? "border-[var(--color-accent)]/60" : ""}`}
               onClick={() => setActive(active === p.name ? null : p.name)}>
               <span className="provider-card-grid pointer-events-none absolute inset-0" />
               <span className="provider-card-scan pointer-events-none absolute right-[-20%] top-1/2 h-px w-2/3" />
@@ -109,7 +109,7 @@ export default function ProvidersPage({ onUseInProfile }: { onUseInProfile?: (na
       )}
 
       {/* link providers -> profiles */}
-      <Card className="mt-6 border-[var(--color-line)] bg-[var(--color-surface)]">
+      <Card className="decorative-card mt-6 border-[var(--color-line)] bg-[var(--color-surface)]">
         <CardHeader className="p-3.5 pb-1">
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
             Pakai provider di agent profile

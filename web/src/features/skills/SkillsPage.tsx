@@ -85,7 +85,7 @@ export default function SkillsPage() {
                   {categorySkills.map((s) => (
                     <Card
                       key={s.path || s.name}
-                      className={`cursor-pointer border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${active === s.name ? "border-[var(--color-accent)]/60" : ""}`}
+                      className={`decorative-card cursor-pointer border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${active === s.name ? "border-[var(--color-accent)]/60" : ""}`}
                       onClick={() => setActive(s.name)}
                     >
                       <CardContent className="flex min-h-[96px] flex-col p-3.5">

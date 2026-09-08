@@ -200,7 +200,7 @@ export default function ProfilesPage() {
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(profiles.data ?? []).map((p) => (
-            <Card key={p.name} className={`border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${p.active ? "border-[var(--color-accent)]/55" : ""}`}>
+            <Card key={p.name} className={`decorative-card border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${p.active ? "border-[var(--color-accent)]/55" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-accent)]/15 bg-[var(--color-inset)]">

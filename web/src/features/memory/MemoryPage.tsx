@@ -24,7 +24,7 @@ function fmtMtime(v: number | null): string {
 
 function MemoryCard({ icon: Icon, title, path, mtime, content }: { icon: typeof Brain; title: string; path: string; mtime: number | null; content: string }) {
   return (
-    <Card className="flex min-h-0 flex-col border-[var(--color-line)] bg-[var(--color-surface)]">
+    <Card className="decorative-card flex min-h-0 flex-col border-[var(--color-line)] bg-[var(--color-surface)]">
       <CardHeader className="shrink-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Icon className="size-4 text-[var(--color-accent)]" /> {title}

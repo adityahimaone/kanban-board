@@ -450,7 +450,7 @@ export default function WorkspacesPage() {
             const isSsh = !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1"
             const live = ws.status === "connected" || ws.status === "local"
             return (
-            <Card key={ws.id} className="border-[var(--color-line)] bg-[var(--color-surface)]">
+            <Card key={ws.id} className="decorative-card border-[var(--color-line)] bg-[var(--color-surface)]">
               <CardContent className="p-3.5">
                 <div className="flex items-start gap-2">
                   <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-inset)]">
