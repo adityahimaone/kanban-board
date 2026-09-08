@@ -11,6 +11,14 @@ import (
 
 // PatchBoard updates board.json metadata (name/icon/color) for an existing board.
 func PatchBoard(slug, name, icon, color string) (*Board, error) {
+	return patchBoard(slug, name, icon, color, nil)
+}
+
+func PatchBoardWithArchived(slug, name, icon, color string, archived *bool) (*Board, error) {
+	return patchBoard(slug, name, icon, color, archived)
+}
+
+func patchBoard(slug, name, icon, color string, archived *bool) (*Board, error) {
 	dir := boardDir(slug)
 	metaPath := filepath.Join(dir, "board.json")
 	raw, err := os.ReadFile(metaPath)
@@ -41,6 +49,9 @@ func PatchBoard(slug, name, icon, color string) (*Board, error) {
 	if color != "" {
 		meta["color"] = color
 		b.Color = color
+	}
+	if archived != nil {
+		meta["archived"] = *archived
 	}
 	out, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, runControl, taskHealth, COLUMNS, type Profile, type Status, type Task, type TaskEvent, type Workspace, type TaskHealth } from "../../api"
+import { api, runControl, taskHealth, toastGlobal, COLUMNS, type Profile, type Status, type Task, type TaskEvent, type Workspace, type TaskHealth } from "../../api"
 import { Apple, ExternalLink, HardDrive, Laptop, Monitor, Square } from "lucide-react"
 import { AgentTaskStatus, splitAgentResult } from "./AgentStatus"
 
@@ -111,7 +111,7 @@ export default function TaskDetail({
           <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
           <Select
             value={task.assignee || "unassigned"}
-            onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => alert(err.message))}
+            onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => toastGlobal(err.message, "error"))}
             disabled={task.status === "running"}
           >
             <SelectTrigger className="mt-1 h-8 w-full border-[var(--color-line)] bg-[var(--color-surface)] text-xs disabled:opacity-50">
@@ -216,7 +216,7 @@ export default function TaskDetail({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onStop().catch((e: Error) => alert(e.message))}
+              onClick={() => onStop().catch((e: Error) => toastGlobal(e.message, "error"))}
               className="h-6 gap-1 rounded border-red-500/40 px-2 text-[10px] text-red-300 hover:bg-red-500/10 hover:text-red-200"
             >
               <Square className="size-2.5 fill-current" /> Stop task
@@ -227,7 +227,7 @@ export default function TaskDetail({
               key={s}
               variant="outline"
               size="sm"
-              onClick={() => onMove(s).catch((e: Error) => alert(e.message))}
+              onClick={() => onMove(s).catch((e: Error) => toastGlobal(e.message, "error"))}
               className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
             >
               → {s}

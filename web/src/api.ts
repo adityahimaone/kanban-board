@@ -4,6 +4,7 @@ export interface Board {
   icon: string
   color: string
   default_workdir: string
+  archived?: boolean
 }
 
 export interface Task {
@@ -24,6 +25,45 @@ export interface Task {
   completed_at: number | null
   consecutive_failures: number
   last_failure_error: string
+}
+
+export interface TaskRun {
+  index: number
+  started_at: number
+  ended_at: number
+  outcome: string
+  events: TaskEvent[]
+}
+
+export interface TaskDependency {
+  task_id: string
+  depends_on_id: string
+  created_at: number
+}
+
+export function taskRuns(slug: string, taskId: string) {
+  return api<TaskRun[]>(`/api/boards/${slug}/tasks/${taskId}/runs`)
+}
+
+export function taskDependencies(slug: string, taskId: string) {
+  return api<TaskDependency[]>(`/api/boards/${slug}/tasks/${taskId}/dependencies`)
+}
+
+export function addTaskDependency(slug: string, taskId: string, dependsOnId: string) {
+  return api<{ ok: boolean }>(`/api/boards/${slug}/tasks/${taskId}/dependencies`, {
+    method: "POST",
+    body: JSON.stringify({ depends_on_id: dependsOnId }),
+  })
+}
+
+export function removeTaskDependency(slug: string, taskId: string, dependsOnId: string) {
+  return api<{ ok: boolean }>(`/api/boards/${slug}/tasks/${taskId}/dependencies/${dependsOnId}`, {
+    method: "DELETE",
+  })
+}
+
+export function archiveBoard(slug: string, archived: boolean) {
+  return api<Board>(`/api/boards/${slug}`, { method: "PATCH", body: JSON.stringify({ archived }) })
 }
 
 export interface TaskEvent {
@@ -194,6 +234,34 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     throw err
   }
   return res.json() as Promise<T>
+}
+
+export function runTask(slug: string, taskId: string) {
+  return api<Task>(`/api/boards/${slug}/tasks/${taskId}/run`, { method: "POST" })
+}
+
+export function cancelRun(slug: string, taskId: string) {
+  return api<Task>(`/api/boards/${slug}/tasks/${taskId}/stop`, { method: "POST" })
+}
+
+export function queueReason(task: Task, profile: Profile | undefined): string | null {
+  if (!task.assignee) return "No agent assigned"
+  if (profile && !profile.valid) return "Agent profile broken"
+  if (["todo", "ready", "blocked", "review"].indexOf(task.status) < 0) return `Status ${task.status} not queueable`
+  return null
+}
+
+export function attemptGroups(events: TaskEvent[]): { attempt: number; events: TaskEvent[] }[] {
+  const groups: { attempt: number; events: TaskEvent[] }[] = []
+  for (const event of events) {
+    if (event.kind === "claimed" || event.kind === "spawned") {
+      groups.push({ attempt: groups.length + 1, events: [event] })
+    } else {
+      if (groups.length === 0) groups.push({ attempt: 1, events: [] })
+      groups[groups.length - 1].events.push(event)
+    }
+  }
+  return groups
 }
 
 export function toastGlobal(message: string, tone: "success" | "error" | "info" = "info") {

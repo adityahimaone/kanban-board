@@ -278,20 +278,67 @@ func main() {
 	})
 	mux.HandleFunc("PATCH /api/boards/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Name  string `json:"name"`
-			Icon  string `json:"icon"`
-			Color string `json:"color"`
+			Name     string `json:"name"`
+			Icon     string `json:"icon"`
+			Color    string `json:"color"`
+			Archived *bool  `json:"archived"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 			fail(w, err, 400)
 			return
 		}
-		b, err := kanban.PatchBoard(r.PathValue("slug"), req.Name, req.Icon, req.Color)
+		var b *kanban.Board
+		var err error
+		if req.Archived != nil {
+			err = kanban.SetBoardArchived(r.PathValue("slug"), *req.Archived)
+			if err == nil {
+				b, err = kanban.PatchBoard(r.PathValue("slug"), req.Name, req.Icon, req.Color)
+			}
+		} else {
+			b, err = kanban.PatchBoard(r.PathValue("slug"), req.Name, req.Icon, req.Color)
+		}
 		if err != nil {
 			fail(w, err, 400)
 			return
 		}
 		writeJSON(w, http.StatusOK, b)
+	})
+	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/runs", func(w http.ResponseWriter, r *http.Request) {
+		events, err := kanban.TaskEvents(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		writeJSON(w, http.StatusOK, kanban.GroupTaskRuns(events))
+	})
+	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/dependencies", func(w http.ResponseWriter, r *http.Request) {
+		deps, err := kanban.ListTaskDependencies(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		writeJSON(w, http.StatusOK, deps)
+	})
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/dependencies", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			DependsOnID string `json:"depends_on_id"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		if err := kanban.AddTaskDependency(r.PathValue("slug"), r.PathValue("id"), req.DependsOnID); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]string{"task_id": r.PathValue("id"), "depends_on_id": req.DependsOnID})
+	})
+	mux.HandleFunc("DELETE /api/boards/{slug}/tasks/{id}/dependencies/{dependsOnID}", func(w http.ResponseWriter, r *http.Request) {
+		if err := kanban.RemoveTaskDependency(r.PathValue("slug"), r.PathValue("id"), r.PathValue("dependsOnID")); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
 	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/events", func(w http.ResponseWriter, r *http.Request) {
 		events, err := kanban.TaskEvents(r.PathValue("slug"), r.PathValue("id"))
@@ -334,6 +381,14 @@ func main() {
 		}
 		fail(w, err, http.StatusInternalServerError)
 	}
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/run", func(w http.ResponseWriter, r *http.Request) {
+		t, err := kanban.RunTask(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			runControlError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, t)
+	})
 	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
 		t, err := kanban.RetryTask(r.PathValue("slug"), r.PathValue("id"))
 		if err != nil {

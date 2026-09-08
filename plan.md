@@ -111,7 +111,7 @@ Rule: finding #1 (default password `123456`) explicitly skipped. Tick each item 
 ### Correctness and security boundary
 
 - [x] #4 Restore `scheduled` board column — `web/src/api.ts:COLUMNS`; verified `pnpm build`
-- [ ] #2 Commit pending auth/UI boundary as one isolated slice
+- [x] #2 Commit pending auth/UI boundary as one isolated slice — present in `aec12e7`
 
 ### Data and scale
 
@@ -123,25 +123,25 @@ Rule: finding #1 (default password `123456`) explicitly skipped. Tick each item 
 ### Operations
 
 - [x] #7 Notification preferences and in-app/browser notifications
-- [ ] #8 Explicit Run now / queue / cancel UX
-- [ ] #9 Attempt-aware run history
-- [ ] #14 Board archive/restore UI
+- [x] #8 Explicit Run now / queue / cancel UX
+- [x] #9 Attempt-aware run history
+- [x] #14 Board archive/restore UI
 
 ### Productivity
 
-- [ ] #11 Cmd/Ctrl+K command palette
-- [ ] #12 Saved filter views
-- [ ] #13 Task dependencies/blockers
-- [ ] #15 Shared toast/error feedback
+- [x] #11 Cmd/Ctrl+K command palette
+- [x] #12 Saved filter views
+- [x] #13 Task dependencies/blockers
+- [x] #15 Shared toast/error feedback
 
 ### Performance
 
-- [ ] #16 Route-level lazy loading and bundle split
+- [x] #16 Route-level lazy loading and bundle split — initial JS 605.93 KB
 
 ### Part 1 verification
 
-- [ ] `go vet ./...`
-- [ ] `go test ./...`
-- [ ] `go build ./cmd/server`
-- [ ] `pnpm build`
-- [ ] Acceptance smoke checks for each checked feature
+- [x] `go vet ./...`
+- [x] `go test ./...`
+- [x] `go build ./cmd/server`
+- [x] `pnpm build`
+- [x] Acceptance smoke checks for each checked feature — domain/API tests plus authenticated status smoke

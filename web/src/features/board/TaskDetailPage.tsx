@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, runControl, taskHealth, COLUMNS, type Profile, type Status, type Task, type TaskComment, type TaskEvent, type Workspace, type TaskHealth as TH } from "../../api"
+import { addTaskDependency, api, cancelRun, queueReason, removeTaskDependency, runControl, runTask, taskDependencies, taskHealth, taskRuns, toastGlobal, COLUMNS, type Profile, type Status, type Task, type TaskComment, type TaskEvent, type Workspace, type TaskHealth as TH } from "../../api"
 import { parseEventCards, TONE_BORDER, TONE_DOT, TONE_TEXT } from "./eventCards"
 import { ArrowLeft, Loader2, Send, Square } from "lucide-react"
 import { AgentTaskStatus, splitAgentResult } from "./AgentStatus"
@@ -36,6 +37,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
       }),
     onSuccess: () => {
       setDraft("")
+      toastGlobal("Reply sent", "success")
       qc.invalidateQueries({ queryKey: ["comments", slug, task.id] })
       qc.invalidateQueries({ queryKey: ["events", slug, task.id] })
       qc.invalidateQueries({ queryKey: ["tasks", slug] })
@@ -124,6 +126,7 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
         body: JSON.stringify({ action: a }),
       }),
     onSuccess: () => {
+      toastGlobal("Review action completed", "success")
       qc.invalidateQueries({ queryKey: ["tasks", slug] })
       qc.invalidateQueries({ queryKey: ["events", slug, task.id] })
       onDone()
@@ -197,6 +200,58 @@ export default function TaskDetailPage({
     queryFn: () => taskHealth(slug, task.id),
     refetchInterval: task.status === "running" ? 5_000 : false,
   })
+  const runs = useQuery({
+    queryKey: ["runs", slug, task.id],
+    queryFn: () => taskRuns(slug, task.id),
+    refetchInterval: task.status === "running" ? 5_000 : false,
+  })
+  const dependencies = useQuery({
+    queryKey: ["dependencies", slug, task.id],
+    queryFn: () => taskDependencies(slug, task.id),
+  })
+  const [dependencyId, setDependencyId] = useState("")
+  const boardTasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`) })
+  const dependencyChoices = useMemo(() => {
+    const taken = new Set((dependencies.data ?? []).map((d) => d.depends_on_id))
+    return (boardTasks.data ?? []).filter((t) => t.id !== task.id && !taken.has(t.id)).map((t) => ({ id: t.id, title: t.title, status: t.status }))
+  }, [boardTasks.data, dependencies.data, task.id])
+  const dependencyMutation = useMutation({
+    mutationFn: (dependsOnId: string) => addTaskDependency(slug, task.id, dependsOnId),
+    onSuccess: () => {
+      setDependencyId("")
+      qc.invalidateQueries({ queryKey: ["dependencies", slug, task.id] })
+      toastGlobal("Dependency added", "success")
+    },
+    onError: (e: Error) => toastGlobal(e.message, "error"),
+  })
+  const removeDependency = useMutation({
+    mutationFn: (dependsOnId: string) => removeTaskDependency(slug, task.id, dependsOnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dependencies", slug, task.id] })
+      toastGlobal("Dependency removed", "success")
+    },
+    onError: (e: Error) => toastGlobal(e.message, "error"),
+  })
+  const runMutation = useMutation({
+    mutationFn: () => runTask(slug, task.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks", slug] })
+      qc.invalidateQueries({ queryKey: ["events", slug, task.id] })
+      qc.invalidateQueries({ queryKey: ["runs", slug, task.id] })
+      toastGlobal("Task queued", "success")
+    },
+    onError: (e: Error) => toastGlobal(e.message, "error"),
+  })
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelRun(slug, task.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks", slug] })
+      qc.invalidateQueries({ queryKey: ["events", slug, task.id] })
+      qc.invalidateQueries({ queryKey: ["runs", slug, task.id] })
+      toastGlobal("Run stopped", "success")
+    },
+    onError: (e: Error) => toastGlobal(e.message, "error"),
+  })
   const control = useMutation({
     mutationFn: (action: "retry" | "release" | "clone") => runControl(slug, task.id, action),
     onSuccess: () => {
@@ -240,7 +295,7 @@ export default function TaskDetailPage({
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
             <Select
               value={task.assignee || "unassigned"}
-              onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => alert(err.message))}
+              onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => toastGlobal(err.message, "error"))}
               disabled={task.status === "running"}
             >
               <SelectTrigger className="mt-1 h-8 w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs disabled:opacity-50">
@@ -306,6 +361,13 @@ export default function TaskDetailPage({
 
         {/* run-control */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {task.status !== "running" && task.status !== "archived" && (() => {
+            const reason = queueReason(task, profile)
+            return <Button variant="outline" size="sm" disabled={!!reason || runMutation.isPending} onClick={() => runMutation.mutate()} title={reason ?? "Queue task now"} className="h-6 px-2 text-[10px]">{runMutation.isPending ? "Queueing…" : "Run now"}</Button>
+          })()}
+          {task.status === "running" && (
+            <Button variant="outline" size="sm" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate()} className="h-6 gap-1 rounded border-red-500/40 px-2 text-[10px] text-red-300"><Square className="size-2.5 fill-current" /> {cancelMutation.isPending ? "Stopping…" : "Stop run"}</Button>
+          )}
           {task.status === "running" && health.data && (
             <span className={`text-[10px] uppercase tracking-wider ${healthTone}`} title={health.data.reason}>
               health: {health.data.health}
@@ -329,7 +391,7 @@ export default function TaskDetailPage({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onStop().catch((e: Error) => alert(e.message))}
+              onClick={() => onStop().catch((e: Error) => toastGlobal(e.message, "error"))}
               className="h-6 gap-1 rounded border-red-500/40 px-2 text-[10px] text-red-300 hover:bg-red-500/10 hover:text-red-200"
             >
               <Square className="size-2.5 fill-current" /> Stop task
@@ -340,7 +402,7 @@ export default function TaskDetailPage({
               key={s}
               variant="outline"
               size="sm"
-              onClick={() => onMove(s).catch((e: Error) => alert(e.message))}
+              onClick={() => onMove(s).catch((e: Error) => toastGlobal(e.message, "error"))}
               className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
             >
               → {s}
@@ -356,6 +418,36 @@ export default function TaskDetailPage({
       <div className="mt-3">
         <CommentSection slug={slug} task={task} profiles={profiles} />
       </div>
+
+      <section className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="glass-inset-card rounded-lg p-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Dependencies</h3>
+          <div className="mt-2 space-y-1">
+            {(dependencies.data ?? []).map((d) => {
+              const dep = boardTasks.data?.find((t) => t.id === d.depends_on_id)
+              return <div key={d.depends_on_id} className="flex items-center gap-2 rounded border border-[var(--color-line)] px-2 py-1.5 text-[11px]"><span className="min-w-0 flex-1 truncate font-mono" title={dep ? `${dep.id} · ${dep.title}` : d.depends_on_id}>{dep ? `${dep.id} — ${dep.title}` : d.depends_on_id}</span><span className="shrink-0 text-[10px] text-neutral-500">{dep?.status ?? ""}</span><Button variant="ghost" size="sm" onClick={() => removeDependency.mutate(d.depends_on_id)} disabled={removeDependency.isPending} className="h-6 px-1.5 text-[10px] text-red-300">Remove</Button></div>
+            })}
+            {(dependencies.data ?? []).length === 0 && <p className="text-[11px] text-neutral-600">No dependencies</p>}
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            <Input value={dependencyId} onChange={(e) => setDependencyId(e.target.value)} placeholder="Task ID…" className="h-8 min-w-0 flex-1 border-[var(--color-line)] bg-[var(--color-bg)] font-mono text-xs" />
+            <Select value={dependencyId} onValueChange={setDependencyId}>
+              <SelectTrigger className="h-8 w-28 border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue placeholder="Pick" /></SelectTrigger>
+              <SelectContent className="max-h-64 border-[var(--color-line)] bg-[var(--color-surface)]">
+                {dependencyChoices.map((t) => <SelectItem key={t.id} value={t.id} className="font-mono text-xs">{t.id} · {t.title.slice(0, 28)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" disabled={!dependencyId.trim() || dependencyMutation.isPending} onClick={() => dependencyMutation.mutate(dependencyId.trim())}>Add</Button>
+          </div>
+        </div>
+        <div className="glass-inset-card rounded-lg p-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Runs</h3>
+          <div className="mt-2 space-y-1.5">
+            {(runs.data ?? []).map((run) => <div key={run.index} className="flex items-center gap-2 rounded border border-[var(--color-line)] px-2 py-1.5 text-[11px]"><span className="font-mono">Attempt {run.index}</span><span className="text-neutral-500">{run.outcome}</span><span className="ml-auto text-[10px] text-neutral-600">{run.events.length} events</span></div>)}
+            {!runs.data?.length && <p className="text-[11px] text-neutral-600">No runs</p>}
+          </div>
+        </div>
+      </section>
 
       {/* history — grouped columns */}
       <h3 className="mt-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">

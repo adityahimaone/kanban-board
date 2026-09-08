@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { AppHeader } from "@/components/app-header"
@@ -6,20 +6,22 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, boardHealth, bulkTasks, COLUMNS, openEventStream, reorderTasks, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
+import { api, boardHealth, bulkTasks, COLUMNS, openEventStream, reorderTasks, toastGlobal, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
-import TaskDialog from "./features/board/TaskDialog"
-import TaskDetail from "./features/board/TaskDetail"
-import TaskDetailPage from "./features/board/TaskDetailPage"
-import WorkspacesPage from "./features/workspaces/WorkspacesPage"
-import ProfilesPage from "./features/profiles/ProfilesPage"
-import ProvidersPage from "./features/providers/ProvidersPage"
-import LogsPage from "./features/logs/LogsPage"
-import SkillsPage from "./features/skills/SkillsPage"
-import MemoryPage from "./features/memory/MemoryPage"
-import SettingsPage from "./features/settings/SettingsPage"
-import OverviewPage from "./features/overview/OverviewPage"
-import AgentMappingPage from "./features/flow/AgentMappingPage"
+import CommandPalette from "./components/command-palette"
+import { Toaster } from "./components/toaster"
+const TaskDialog = lazy(() => import("./features/board/TaskDialog"))
+const TaskDetail = lazy(() => import("./features/board/TaskDetail"))
+const TaskDetailPage = lazy(() => import("./features/board/TaskDetailPage"))
+const WorkspacesPage = lazy(() => import("./features/workspaces/WorkspacesPage"))
+const ProfilesPage = lazy(() => import("./features/profiles/ProfilesPage"))
+const ProvidersPage = lazy(() => import("./features/providers/ProvidersPage"))
+const LogsPage = lazy(() => import("./features/logs/LogsPage"))
+const SkillsPage = lazy(() => import("./features/skills/SkillsPage"))
+const MemoryPage = lazy(() => import("./features/memory/MemoryPage"))
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage"))
+const OverviewPage = lazy(() => import("./features/overview/OverviewPage"))
+const AgentMappingPage = lazy(() => import("./features/flow/AgentMappingPage"))
 import { Archive, Inbox, Plus, Pencil, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 import LoadingState from "./components/LoadingState"
@@ -65,6 +67,9 @@ export default function App() {
   const [fAgent, setFAgent] = useState("__all")
   const [fWorkspace, setFWorkspace] = useState("__all")
   const [fPriority, setFPriority] = useState("__all")
+  const [viewName, setViewName] = useState("")
+  const viewsKey = `kb-views:${slug}`
+  const savedViews = useMemo(() => { try { return JSON.parse(window.localStorage.getItem(viewsKey) || "[]") as { name: string; filters: { q: string; fStatus: string; fAgent: string; fWorkspace: string; fPriority: string } }[] } catch { return [] } }, [viewsKey])
   const { refreshMs } = useSettings()
   const qc = useQueryClient()
 
@@ -132,8 +137,9 @@ export default function App() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", slug] }),
   })
 
-  const active = (boards.data ?? []).filter((b) => b.slug !== "archived")
-  const currentBoard = active.find((b) => b.slug === slug) ?? null
+  const active = (boards.data ?? []).filter((b) => !b.archived)
+  const archivedBoards = (boards.data ?? []).filter((b) => b.archived)
+  const currentBoard = (boards.data ?? []).find((b) => b.slug === slug) ?? null
 
   const filtered = useMemo(() => {
     let list = tasks.data ?? []
@@ -157,6 +163,18 @@ export default function App() {
 
   function clearFilters() {
     setQ(""); setFStatus("__all"); setFAgent("__all"); setFWorkspace("__all"); setFPriority("__all")
+  }
+  function saveView() {
+    const name = viewName.trim(); if (!name) return
+    const next = [...savedViews.filter((v) => v.name !== name), { name, filters: { q, fStatus, fAgent, fWorkspace, fPriority } }]
+    window.localStorage.setItem(viewsKey, JSON.stringify(next)); setViewName(""); toastGlobal(`Saved view: ${name}`, "success")
+  }
+  function applyView(name: string) {
+    const v = savedViews.find((x) => x.name === name); if (!v) return
+    setQ(v.filters.q); setFStatus(v.filters.fStatus); setFAgent(v.filters.fAgent); setFWorkspace(v.filters.fWorkspace); setFPriority(v.filters.fPriority)
+  }
+  function archiveBoard(archived: boolean) {
+    void api(`/api/boards/${slug}`, { method: "PATCH", body: JSON.stringify({ archived }) }).then(() => { toastGlobal(archived ? "Board archived" : "Board restored", "success"); qc.invalidateQueries({ queryKey: ["boards"] }) }).catch((e: Error) => toastGlobal(e.message, "error"))
   }
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -399,20 +417,34 @@ export default function App() {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <label className="mb-1 block text-[11px] text-neutral-500">Priority</label>
-            <Select value={fPriority} onValueChange={setFPriority}>
-              <SelectTrigger size="sm" className="w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
-                <SelectItem value="__all" className="text-xs">Semua</SelectItem>
-                <SelectItem value="0" className="text-xs">P0 normal</SelectItem>
-                <SelectItem value="1" className="text-xs">P1</SelectItem>
-                <SelectItem value="2" className="text-xs">P2 high</SelectItem>
-                <SelectItem value="3" className="text-xs">P3 urgent</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-neutral-500">Priority</label>
+          <Select value={fPriority} onValueChange={setFPriority}>
+            <SelectTrigger size="sm" className="w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
+              <SelectItem value="__all" className="text-xs">Semua</SelectItem>
+              <SelectItem value="0" className="text-xs">P0 normal</SelectItem>
+              <SelectItem value="1" className="text-xs">P1</SelectItem>
+              <SelectItem value="2" className="text-xs">P2 high</SelectItem>
+              <SelectItem value="3" className="text-xs">P3 urgent</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-neutral-500">Saved views</label>
+          <div className="flex gap-1.5">
+            <Input value={viewName} onChange={(e) => setViewName(e.target.value)} placeholder="Nama view…" className="h-8 border-[var(--color-line)] bg-[var(--color-bg)] text-xs" />
+            <Button variant="outline" size="sm" disabled={!viewName.trim()} onClick={saveView} className="shrink-0 border-[var(--color-line)] text-xs">Save</Button>
+          </div>
+          {savedViews.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {savedViews.map((v) => (
+                <button key={v.name} onClick={() => applyView(v.name)} className="rounded border border-[var(--color-line)] px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]">{v.name}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </aside>
   )
 
@@ -428,6 +460,12 @@ export default function App() {
               {b.icon ? `${b.icon} ` : ""}{b.name}
             </SelectItem>
           ))}
+          {active.length > 0 && archivedBoards.length > 0 && <SelectItem value="__sep" disabled className="text-[10px]">— archived —</SelectItem>}
+          {archivedBoards.map((b) => (
+            <SelectItem key={b.slug} value={b.slug} className="text-xs text-neutral-500">
+              {b.icon ? `${b.icon} ` : ""}{b.name} (archived)
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300">
@@ -436,6 +474,16 @@ export default function App() {
       <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300 disabled:opacity-40">
         <Pencil className="size-3.5" /> Edit
       </Button>
+      {currentBoard && !currentBoard.archived && (
+        <Button variant="outline" size="sm" onClick={() => archiveBoard(true)} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300">
+          <Archive className="size-3.5" /> Archive
+        </Button>
+      )}
+      {currentBoard?.archived && (
+        <Button variant="outline" size="sm" onClick={() => archiveBoard(false)} className="gap-1 border-emerald-500/40 bg-[var(--color-surface)] text-emerald-300">
+          <Archive className="size-3.5" /> Restore
+        </Button>
+      )}
       <Separator orientation="vertical" className="h-5" />
       <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
         {filtersActive ? `${filtered.length}/${tasks.data?.length ?? 0}` : `${tasks.data?.length ?? 0}`} tasks
@@ -462,7 +510,20 @@ export default function App() {
         />
       }
     >
+      <CommandPalette
+        board={currentBoard}
+        boards={boards.data ?? []}
+        tasks={tasks.data ?? []}
+        page={page}
+        onPage={handleSelectPage}
+        onNewTask={() => setCreating(true)}
+        onToggleFilters={() => setFiltersOpen((v) => !v)}
+        onOpenTask={(id) => { setDetail(null); setDetailId(id); setPage("board"); go(pagePath("board", slug, id)) }}
+        onOpenBoard={(nextSlug) => { setDetail(null); setDetailId(null); setSlug(nextSlug); setPage("board"); go(pagePath("board", nextSlug)) }}
+      />
+      <Toaster />
       {filterRail}
+      <Suspense fallback={<LoadingState variant="detail" label="Memuat halaman" />}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {page === "board" && !detailId && selectedTasks.size > 0 && (
           <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2 text-xs">
@@ -497,7 +558,9 @@ export default function App() {
         {page === "board" && detailId && !detailPage && (tasks.isLoading ? <LoadingState variant="detail" label="Memuat detail task" /> : <div className="flex flex-1 items-center justify-center p-6 text-sm text-red-400">Task `{detailId}` tidak ditemukan di board ini.</div>)}
         {page === "board" && !detailId && boardBody}
       </div>
+      </Suspense>
 
+      <Suspense fallback={<LoadingState variant="detail" label="Memuat dialog" />}>
       {creating && (
         <TaskDialog
           workspaces={workspaces.data ?? []}
@@ -546,6 +609,7 @@ export default function App() {
           onOpenPage={() => { const t = detail; setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
         />
       )}
+      </Suspense>
     </AppShell>
   )
 }
