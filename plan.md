@@ -45,3 +45,51 @@ Repo: `~/apps/kanban-board`, deploy VPS :8790, share `~/.hermes/kanban/boards/<s
 - auth (nginx basic later)
 - websocket live refresh (poll 15s via TanStack Query refetchInterval)
 - worker spawn from UI (dispatch stays CLI/hermes)
+
+## Active roadmap — Agent Control Plane Reliability
+
+Spec: `docs/specs/2026-09-08-agent-control-plane-reliability-design.md`
+
+Status: design written, awaiting implementation approval.
+
+### Discovery/design
+
+- [x] Confirm current API routes and task event model
+- [x] Confirm `stop` exists; avoid duplicate endpoint
+- [x] Confirm `running` and runtime columns are dispatcher-owned
+- [x] Define retry/release/clone contracts
+- [x] Define health states and thresholds
+- [x] Define SSE envelope and polling fallback
+- [ ] User reviews and approves spec
+
+### Backend
+
+- [ ] Health domain + threshold tests
+- [ ] Retry operation + route
+- [ ] Stale release operation + route
+- [ ] Clone operation + route
+- [ ] Task health route
+- [ ] Overview health summary
+- [ ] SSE event hub + stream route
+- [ ] Mutation event broadcasts
+- [ ] Backend HTTP tests
+
+### Frontend
+
+- [ ] Typed API methods
+- [ ] SSE client with reconnect/backoff
+- [ ] Board invalidation from SSE
+- [ ] Task detail refresh from SSE
+- [ ] Health indicator
+- [ ] Retry/release/clone actions
+- [ ] Polling fallback verification
+
+### Verification
+
+- [ ] `go vet ./...`
+- [ ] `go test ./...`
+- [ ] `go build ./cmd/server`
+- [ ] `pnpm build` in `web/`
+- [ ] Authenticated API smoke tests
+- [ ] SSE mutation smoke test
+- [ ] Scope/diff review
