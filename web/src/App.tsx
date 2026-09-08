@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, COLUMNS, openEventStream, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
+import { api, boardHealth, COLUMNS, openEventStream, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
 import TaskDialog from "./features/board/TaskDialog"
 import TaskDetail from "./features/board/TaskDetail"
@@ -69,17 +69,23 @@ export default function App() {
   const qc = useQueryClient()
 
   useEffect(() => openEventStream((ev) => {
-    if (ev.kind === "workspace_ping" || ev.kind === "node_health") {
+    if (ev.kind === "workspace_ping" || ev.kind === "workspace_updated" || ev.kind === "workspace_deleted") {
       qc.invalidateQueries({ queryKey: ["workspaces"] })
+      return
+    }
+    if (ev.kind === "node_health") {
+      qc.invalidateQueries({ queryKey: ["nodes"] })
       return
     }
     if (ev.data?.board && ev.data.board !== slug) return
     qc.invalidateQueries({ queryKey: ["tasks", slug] })
+    qc.invalidateQueries({ queryKey: ["board-health", slug] })
     if (ev.data?.task_id) qc.invalidateQueries({ queryKey: ["events", slug, ev.data.task_id] })
   }), [qc, slug])
 
   const boards = useQuery({ queryKey: ["boards"], queryFn: () => api<Board[]>("/api/boards") })
   const tasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`), enabled: page === "board", refetchInterval: refreshMs > 0 ? refreshMs : false })
+  const healthMap = useQuery({ queryKey: ["board-health", slug], queryFn: () => boardHealth(slug), enabled: page === "board", refetchInterval: 10_000 })
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => api<Workspace[]>("/api/workspaces") })
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: () => api<Profile[]>("/api/profiles") })
 
@@ -273,6 +279,7 @@ export default function App() {
                     onDragStart={setDraggingId}
                     onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
                     profiles={profiles.data ?? []}
+                    health={healthMap.data?.[t.id]}
                     workspaces={workspaces.data ?? []}
                   />
                 </div>

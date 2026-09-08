@@ -122,6 +122,43 @@ func TaskHealthFor(slug, taskID string) (TaskHealth, error) {
 	return h, nil
 }
 
+// BoardTaskHealth returns liveness for running tasks in one board. One DB read
+// keeps the board UI from polling health per card.
+func BoardTaskHealth(slug string) (map[string]TaskHealth, error) {
+	db, err := openDB(slug)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.Query(`SELECT id, status, started_at FROM tasks WHERE status='running'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]TaskHealth)
+	now := time.Now()
+	for rows.Next() {
+		var id, status string
+		var started sql.NullInt64
+		if err := rows.Scan(&id, &status, &started); err != nil {
+			return nil, err
+		}
+		var startedPtr *int64
+		if started.Valid {
+			v := started.Int64
+			startedPtr = &v
+		}
+		last, source := taskLogActivity(slug, id, startedPtr)
+		health := classifyHealth(status, last, now, false)
+		age := int64(0)
+		if !last.IsZero() {
+			age = int64(now.Sub(last).Seconds())
+		}
+		out[id] = TaskHealth{TaskID: id, Status: status, Health: health, LastActivityAt: last.Unix(), AgeSeconds: age, Source: source}
+	}
+	return out, rows.Err()
+}
+
 // RunControlError distinguishes guard failures (409/400) from real errors (500).
 type RunControlError struct {
 	Code int

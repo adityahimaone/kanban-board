@@ -274,6 +274,14 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, h)
 	})
+	mux.HandleFunc("GET /api/boards/{slug}/health", func(w http.ResponseWriter, r *http.Request) {
+		m, err := kanban.BoardTaskHealth(r.PathValue("slug"))
+		if err != nil {
+			fail(w, err, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, m)
+	})
 
 	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/stop", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

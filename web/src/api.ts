@@ -54,6 +54,10 @@ export function taskHealth(slug: string, taskId: string) {
   return api<TaskHealth>(`/api/boards/${slug}/tasks/${taskId}/health`)
 }
 
+export function boardHealth(slug: string) {
+  return api<Record<string, TaskHealth>>(`/api/boards/${slug}/health`)
+}
+
 export interface OverviewHealth {
   healthy: number
   silent: number

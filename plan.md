@@ -84,8 +84,8 @@ Status: reliability follow-up slice complete; verification passed. Board-card he
 - [x] Health indicator on detail page
 - [x] Retry/release/clone actions on detail page
 - [x] Polling fallback remains enabled
-- [ ] Health indicator on board cards
-- [ ] Run-control actions on drawer
+- [x] Health indicator on board cards (board-level health endpoint, no per-card polling)
+- [x] Run-control actions on drawer
 
 ### Verification
 

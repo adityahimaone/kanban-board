@@ -1,9 +1,11 @@
-import type { Profile, Status, Task, Workspace } from "../../api"
+import type { Profile, Status, Task, TaskHealth, Workspace } from "../../api"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Apple, ExternalLink, HardDrive, Laptop, Square, X } from "lucide-react"
 import { RunningIndicator } from "./AgentStatus"
+
+const HEALTH_TONE: Record<string, string> = { healthy: "text-emerald-300", silent: "text-amber-300", stuck: "text-red-300", lost: "text-red-300/70" }
 const STATUS_TARGETS: Record<Status, Status[]> = {
   triage: ["todo", "ready"],
   todo: ["ready", "blocked", "triage"],
@@ -36,9 +38,10 @@ function OsInfo({ ws }: { ws?: Workspace }) {
   return null
 }
 
-export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign, onDragStart, onDragEnd }: {
+export default function TaskCard({ task, profiles, health, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign, onDragStart, onDragEnd }: {
   task: Task
   profiles: Profile[]
+  health?: TaskHealth
   workspaces?: Workspace[]
   onOpen: () => void
   onOpenPage: () => void
@@ -81,7 +84,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
 
       {task.status === "running" && (
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-amber-300/80">active</span>
+          <span className={`text-[10px] uppercase tracking-wider ${HEALTH_TONE[health?.health ?? ""] ?? "text-amber-300/80"}`} title={health?.reason}>{health?.health ?? "active"}</span>
           <RunningIndicator startedAt={task.started_at} compact />
         </div>
       )}
