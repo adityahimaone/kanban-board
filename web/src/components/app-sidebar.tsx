@@ -29,7 +29,7 @@ export function AppSidebar({
 		<Sidebar
 			collapsible="icon"
 			variant="inset"
-			className="glass-sidebar overflow-hidden [&>[data-sidebar=sidebar]]:bg-transparent [&>[data-sidebar=sidebar]]:border-sidebar-border"
+			className="overflow-hidden [&>[data-sidebar=sidebar]]:bg-sidebar [&>[data-sidebar=sidebar]]:border-sidebar-border"
 		>
 			<SidebarHeader className="h-14 justify-center">
 				<SidebarMenuButton asChild>
