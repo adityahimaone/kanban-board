@@ -46,6 +46,13 @@ CREATE TABLE task_events (
 	kind       TEXT NOT NULL,
 	payload    TEXT,
 	created_at INTEGER NOT NULL
+);
+CREATE TABLE task_comments (
+	id         INTEGER PRIMARY KEY AUTOINCREMENT,
+	task_id    TEXT NOT NULL,
+	author     TEXT NOT NULL,
+	body       TEXT NOT NULL,
+	created_at INTEGER NOT NULL
 );`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatal(err)

@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -9,7 +9,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function NavUser({ onSettings }: { onSettings?: () => void }) {
+export function NavUser({ onSettings, onLogout }: { onSettings?: () => void; onLogout?: () => void }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -30,6 +30,12 @@ export function NavUser({ onSettings }: { onSettings?: () => void }) {
 						<Settings className="mr-2 size-4" />
 						Settings
 					</DropdownMenuItem>
+					{onLogout && (
+						<DropdownMenuItem onClick={onLogout} className="text-red-400 focus:text-red-300">
+							<LogOut className="mr-2 size-4" />
+							Logout
+						</DropdownMenuItem>
+					)}
 				</DropdownMenuGroup>
 			</DropdownMenuContent>
 		</DropdownMenu>

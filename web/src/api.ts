@@ -58,6 +58,41 @@ export function boardHealth(slug: string) {
   return api<Record<string, TaskHealth>>(`/api/boards/${slug}/health`)
 }
 
+export function reorderTasks(slug: string, order: string[]) {
+  return api<{ ok: boolean }>(`/api/boards/${slug}/tasks/reorder`, {
+    method: "POST",
+    body: JSON.stringify({ order }),
+  })
+}
+
+export function bulkTasks(
+  slug: string,
+  payload: { ids: string[]; action: "archive" | "move" | "assign"; status?: Status; assignee?: string },
+) {
+  return api<{ moved?: string[]; skipped?: string[]; ok?: boolean }>(`/api/boards/${slug}/tasks/bulk`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface BoardSnapshot {
+  board: Board
+  tasks: Task[]
+  events: TaskEvent[]
+  comments: TaskComment[]
+}
+
+export function exportBoard(slug: string) {
+  return api<BoardSnapshot>(`/api/boards/${slug}/export`)
+}
+
+export function importBoard(snapshot: BoardSnapshot) {
+  return api<{ created: boolean; imported: number }>("/api/boards/import", {
+    method: "POST",
+    body: JSON.stringify(snapshot),
+  })
+}
+
 export interface OverviewHealth {
   healthy: number
   silent: number
@@ -142,7 +177,7 @@ export type Status =
   | "blocked" | "review" | "done" | "archived"
 
 export const COLUMNS: Status[] = [
-  "triage", "todo", "ready", "running", "blocked", "review", "done",
+  "triage", "todo", "scheduled", "ready", "running", "blocked", "review", "done",
 ]
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -152,7 +187,15 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error((body as { error?: string }).error ?? res.statusText)
+    // Surface 401 as recoverable auth error so callers can gate login.
+    const msg = (body as { error?: string }).error ?? res.statusText
+    const err = new Error(msg) as Error & { status?: number }
+    err.status = res.status
+    throw err
   }
   return res.json() as Promise<T>
+}
+
+export function toastGlobal(message: string, tone: "success" | "error" | "info" = "info") {
+  window.dispatchEvent(new CustomEvent("kb-toast", { detail: { message, tone } }))
 }

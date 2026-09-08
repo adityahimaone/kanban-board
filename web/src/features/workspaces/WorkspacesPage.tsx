@@ -62,7 +62,10 @@ const EKG_W = 220 // fixed virtual width; scaled to container via viewBox
 function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | undefined; live: boolean; ok: boolean; height?: number }) {
   const pts = (points ?? []).slice(-30)
   const last = pts[pts.length - 1]
-  const accent = ok ? "var(--color-accent)" : "var(--color-danger)"
+  // green monitor line; red monitor (border/bg/flatline) once pings exist but fail
+  const offline = !ok && pts.length > 0
+  const line = offline ? "var(--color-danger)" : "var(--color-success)"
+  const dot = "var(--color-danger)"
   const BASE = height - 6, TOP = 6
   const [w, setW] = useState(EKG_W)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -118,14 +121,18 @@ function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | und
   return (
     <div
       ref={boxRef}
-      className={`relative overflow-hidden rounded-md border border-[var(--color-line)] bg-[var(--color-bg)] ${live ? "shadow-[inset_0_0_12px_var(--color-accent-tint)]" : ""}`}
+      className={`ekg-monitor relative overflow-hidden rounded-md border bg-[var(--color-bg)] ${
+        offline
+          ? "ekg-monitor-offline border-[var(--color-danger)]/25 bg-[color-mix(in_srgb,var(--color-danger)_6%,var(--color-bg))] shadow-[inset_0_0_12px_var(--color-danger-tint)]"
+          : "border-[var(--color-success)]/20" + (live ? " shadow-[inset_0_0_12px_var(--color-success-tint)]" : "")
+      }`}
       style={{ height }}
       title={last
         ? `${last.ok ? "ok" : "fail"} ${last.ms != null ? Math.round(last.ms) + "ms" : ""} · ${good.length ? `${Math.round(min)}–${Math.round(max)}ms` : ""}`
         : "no pings yet"}
     >
       <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <path d={d} fill="none" stroke={accent} strokeOpacity="0.28" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        <path d={d} fill="none" stroke={line} strokeOpacity="0.82" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
       </svg>
       {live && (
         <span
@@ -133,14 +140,14 @@ function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | und
           style={{
             offsetPath: `path("${d}")`,
             offsetRotate: "0deg",
-            background: accent,
-            boxShadow: `0 0 6px 2px ${accent}99, 0 0 12px 4px ${accent}44`,
+            background: dot,
+            boxShadow: `0 0 6px 2px ${dot}99, 0 0 12px 4px ${dot}44`,
             animation: "ekg-sweep 2.4s linear infinite",
           }}
         />
       )}
       {!live && (
-        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-600">
+        <span className={`absolute inset-0 flex items-center justify-center text-[10px] ${pts.length ? "text-[var(--color-danger)]/80" : "text-neutral-600"}`}>
           {pts.length ? "offline" : "no pings yet"}
         </span>
       )}

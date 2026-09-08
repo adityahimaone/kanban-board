@@ -124,6 +124,10 @@ func openDB(slug string) (*sql.DB, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := ensurePositionColumn(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -199,41 +203,8 @@ func (b Board) ArchivedSkip() bool {
 }
 
 func ListTasks(slug string) ([]Task, error) {
-	db, err := openDB(slug)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-	rows, err := db.Query(`
-		SELECT id, title, COALESCE(body,''), status, priority, COALESCE(assignee,''), COALESCE(executor,'auto'), COALESCE(command,''),
-		       workspace_kind, COALESCE(workspace_path,''), COALESCE(result,''),
-		       COALESCE(created_by,''), created_at, started_at, completed_at,
-		       consecutive_failures, COALESCE(last_failure_error,'')
-		FROM tasks ORDER BY priority DESC, created_at DESC`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []Task{}
-	for rows.Next() {
-		var t Task
-		var started, completed sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Status, &t.Priority, &t.Assignee, &t.Executor, &t.Command,
-			&t.WorkspaceKind, &t.WorkspacePath, &t.Result, &t.CreatedBy, &t.CreatedAt,
-			&started, &completed, &t.Failures, &t.LastError); err != nil {
-			return nil, err
-		}
-		if started.Valid {
-			v := started.Int64
-			t.StartedAt = &v
-		}
-		if completed.Valid {
-			v := completed.Int64
-			t.CompletedAt = &v
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
+	out, _, err := ListTasksQuery(slug, TaskQuery{})
+	return out, err
 }
 
 func CreateTask(slug string, t *Task) error {

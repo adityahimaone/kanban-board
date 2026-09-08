@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -107,12 +108,103 @@ func main() {
 		writeJSON(w, http.StatusOK, boards)
 	})
 	mux.HandleFunc("GET /api/boards/{slug}/tasks", func(w http.ResponseWriter, r *http.Request) {
-		tasks, err := kanban.ListTasks(r.PathValue("slug"))
+		q := kanban.TaskQuery{
+			Status:     r.URL.Query().Get("status"),
+			Assignee:   r.URL.Query().Get("assignee"),
+			Q:          r.URL.Query().Get("q"),
+			Unassigned: r.URL.Query().Get("unassigned") == "1",
+		}
+		if v := r.URL.Query().Get("limit"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 0 {
+				fail(w, fmt.Errorf("invalid limit"), 400)
+				return
+			}
+			q.Limit = n
+		}
+		if v := r.URL.Query().Get("offset"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 0 {
+				fail(w, fmt.Errorf("invalid offset"), 400)
+				return
+			}
+			q.Offset = n
+		}
+		tasks, total, err := kanban.ListTasksQuery(r.PathValue("slug"), q)
 		if err != nil {
-			fail(w, err, 500)
+			fail(w, err, 400)
 			return
 		}
+		w.Header().Set("X-Total-Count", strconv.Itoa(total))
 		writeJSON(w, http.StatusOK, tasks)
+	})
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/reorder", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Order []string `json:"order"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		if err := kanban.ReorderTasks(r.PathValue("slug"), req.Order); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	})
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/bulk", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs      []string `json:"ids"`
+			Action   string   `json:"action"`
+			Status   string   `json:"status"`
+			Assignee string   `json:"assignee"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		switch req.Action {
+		case "archive":
+			req.Status = "archived"
+			fallthrough
+		case "move":
+			moved, skipped, err := kanban.BulkTransition(r.PathValue("slug"), req.IDs, req.Status)
+			if err != nil {
+				fail(w, err, 400)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"moved": moved, "skipped": skipped})
+		case "assign":
+			if err := kanban.BulkAssign(r.PathValue("slug"), req.IDs, req.Assignee); err != nil {
+				fail(w, err, 400)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		default:
+			fail(w, fmt.Errorf("unknown action %q", req.Action), 400)
+		}
+	})
+	mux.HandleFunc("GET /api/boards/{slug}/export", func(w http.ResponseWriter, r *http.Request) {
+		snap, err := kanban.ExportBoard(r.PathValue("slug"))
+		if err != nil {
+			fail(w, err, 404)
+			return
+		}
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s-export.json", r.PathValue("slug")))
+		writeJSON(w, http.StatusOK, snap)
+	})
+	mux.HandleFunc("POST /api/boards/import", func(w http.ResponseWriter, r *http.Request) {
+		var snap kanban.BoardSnapshot
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<20)).Decode(&snap); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		created, ids, err := kanban.ImportBoard(&snap)
+		if err != nil {
+			fail(w, err, 400)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"created": created, "imported": len(ids)})
 	})
 	mux.HandleFunc("POST /api/boards/{slug}/tasks", func(w http.ResponseWriter, r *http.Request) {
 		var t kanban.Task

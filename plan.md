@@ -96,3 +96,52 @@ Status: reliability slice complete; verification and local authenticated/SSE smo
 - [x] Authenticated API smoke tests (local live server)
 - [x] SSE mutation smoke test (task_created observed)
 - [x] Scope/diff review
+
+## Active roadmap — Switchyard Feature Part 1
+
+Spec: `docs/specs/2026-09-09-switchyard-feature-part1-design.md`
+
+Rule: finding #1 (default password `123456`) explicitly skipped. Tick each item only after implementation and fresh verification.
+
+### Documentation
+
+- [x] Audit findings 2–16 captured in Part 1 design
+- [x] Execution order and acceptance gates documented
+
+### Correctness and security boundary
+
+- [x] #4 Restore `scheduled` board column — `web/src/api.ts:COLUMNS`; verified `pnpm build`
+- [ ] #2 Commit pending auth/UI boundary as one isolated slice
+
+### Data and scale
+
+- [x] #10 Server-side task pagination/filter — `ListTasksQuery` + route params; legacy full-list preserved
+- [x] #5 Persist drag-drop task order — position column + reorder API + FE drag hook
+- [x] #6 Bulk task actions — bulk endpoint (move/archive/assign) + selection UI
+- [x] #3 Board export/import backup — snapshot domain + API + round-trip test
+
+### Operations
+
+- [x] #7 Notification preferences and in-app/browser notifications
+- [ ] #8 Explicit Run now / queue / cancel UX
+- [ ] #9 Attempt-aware run history
+- [ ] #14 Board archive/restore UI
+
+### Productivity
+
+- [ ] #11 Cmd/Ctrl+K command palette
+- [ ] #12 Saved filter views
+- [ ] #13 Task dependencies/blockers
+- [ ] #15 Shared toast/error feedback
+
+### Performance
+
+- [ ] #16 Route-level lazy loading and bundle split
+
+### Part 1 verification
+
+- [ ] `go vet ./...`
+- [ ] `go test ./...`
+- [ ] `go build ./cmd/server`
+- [ ] `pnpm build`
+- [ ] Acceptance smoke checks for each checked feature

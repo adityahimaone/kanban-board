@@ -38,7 +38,7 @@ function OsInfo({ ws }: { ws?: Workspace }) {
   return null
 }
 
-export default function TaskCard({ task, profiles, health, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign, onDragStart, onDragEnd }: {
+export default function TaskCard({ task, profiles, health, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign, onDragStart, onDragEnd, selected, onToggleSelect }: {
   task: Task
   profiles: Profile[]
   health?: TaskHealth
@@ -50,6 +50,8 @@ export default function TaskCard({ task, profiles, health, workspaces, onOpen, o
   onReassign: (a: string) => void
   onDragStart?: (taskId: string) => void
   onDragEnd?: () => void
+  selected?: boolean
+  onToggleSelect?: (taskId: string, next: boolean) => void
 }) {
   const targets = STATUS_TARGETS[task.status] ?? []
   const profile = profiles.find((p) => p.name === task.assignee)
@@ -63,6 +65,14 @@ export default function TaskCard({ task, profiles, health, workspaces, onOpen, o
       onDragEnd={onDragEnd}
       className="decorative-card kanban-task-card group shrink-0 rounded-lg border border-line/60 bg-surface/45 p-3.5 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-line-strong hover:bg-inset/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/45 data-[dragging=true]:opacity-50"
     >
+      {onToggleSelect && (
+        <div className="mb-1.5 -ml-1">
+          <label className="inline-flex items-center gap-1.5 text-[10px] leading-none text-neutral-500">
+            <input type="checkbox" checked={!!selected} onChange={(e) => onToggleSelect(task.id, e.currentTarget.checked)} className="size-3.5 rounded border-[var(--color-line)] bg-[var(--color-inset)] accent-[var(--color-accent)]" />
+            select
+          </label>
+        </div>
+      )}
       {/* title + open-page icon */}
       <div className="flex items-start justify-between gap-2">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">

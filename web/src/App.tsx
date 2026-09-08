@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, boardHealth, COLUMNS, openEventStream, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
+import { api, boardHealth, bulkTasks, COLUMNS, openEventStream, reorderTasks, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
 import TaskDialog from "./features/board/TaskDialog"
 import TaskDetail from "./features/board/TaskDetail"
@@ -162,6 +162,27 @@ export default function App() {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ status: Status; index: number } | null>(null)
   const [taskOrder, setTaskOrder] = useState<Record<string, string[]>>({})
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+
+  function toggleTask(id: string, next: boolean) {
+    setSelectedTasks((current) => {
+      const updated = new Set(current)
+      if (next) updated.add(id); else updated.delete(id)
+      return updated
+    })
+  }
+
+  async function bulkMove(status: Status) {
+    await bulkTasks(slug, { ids: [...selectedTasks], action: "move", status })
+    setSelectedTasks(new Set())
+    await qc.invalidateQueries({ queryKey: ["tasks", slug] })
+  }
+
+  async function bulkArchive() {
+    await bulkTasks(slug, { ids: [...selectedTasks], action: "archive" })
+    setSelectedTasks(new Set())
+    await qc.invalidateQueries({ queryKey: ["tasks", slug] })
+  }
 
   const byCol = (s: Status) => {
     const cards = filtered.filter((t) => t.status === s)
@@ -200,6 +221,9 @@ export default function App() {
       }
       list.splice(insertAt, 0, id)
       next[status] = list
+      if (status !== sourceStatus || next[status]) {
+        void reorderTasks(slug, next[status] ?? [id]).catch(() => undefined)
+      }
       return next
     })
   }
@@ -281,6 +305,8 @@ export default function App() {
                     profiles={profiles.data ?? []}
                     health={healthMap.data?.[t.id]}
                     workspaces={workspaces.data ?? []}
+                    selected={selectedTasks.has(t.id)}
+                    onToggleSelect={toggleTask}
                   />
                 </div>
               ))}
@@ -438,6 +464,15 @@ export default function App() {
     >
       {filterRail}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {page === "board" && !detailId && selectedTasks.size > 0 && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2 text-xs">
+            <span className="font-medium text-neutral-200">{selectedTasks.size} selected</span>
+            <Button size="sm" variant="outline" onClick={() => void bulkMove("ready")}>Move ready</Button>
+            <Button size="sm" variant="outline" onClick={() => void bulkMove("blocked")}>Block</Button>
+            <Button size="sm" variant="outline" onClick={() => void bulkArchive()}>Archive</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedTasks(new Set())}>Clear</Button>
+          </div>
+        )}
         {page === "workspaces" && <div className="flex-1 overflow-y-auto"><WorkspacesPage /></div>}
         {page === "profiles" && <div className="flex-1 overflow-y-auto"><ProfilesPage /></div>}
         {page === "providers" && <div className="flex-1 overflow-y-auto"><ProvidersPage /></div>}

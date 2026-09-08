@@ -139,6 +139,17 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; } }
 
 @keyframes ekg-sweep { from { offset-distance:0%; } to { offset-distance:100%; } }
+@keyframes pixel-on { 0%,100% { opacity:.15; } 45% { opacity:1; } }
+.running-loader { animation: fade-in 180ms ease-out both; }
+.ekg-monitor {
+  background-color: #06110d;
+  background-image: linear-gradient(color-mix(in srgb, var(--color-success) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-success) 8%, transparent) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+.ekg-monitor-offline {
+  background-color: color-mix(in srgb, var(--color-danger) 6%, var(--color-bg));
+  background-image: linear-gradient(color-mix(in srgb, var(--color-danger) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-danger) 8%, transparent) 1px, transparent 1px);
+}
 @keyframes flow-travel { 0% { offset-distance:0%; opacity:0; } 8% { opacity:1; } 50% { offset-distance:100%; opacity:1; } 58%,100% { opacity:0; } }
 @keyframes flow-idle { 0% { offset-distance:0%; opacity:.35; } 12%,88% { opacity:.9; } 100% { offset-distance:100%; opacity:.35; } }
 @keyframes flow-active { 0% { offset-distance:0%; opacity:0; } 8%,92% { opacity:1; } 100% { offset-distance:100%; opacity:0; } }
@@ -157,6 +168,7 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 .decorative-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
 .decorative-card > * { position: relative; z-index: 1; }
 .decorative-card:hover { border-color: var(--color-line-strong); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.14), 0 0 26px color-mix(in srgb,var(--color-blue-glow) 30%,transparent); }
+.gauge-dial::before, .gauge-dial::after { display: none; }
 .provider-card-grid, .provider-card-scan { display: none; }
 .kanban-column { border-top-color: color-mix(in srgb, var(--column-accent) 55%, var(--color-line)) !important; }
 .kanban-column-title { color: color-mix(in srgb, var(--column-accent) 72%, var(--color-ink-2)); }
@@ -170,4 +182,6 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 .kanban-column-purple { --column-accent: #c084fc; }
 .kanban-column-emerald { --column-accent: #42d392; }
 .kanban-column-slate { --column-accent: #94a0b5; }
-@media (prefers-reduced-motion: reduce) { .decorative-card { transition: none; } }
+.kanban-drop-placeholder { animation: kanban-drop-in 180ms cubic-bezier(.22,1,.36,1); box-shadow: inset 0 0 18px color-mix(in srgb, var(--color-accent) 10%, transparent); }
+@keyframes kanban-drop-in { from { opacity: 0; transform: scaleY(.55); } to { opacity: 1; transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .decorative-card, .kanban-drop-placeholder { transition: none; animation: none; } }

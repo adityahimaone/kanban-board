@@ -10,10 +10,12 @@ export function AppHeader({
 	breadcrumb,
 	right,
 	onSettings,
+	onLogout,
 }: {
 	breadcrumb: { title: string };
 	right?: ReactNode;
 	onSettings?: () => void;
+	onLogout?: () => void;
 }) {
 	const crumb: SidebarNavItem = { title: breadcrumb.title };
 
@@ -38,7 +40,7 @@ export function AppHeader({
 					className="h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"
 				/>
-				<NavUser onSettings={onSettings} />
+				<NavUser onSettings={onSettings} onLogout={onLogout} />
 			</div>
 		</header>
 	);

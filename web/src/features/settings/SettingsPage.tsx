@@ -2,10 +2,12 @@ import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
-import { ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download, Eye, EyeOff } from "lucide-react"
+import { Bell, XCircle, Eye, EyeOff, ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download } from "lucide-react"
 import { setEnabled as setCuelumeEnabled, setVolume } from "cuelume"
 import { useSidebarPreferences } from "@/lib/sidebar-preferences"
 import { useTheme, type ThemePreference } from "@/hooks/useSettings"
+import { Button } from "@/components/ui/button"
+import { api } from "@/api"
 
 const TABS = [
   { id: "general", label: "General" },
@@ -22,6 +24,9 @@ const VOLUME_KEY = "kb-sound-volume"
 const REFRESH_KEY = "kb-refresh-interval"
 const COMPACT_KEY = "kb-compact-cards"
 const PING_KEY = "kb-ping-interval"
+const NOTIFY_BROWSER_KEY = "kb-notify-browser"
+const NOTIFY_FAILURE_KEY = "kb-notify-failure"
+const NOTIFY_REVIEW_KEY = "kb-notify-review"
 
 function useLocalStorage<T>(key: string, fallback: T) {
   const [value, setValue] = useState<T>(() => {
@@ -48,6 +53,13 @@ export default function SettingsPage() {
   const [refreshMs, setRefresh] = useLocalStorage(REFRESH_KEY, 15000)
   const [compact, setCompact] = useLocalStorage(COMPACT_KEY, false)
   const [pingMs, setPing] = useLocalStorage(PING_KEY, 30000)
+  const [notifyBrowser, setNotifyBrowser] = useLocalStorage(NOTIFY_BROWSER_KEY, false)
+  const [notifyFailure, setNotifyFailure] = useLocalStorage(NOTIFY_FAILURE_KEY, true)
+  const [notifyReview, setNotifyReview] = useLocalStorage(NOTIFY_REVIEW_KEY, true)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [passwordMsg, setPasswordMsg] = useState("")
+  const [passwordBusy, setPasswordBusy] = useState(false)
   const { items, isVisible, move, toggle, reset } = useSidebarPreferences()
   const { theme, setTheme } = useTheme()
 
@@ -67,6 +79,20 @@ export default function SettingsPage() {
     { label: "30s", value: 30000 },
     { label: "60s", value: 60000 },
   ]
+
+  async function changePassword() {
+    setPasswordBusy(true); setPasswordMsg("")
+    try {
+      await api("/api/auth/password", { method: "POST", body: JSON.stringify({ current: currentPassword, password: newPassword }) })
+      setPasswordMsg("Password updated. Login again with new password.")
+      setCurrentPassword(""); setNewPassword("")
+      setTimeout(() => { fetch("/api/auth/logout", { method: "POST", credentials: "include" }).then(() => { window.location.reload() }) }, 1500)
+    } catch (e) {
+      setPasswordMsg((e as Error).message)
+    } finally {
+      setPasswordBusy(false)
+    }
+  }
 
   const pingOpts = [
     { label: "10s", value: 10000 },
@@ -150,7 +176,20 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {!show("Sound Effects", "Audio", "Auto Refresh", "Polling", "Board") && (
+              {show("Password", "Security", "Login", "Auth") && (
+                <div className="space-y-3 rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
+                  <p className="text-sm font-medium text-neutral-200">Password</p>
+                  <p className="text-xs text-neutral-500">Session stays active for 14 days.</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                    <Input type="password" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="h-8 border-[var(--color-line)] bg-[var(--color-bg)] text-xs" />
+                    <Input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-8 border-[var(--color-line)] bg-[var(--color-bg)] text-xs" />
+                    <Button size="sm" disabled={passwordBusy || !currentPassword || !newPassword} onClick={changePassword} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">Update</Button>
+                  </div>
+                  {passwordMsg && <p className="text-xs text-neutral-500">{passwordMsg}</p>}
+                </div>
+              )}
+
+              {!show("Sound Effects", "Audio", "Auto Refresh", "Polling", "Board", "Password", "Security", "Login", "Auth") && (
                 <p className="text-xs text-neutral-600">No match.</p>
               )}
             </TabsContent>
@@ -231,8 +270,48 @@ export default function SettingsPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="notifications" className="mt-0">
-              <p className="text-xs text-neutral-600">Notification preferences coming soon.</p>
+            <TabsContent value="notifications" className="mt-0 space-y-6">
+              {show("Browser", "Notification", "Permission") && (
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <Bell className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Browser Notifications</p>
+                      <p className="text-xs text-neutral-500">Desktop notification saat task gagal atau masuk review</p>
+                    </div>
+                  </div>
+                  <Switch checked={notifyBrowser} onCheckedChange={(v) => {
+                    setNotifyBrowser(v)
+                    if (v && typeof Notification !== "undefined" && Notification.permission === "default") {
+                      void Notification.requestPermission()
+                    }
+                  }} />
+                </div>
+              )}
+              {show("Failed", "Task", "Gagal") && (
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <XCircle className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Notify on Failure</p>
+                      <p className="text-xs text-neutral-500">Task gagal, stuck, atau lost</p>
+                    </div>
+                  </div>
+                  <Switch checked={notifyFailure} onCheckedChange={setNotifyFailure} />
+                </div>
+              )}
+              {show("Review", "Ready") && (
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <Eye className="size-4 text-neutral-400" />
+                    <div>
+                      <p className="text-sm font-medium text-neutral-200">Notify on Review</p>
+                      <p className="text-xs text-neutral-500">Task masuk kolom review, siap di-approve</p>
+                    </div>
+                  </div>
+                  <Switch checked={notifyReview} onCheckedChange={setNotifyReview} />
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="advanced" className="mt-0 space-y-6">
