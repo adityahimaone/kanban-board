@@ -26,24 +26,28 @@ export default function ProvidersPage({ onUseInProfile }: { onUseInProfile?: (na
   const selected = (providers.data ?? []).find((p) => p.name === active)
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold tracking-tight">Providers</h1>
-        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
-          {providers.data?.length ?? 0}
-        </span>
-        <div className="relative ml-auto">
-          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" />
-          <input
-            value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari provider…"
-            className="w-44 rounded-md border border-[var(--color-line)] bg-[var(--color-bg)] py-1.5 pl-8 pr-2 text-xs outline-none focus:border-[var(--color-accent)]/50"
-          />
+    <div className="mx-auto w-full max-w-6xl p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[var(--color-accent)]">Hermes Registry</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">Providers</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink-3)]">
+            Roster model dari <code className="text-neutral-400">~/.hermes/config.yaml</code> custom_providers. Pakai di profile lewat dropdown bawah.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
+            {providers.data?.length ?? 0}
+          </span>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" />
+            <input
+              value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari provider…"
+              className="w-44 rounded-md border border-[var(--color-line)] bg-[var(--color-bg)] py-1.5 pl-8 pr-2 text-xs outline-none focus:border-[var(--color-accent)]/50"
+            />
+          </div>
         </div>
       </div>
-      <p className="mt-1 text-xs text-neutral-500">
-        Roster model dari <code className="text-neutral-400">~/.hermes/config.yaml</code> custom_providers. Pakai di profile lewat dropdown bawah.
-      </p>
-
       {providers.isLoading ? (
         <LoadingState label="Memuat providers" />
       ) : (

@@ -77,8 +77,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--color-line)] px-6 py-4">
-        <h1 className="text-lg font-semibold text-neutral-100">Settings</h1>
+      <header className="flex shrink-0 items-end gap-3 border-b border-[var(--color-line)] px-6 py-4">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[var(--color-accent)]">Hermes Studio</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-neutral-100">Settings</h1>
+        </div>
         <div className="relative ml-auto w-64">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari setting…"

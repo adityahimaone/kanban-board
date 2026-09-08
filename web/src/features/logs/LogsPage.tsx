@@ -63,11 +63,13 @@ export default function LogsPage() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-semibold tracking-tight">Logs</h1>
-        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
-          ~/.hermes/logs
-        </span>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[var(--color-accent)]">Hermes Runtime</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">Logs</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink-3)]">Live runtime output dari <code className="text-neutral-400">~/.hermes/logs</code>.</p>
+        </div>
+        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">~/.hermes/logs</span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Select value={file} onValueChange={setFile}>
             <SelectTrigger size="sm" className="w-44 border-[var(--color-line)] bg-[var(--color-bg)] text-xs">

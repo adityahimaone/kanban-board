@@ -51,8 +51,9 @@ export default function MemoryPage() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col p-4">
-      <h1 className="text-lg font-semibold tracking-tight">Memory</h1>
-      <p className="mt-1 text-xs text-neutral-500">
+      <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[var(--color-accent)]">Hermes Context</p>
+      <h1 className="mt-1 text-xl font-semibold tracking-tight">Memory</h1>
+      <p className="mt-1 text-xs text-[var(--color-ink-3)]">
         Read-only snapshot dari <code className="text-neutral-400">~/.hermes/memories/MEMORY.md</code>,{" "}
         <code className="text-neutral-400">USER.md</code>, dan <code className="text-neutral-400">~/.hermes/SOUL.md</code> — mirrors hermes-web-go <code className="text-neutral-400">/api/memory</code>.
       </p>

@@ -409,13 +409,20 @@ export default function WorkspacesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold tracking-tight">Workspaces</h1>
-        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
-          {workspaces.data?.length ?? 0}
-        </span>
-        <div className="ml-auto flex gap-2">
+    <div className="mx-auto w-full max-w-6xl p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[var(--color-accent)]">Hermes Execution</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">Workspaces</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink-3)]">
+            Sumber: <code className="text-neutral-400">~/.hermes/workspaces.yaml</code> — status ping live tiap kali lu buka halaman.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
+            {workspaces.data?.length ?? 0}
+          </span>
+          <div className="flex gap-2">
           <Button
             variant={autoPing ? "default" : "outline"} size="sm"
             onClick={() => setAutoPing((v) => !v)}
@@ -430,11 +437,9 @@ export default function WorkspacesPage() {
           <Button size="sm" onClick={() => setForm({ open: true, edit: null })} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             <Plus className="size-3.5" /> New workspace
           </Button>
+          </div>
         </div>
       </div>
-      <p className="mt-1 text-xs text-neutral-500">
-        Shared source of truth: <code className="text-neutral-400">~/.hermes/workspaces.json</code> — tiap ping tersimpan di history (wave) + workspace logs.
-      </p>
 
       {workspaces.isLoading ? (
         <LoadingState label="Memuat workspaces" />
