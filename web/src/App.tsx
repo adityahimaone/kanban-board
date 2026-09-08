@@ -282,11 +282,11 @@ export default function App() {
           ))}
         </SelectContent>
       </Select>
-      <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="h-7 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300">
-        <Plus className="size-3" /> New Board
+      <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="gap-1 border-[#1e2430] bg-[#11151f] text-neutral-300">
+        <Plus className="size-3.5" /> New Board
       </Button>
-      <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="h-7 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300 disabled:opacity-40">
-        <Pencil className="size-3" /> Edit
+      <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="gap-1 border-[#1e2430] bg-[#11151f] text-neutral-300 disabled:opacity-40">
+        <Pencil className="size-3.5" /> Edit
       </Button>
       <Separator orientation="vertical" className="h-5" />
       <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">

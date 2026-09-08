@@ -199,7 +199,7 @@ export default function TaskDetailPage({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       {/* top bar: back + title */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onBack} className="h-8 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300">
+        <Button variant="outline" size="sm" onClick={onBack} className="gap-1 border-[#1e2430] bg-[#11151f] text-neutral-300">
           <ArrowLeft className="size-3.5" /> Board
         </Button>
         <h1 className="truncate text-base font-semibold">{task.title}</h1>

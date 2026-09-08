@@ -1,11 +1,9 @@
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import type { SidebarNavItem } from "@/components/app-shared";
 import { NavUser } from "@/components/nav-user";
-import { BellIcon, SendIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function AppHeader({
@@ -36,12 +34,6 @@ export function AppHeader({
 			</div>
 			<div className="flex items-center gap-3">
 				{right}
-				<Button aria-label="Send" size="icon-sm" variant="outline">
-					<SendIcon />
-				</Button>
-				<Button aria-label="Notifications" size="icon-sm" variant="outline">
-					<BellIcon />
-				</Button>
 				<Separator
 					className="h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"
