@@ -1,6 +1,6 @@
-# kanban-board
+# Switchyard
 
-Control plane untuk alur coding agent. Aplikasi ini menyimpan board dan task, memilih workspace, mengklaim task, mengirim pekerjaan ke executor, lalu menahan hasil di kolom `review` sampai perubahan diperiksa dan di-approve.
+Control plane untuk alur coding agent. Switchyard menyimpan board dan task, memilih workspace, mengklaim task, mengirim pekerjaan ke executor, lalu menahan hasil di kolom `review` sampai perubahan diperiksa dan di-approve.
 
 Stack: Go, SQLite, React, Vite, dan node-agent melalui gRPC hybrid dengan HTTP fallback.
 

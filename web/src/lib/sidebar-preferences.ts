@@ -13,7 +13,7 @@ export type SidebarItem = {
 
 export const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "overview", label: "Overview", tooltip: "Overview", icon: Activity },
-  { id: "board", label: "Kanban Board", tooltip: "Kanban Board", icon: LayoutDashboard },
+  { id: "board", label: "Task Board", tooltip: "Task Board", icon: LayoutDashboard },
   { id: "workspaces", label: "Workspaces", tooltip: "Workspaces", icon: FolderGit2 },
   { id: "profiles", label: "Agent Profiles", tooltip: "Agent Profiles", icon: Bot },
   { id: "providers", label: "Providers", tooltip: "Providers", icon: Server },

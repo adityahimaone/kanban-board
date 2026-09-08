@@ -131,7 +131,7 @@ export default function App() {
     : page === "agent-mapping" ? "Flow Map"
     : page === "settings" ? "Settings"
     : detailPage ? detailPage.title
-    : "Kanban Board"
+    : "Task Board"
 
   function handleSelectPage(p: Page) {
     if (p === "board") {

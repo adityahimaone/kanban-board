@@ -189,7 +189,7 @@ export default function SettingsPage() {
                               className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-25"><ArrowUp className="size-3.5" /></button>
                             <button type="button" onClick={() => move(item.id, 1)} disabled={index === items.length - 1} title={`Move ${item.label} down`} aria-label={`Move ${item.label} down`}
                               className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-25"><ArrowDown className="size-3.5" /></button>
-                            <button type="button" onClick={() => toggle(item.id, !visible)} disabled={item.id === "board"} title={item.id === "board" ? "Kanban Board selalu tersedia" : visible ? `Hide ${item.label}` : `Show ${item.label}`} aria-label={item.id === "board" ? "Kanban Board always visible" : visible ? `Hide ${item.label}` : `Show ${item.label}`}
+                            <button type="button" onClick={() => toggle(item.id, !visible)} disabled={item.id === "board"} title={item.id === "board" ? "Task Board selalu tersedia" : visible ? `Hide ${item.label}` : `Show ${item.label}`} aria-label={item.id === "board" ? "Task Board always visible" : visible ? `Hide ${item.label}` : `Show ${item.label}`}
                               className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-40">{visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</button>
                           </div>
                         </div>
