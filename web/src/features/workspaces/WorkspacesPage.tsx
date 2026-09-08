@@ -513,8 +513,6 @@ export default function WorkspacesPage() {
                   </Button>
                 </div>
                 {del.isError && <p className="mt-2 text-xs text-red-400">{(del.error as Error).message}</p>}
-                {/* green pulse ring on the whole card when connected */}
-                <span className={`pointer-events-none absolute inset-0 rounded-lg ${live ? "ring-1 ring-emerald-400/20" : ""}`} />
               </CardContent>
             </Card>
             )
