@@ -36,8 +36,68 @@ func fail(w http.ResponseWriter, err error, code int) {
 func main() {
 	addr := envOr("KANBAN_ADDR", "127.0.0.1:8790")
 	dist := envOr("KANBAN_WEB_DIST", "web/dist")
+	if err := kanban.EnsureAuthSeed(); err != nil {
+		log.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/auth/status", func(w http.ResponseWriter, r *http.Request) {
+		ok, err := kanban.ValidateSession(readAuthCookie(r))
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"authenticated": ok})
+	})
+	mux.HandleFunc("POST /api/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		ok, err := kanban.VerifyPassword(req.Password)
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		if !ok {
+			fail(w, fmt.Errorf("invalid password"), http.StatusUnauthorized)
+			return
+		}
+		token, err := kanban.CreateSession()
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: "kanban_session", Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 14 * 24 * 60 * 60})
+		writeJSON(w, http.StatusOK, map[string]bool{"authenticated": true})
+	})
+	mux.HandleFunc("POST /api/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie("kanban_session"); err == nil {
+			_ = kanban.DeleteSession(c.Value)
+		}
+		http.SetCookie(w, &http.Cookie{Name: "kanban_session", Value: "", Path: "/", HttpOnly: true, MaxAge: -1})
+		writeJSON(w, http.StatusOK, map[string]bool{"authenticated": false})
+	})
+	mux.HandleFunc("POST /api/auth/password", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Current  string `json:"current"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		if err := kanban.ChangePassword(req.Current, req.Password); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: "kanban_session", Value: "", Path: "/", HttpOnly: true, MaxAge: -1})
+		writeJSON(w, http.StatusOK, map[string]bool{"authenticated": false})
+	})
+
 	mux.HandleFunc("GET /api/boards", func(w http.ResponseWriter, r *http.Request) {
 		boards, err := kanban.ListBoards()
 		if err != nil {
@@ -172,6 +232,47 @@ func main() {
 			return
 		}
 		writeJSON(w, http.StatusCreated, c)
+	})
+
+	// run control: retry/release/clone are guarded in the domain layer.
+	runControlError := func(w http.ResponseWriter, err error) {
+		if e, ok := err.(*kanban.RunControlError); ok {
+			fail(w, e.Err, e.Code)
+			return
+		}
+		fail(w, err, http.StatusInternalServerError)
+	}
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
+		t, err := kanban.RetryTask(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			runControlError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, t)
+	})
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/release", func(w http.ResponseWriter, r *http.Request) {
+		t, err := kanban.ReleaseStaleTask(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			runControlError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, t)
+	})
+	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/clone", func(w http.ResponseWriter, r *http.Request) {
+		t, err := kanban.CloneTask(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			runControlError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, t)
+	})
+	mux.HandleFunc("GET /api/boards/{slug}/tasks/{id}/health", func(w http.ResponseWriter, r *http.Request) {
+		h, err := kanban.TaskHealthFor(r.PathValue("slug"), r.PathValue("id"))
+		if err != nil {
+			fail(w, err, http.StatusNotFound)
+			return
+		}
+		writeJSON(w, http.StatusOK, h)
 	})
 
 	mux.HandleFunc("POST /api/boards/{slug}/tasks/{id}/stop", func(w http.ResponseWriter, r *http.Request) {
@@ -428,6 +529,36 @@ func main() {
 	mux.HandleFunc("GET /api/flow/active", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"tasks": kanban.FlowActive(), "retention_seconds": kanban.FlowRetentionSeconds()})
 	})
+	// live event stream (SSE): task + workspace mutations, auth-covered by middleware
+	mux.HandleFunc("GET /api/events/stream", func(w http.ResponseWriter, r *http.Request) {
+		fl, ok := w.(http.Flusher)
+		if !ok {
+			fail(w, fmt.Errorf("streaming unsupported"), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.WriteHeader(http.StatusOK)
+		ch := kanban.Hub.Subscribe()
+		defer kanban.Hub.Unsubscribe(ch)
+		heartbeat := time.NewTicker(20 * time.Second)
+		defer heartbeat.Stop()
+		fl.Flush()
+		for {
+			select {
+			case ev := <-ch:
+				fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Kind, kanban.SSEEnvelope(ev.Kind, ev.Data))
+				fl.Flush()
+			case <-heartbeat.C:
+				fmt.Fprint(w, ": ping\n\n")
+				fl.Flush()
+			case <-r.Context().Done():
+				return
+			}
+		}
+	})
+
 	mux.HandleFunc("GET /api/overview", func(w http.ResponseWriter, r *http.Request) {
 		o, err := kanban.OverviewData()
 		if err != nil {
@@ -523,7 +654,34 @@ func main() {
 	kanban.StartFlowSync()
 	StartSSHDispatcher()
 	log.Printf("kanban-board listening on %s (dist=%s)", addr, dist)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(http.ListenAndServe(addr, authHandler(mux)))
+}
+
+func authHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/api/auth/status" || r.URL.Path == "/api/auth/login" || r.URL.Path == "/api/auth/logout" || r.URL.Path == "/api/auth/password" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		ok, err := kanban.ValidateSession(readAuthCookie(r))
+		if err != nil {
+			fail(w, err, http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			fail(w, fmt.Errorf("authentication required"), http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func readAuthCookie(r *http.Request) string {
+	c, err := r.Cookie("kanban_session")
+	if err != nil {
+		return ""
+	}
+	return c.Value
 }
 
 // spa serves the built frontend with index.html fallback for client routes.

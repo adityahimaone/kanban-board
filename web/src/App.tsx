@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, COLUMNS, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
+import { api, COLUMNS, openEventStream, type Board, type Profile, type Status, type Task, type Workspace } from "./api"
 import TaskCard from "./features/board/TaskCard"
 import TaskDialog from "./features/board/TaskDialog"
 import TaskDetail from "./features/board/TaskDetail"
@@ -20,7 +20,7 @@ import MemoryPage from "./features/memory/MemoryPage"
 import SettingsPage from "./features/settings/SettingsPage"
 import OverviewPage from "./features/overview/OverviewPage"
 import AgentMappingPage from "./features/flow/AgentMappingPage"
-import { Archive, Plus, Pencil, Search, X } from "lucide-react"
+import { Archive, Inbox, Plus, Pencil, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 import LoadingState from "./components/LoadingState"
 import { pagePath, parseRoute } from "./lib/routes"
@@ -53,7 +53,7 @@ function labelForPage(page: Page): string {
 export default function App() {
   const initialRoute = useMemo(() => parseRoute(window.location.pathname), [])
   const [page, setPage] = useState<Page>(initialRoute.page)
-  const [slug, setSlug] = useState(initialRoute.slug ?? "f8-saas")
+  const [slug, setSlug] = useState(() => initialRoute.slug ?? window.localStorage.getItem("kb-last-board") ?? "default")
   const [creating, setCreating] = useState(false)
   const [creatingBoard, setCreatingBoard] = useState(false)
   const [editingBoard, setEditingBoard] = useState(false)
@@ -68,6 +68,16 @@ export default function App() {
   const { refreshMs } = useSettings()
   const qc = useQueryClient()
 
+  useEffect(() => openEventStream((ev) => {
+    if (ev.kind === "workspace_ping" || ev.kind === "node_health") {
+      qc.invalidateQueries({ queryKey: ["workspaces"] })
+      return
+    }
+    if (ev.data?.board && ev.data.board !== slug) return
+    qc.invalidateQueries({ queryKey: ["tasks", slug] })
+    if (ev.data?.task_id) qc.invalidateQueries({ queryKey: ["events", slug, ev.data.task_id] })
+  }), [qc, slug])
+
   const boards = useQuery({ queryKey: ["boards"], queryFn: () => api<Board[]>("/api/boards") })
   const tasks = useQuery({ queryKey: ["tasks", slug], queryFn: () => api<Task[]>(`/api/boards/${slug}/tasks`), enabled: page === "board", refetchInterval: refreshMs > 0 ? refreshMs : false })
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => api<Workspace[]>("/api/workspaces") })
@@ -76,13 +86,17 @@ export default function App() {
   const detailPage = detailId ? (tasks.data ?? []).find((task) => task.id === detailId) ?? null : null
 
   useEffect(() => {
+    window.localStorage.setItem("kb-last-board", slug)
+  }, [slug])
+
+  useEffect(() => {
     if (window.location.pathname === "/") {
-      window.history.replaceState({}, "", pagePath(initialRoute.page, initialRoute.slug ?? "f8-saas", initialRoute.taskId))
+      window.history.replaceState({}, "", pagePath(initialRoute.page, initialRoute.slug ?? slug, initialRoute.taskId))
     }
     const onPopState = () => {
       const route = parseRoute(window.location.pathname)
       setPage(route.page)
-      setSlug(route.slug ?? "f8-saas")
+      setSlug(route.slug ?? window.localStorage.getItem("kb-last-board") ?? "default")
       setDetailId(route.taskId ?? null)
       setDetail(null)
     }
@@ -139,7 +153,50 @@ export default function App() {
     setQ(""); setFStatus("__all"); setFAgent("__all"); setFWorkspace("__all"); setFPriority("__all")
   }
 
-  const byCol = (s: Status) => filtered.filter((t) => t.status === s)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ status: Status; index: number } | null>(null)
+  const [taskOrder, setTaskOrder] = useState<Record<string, string[]>>({})
+
+  const byCol = (s: Status) => {
+    const cards = filtered.filter((t) => t.status === s)
+    const order = taskOrder[s] ?? []
+    return [...cards].sort((a, b) => {
+      const ai = order.indexOf(a.id); const bi = order.indexOf(b.id)
+      if (ai < 0 && bi < 0) return 0
+      if (ai < 0) return 1
+      if (bi < 0) return -1
+      return ai - bi
+    })
+  }
+
+  function reorderTask(id: string, status: Status, index: number) {
+    const t = (tasks.data ?? []).find((x) => x.id === id)
+    const sourceStatus = t?.status as Status | undefined
+    setTaskOrder((current) => {
+      const next: Record<string, string[]> = { ...current }
+      // build id lists for every column from current orders + filtered fallback, then strip dragged id
+      for (const key of BOARD_COLUMNS) {
+        const fallback = filtered.filter((x) => x.status === key).map((x) => x.id)
+        const base = (current[key] ?? fallback).filter((taskId) => taskId !== id)
+        // keep order stable: if base came from current, fallback ids not yet in base stay at end
+        if (current[key]) {
+          for (const fid of fallback) if (!base.includes(fid) && fid !== id) base.push(fid)
+        }
+        next[key] = base
+      }
+      const list = next[status] ?? []
+      let insertAt = Math.max(0, Math.min(index, list.length))
+      if (sourceStatus === status) {
+        const fallback = filtered.filter((x) => x.status === status).map((x) => x.id)
+        const currentOrder = current[status] ?? fallback
+        const sourceIdx = currentOrder.indexOf(id)
+        if (sourceIdx >= 0 && sourceIdx < insertAt) insertAt -= 1
+      }
+      list.splice(insertAt, 0, id)
+      next[status] = list
+      return next
+    })
+  }
 
   const breadcrumb =
     detailPage
@@ -169,7 +226,27 @@ export default function App() {
         {BOARD_COLUMNS.map((col) => {
           const cards = byCol(col)
           return (
-          <section key={col} className={`kanban-column ${COLUMN_TONES[col]} flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-line/70 bg-surface/60 backdrop-blur supports-[backdrop-filter]:bg-surface/60 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
+          <section
+            key={col}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = "move"
+              if (e.target === e.currentTarget || !cards.length) setDropTarget({ status: col, index: cards.length })
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              const raw = draggingId || e.dataTransfer.getData("text/plain")
+              if (!raw) return
+              const t = (tasks.data ?? []).find((x) => x.id === raw)
+              if (!t) return
+              const target = dropTarget && dropTarget.status === col ? dropTarget : { status: col, index: cards.length }
+              if (t.status === "running" && col !== "blocked" && col !== "done" && col !== "review") return
+              reorderTask(t.id, col, target.index)
+              setDraggingId(null); setDropTarget(null)
+              if (t.status !== col) move.mutate({ id: t.id, status: col })
+            }}
+            className={`kanban-column ${COLUMN_TONES[col]} flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-line/70 bg-surface/60 backdrop-blur supports-[backdrop-filter]:bg-surface/60 ${col === "archived" ? "w-60 opacity-90" : "w-72"} ${dropTarget?.status === col ? "ring-1 ring-[var(--color-accent)]" : ""}`}
+          >
             <h2 className="kanban-column-title flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               <span className="flex items-center gap-1.5">
                 {col === "archived" && <Archive className="size-3" />}
@@ -178,21 +255,47 @@ export default function App() {
               <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px]">{cards.length}</span>
             </h2>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
-              {cards.map((t) => (
-                <TaskCard
-                  key={t.id}
-                  task={t}
-                  onOpen={() => setDetail(t)}
-                  onOpenPage={() => { setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
-                  onMove={(s) => move.mutate({ id: t.id, status: s })}
-                  onStop={() => { stop.mutate(t.id) }}
-                  onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
-                  profiles={profiles.data ?? []}
-                  workspaces={workspaces.data ?? []}
-                />
+              {cards.map((t, index) => (
+                <div key={t.id} onDragOver={(e) => { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDropTarget({ status: col, index: index + (e.clientY < rect.top + rect.height / 2 ? 0 : 1) }) }}>
+                  {dropTarget?.status === col && dropTarget.index === index && draggingId !== t.id && (
+                    <div className="kanban-drop-placeholder mb-2 flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--column-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--column-accent)_10%,transparent)] text-[color-mix(in_srgb,var(--column-accent)_70%,var(--color-ink-3))]">
+                      <span className="text-[11px] font-medium tracking-wide">Lepas di sini</span>
+                      <span className="text-[10px] opacity-70">geser kartu lain ke bawah</span>
+                    </div>
+                  )}
+                  <TaskCard
+                    task={t}
+                    onOpen={() => setDetail(t)}
+                    onOpenPage={() => { setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
+                    onMove={(s) => move.mutate({ id: t.id, status: s })}
+                    onStop={() => { stop.mutate(t.id) }}
+                    onReassign={(a) => reassign.mutate({ id: t.id, assignee: a })}
+                    onDragStart={setDraggingId}
+                    onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
+                    profiles={profiles.data ?? []}
+                    workspaces={workspaces.data ?? []}
+                  />
+                </div>
               ))}
+              {dropTarget?.status === col && dropTarget.index === cards.length && draggingId && (
+                <div className="kanban-drop-placeholder flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--column-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--column-accent)_10%,transparent)] text-[color-mix(in_srgb,var(--column-accent)_70%,var(--color-ink-3))]">
+                  <span className="text-[11px] font-medium tracking-wide">Lepas di sini</span>
+                  <span className="text-[10px] opacity-70">posisi paling bawah</span>
+                </div>
+              )}
               {!cards.length && (
-                <p className="px-1 py-2 text-[11px] text-neutral-600">empty</p>
+                draggingId ? (
+                  <div className="kanban-drop-placeholder flex min-h-[104px] flex-1 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--column-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--column-accent)_8%,transparent)] text-[color-mix(in_srgb,var(--column-accent)_70%,var(--color-ink-3))]">
+                    <Inbox className="size-5 opacity-70" />
+                    <span className="text-[11px] font-medium tracking-wide">Lepas di sini</span>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[104px] flex-1 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-inset)_40%,transparent)] px-3 py-6 text-center">
+                    <Inbox className="size-5 text-[color-mix(in_srgb,var(--column-accent)_55%,transparent)]" />
+                    <span className="text-[11px] font-medium text-neutral-500">Belum ada task</span>
+                    <span className="text-[10px] leading-snug text-neutral-600">Tarik kartu ke sini atau buat baru</span>
+                  </div>
+                )
               )}
             </div>
           </section>
@@ -322,6 +425,7 @@ export default function App() {
           breadcrumb={breadcrumb}
           right={headerControls}
           onSettings={() => handleSelectPage("settings")}
+          onLogout={() => { void api("/api/auth/logout", { method: "POST" }).then(() => window.location.reload()) }}
         />
       }
     >

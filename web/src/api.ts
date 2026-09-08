@@ -34,6 +34,50 @@ export interface TaskEvent {
   created_at: number
 }
 
+export interface TaskHealth {
+  task_id: string
+  status: Status
+  health: "not_running" | "healthy" | "silent" | "stuck" | "lost" | "unknown"
+  last_activity_at: number
+  age_seconds: number
+  source: string
+  reason: string
+}
+
+export type RunControlAction = "retry" | "release" | "clone"
+
+export function runControl(slug: string, taskId: string, action: RunControlAction) {
+  return api<Task>(`/api/boards/${slug}/tasks/${taskId}/${action}`, { method: "POST" })
+}
+
+export function taskHealth(slug: string, taskId: string) {
+  return api<TaskHealth>(`/api/boards/${slug}/tasks/${taskId}/health`)
+}
+
+export interface OverviewHealth {
+  healthy: number
+  silent: number
+  stuck: number
+  lost: number
+  unknown: number
+}
+
+export interface ServerEvent {
+  kind: string
+  data: { board?: string; task_id?: string }
+  at: number
+}
+
+export function openEventStream(onEvent: (event: ServerEvent) => void) {
+  const source = new EventSource("/api/events/stream")
+  const handle = (message: MessageEvent<string>) => {
+    try { onEvent(JSON.parse(message.data) as ServerEvent) } catch { /* refetch remains fallback */ }
+  }
+  source.onmessage = handle
+  ;["task_created", "task_updated", "status_changed", "task_event", "workspace_ping", "node_health"].forEach((kind) => source.addEventListener(kind, handle))
+  return () => source.close()
+}
+
 export interface Workspace {
   id: string
   name: string

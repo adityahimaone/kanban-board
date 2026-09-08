@@ -296,6 +296,7 @@ func CreateTask(slug string, t *Task) error {
 	if err != nil {
 		return err
 	}
+	broadcastEvent("task_created", map[string]any{"board": slug, "task_id": t.ID, "status": t.Status})
 	return insertEvent(db, t.ID, "created", map[string]any{"source": "board-ui", "status": t.Status})
 }
 
@@ -342,7 +343,11 @@ func StatusTransition(slug, taskID, to string) error {
 	if _, err := db.Exec(`UPDATE tasks SET status=?, completed_at=COALESCE(?, completed_at) WHERE id=?`, to, completed, taskID); err != nil {
 		return err
 	}
-	return insertEvent(db, taskID, "status_changed", map[string]any{"source": "board-ui", "from": current, "to": to})
+	if err := insertEvent(db, taskID, "status_changed", map[string]any{"source": "board-ui", "from": current, "to": to}); err != nil {
+		return err
+	}
+	broadcastEvent("status_changed", map[string]any{"task_id": taskID, "from": current, "to": to})
+	return nil
 }
 
 func ArchiveTask(slug, taskID string) error { return StatusTransition(slug, taskID, "archived") }

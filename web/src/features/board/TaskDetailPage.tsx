@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api, COLUMNS, type Profile, type Status, type Task, type TaskComment, type TaskEvent, type Workspace } from "../../api"
+import { api, runControl, taskHealth, COLUMNS, type Profile, type Status, type Task, type TaskComment, type TaskEvent, type Workspace, type TaskHealth as TH } from "../../api"
 import { parseEventCards, TONE_BORDER, TONE_DOT, TONE_TEXT } from "./eventCards"
 import { ArrowLeft, Loader2, Send, Square } from "lucide-react"
 import { AgentTaskStatus, splitAgentResult } from "./AgentStatus"
@@ -184,6 +184,7 @@ export default function TaskDetailPage({
   onStop: () => Promise<void>
   onReassign: (a: string) => Promise<void>
 }) {
+  const qc = useQueryClient()
   const events = useQuery({
     queryKey: ["events", slug, task.id],
     queryFn: () => api<TaskEvent[]>(`/api/boards/${slug}/tasks/${task.id}/events`),
@@ -191,6 +192,21 @@ export default function TaskDetailPage({
   })
   const profile = profiles.find((p) => p.name === task.assignee)
   const ws = workspaces.find((w) => w.path === task.workspace_path)
+  const health = useQuery<TH>({
+    queryKey: ["health", slug, task.id],
+    queryFn: () => taskHealth(slug, task.id),
+    refetchInterval: task.status === "running" ? 5_000 : false,
+  })
+  const control = useMutation({
+    mutationFn: (action: "retry" | "release" | "clone") => runControl(slug, task.id, action),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks", slug] })
+      qc.invalidateQueries({ queryKey: ["events", slug, task.id] })
+      qc.invalidateQueries({ queryKey: ["health", slug, task.id] })
+    },
+  })
+  const healthTone = health.data?.health === "healthy" ? "text-emerald-300" : health.data?.health === "silent" ? "text-amber-300" : "text-red-300"
+  const canRelease = health.data?.health === "stuck" || health.data?.health === "lost"
   const groups = events.data ? parseEventCards(events.data) : []
   const [showWorking, setShowWorking] = useState(false)
   const resultSplit = task.result ? splitAgentResult(task.result) : null
@@ -287,6 +303,25 @@ export default function TaskDetailPage({
             <pre className="mt-1.5 max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-500/20 bg-[var(--color-bg)] p-2.5 font-mono text-xs leading-relaxed text-emerald-100/90">{resultSplit.final || resultSplit.working}</pre>
           </div>
         )}
+
+        {/* run-control */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {task.status === "running" && health.data && (
+            <span className={`text-[10px] uppercase tracking-wider ${healthTone}`} title={health.data.reason}>
+              health: {health.data.health}
+            </span>
+          )}
+          {task.status !== "running" && task.status !== "archived" && (
+            <Button variant="outline" size="sm" disabled={control.isPending} onClick={() => control.mutate("retry")} className="h-6 px-2 text-[10px]">Retry</Button>
+          )}
+          {canRelease && (
+            <Button variant="outline" size="sm" disabled={control.isPending} onClick={() => control.mutate("release")} className="h-6 border-red-500/40 px-2 text-[10px] text-red-300">Release stale run</Button>
+          )}
+          {task.status !== "running" && (
+            <Button variant="outline" size="sm" disabled={control.isPending} onClick={() => control.mutate("clone")} className="h-6 px-2 text-[10px]">Clone</Button>
+          )}
+          {control.error && <span className="text-[10px] text-red-300">{(control.error as Error).message}</span>}
+        </div>
 
         {/* status moves */}
         <div className="mt-2 flex flex-wrap gap-1.5">

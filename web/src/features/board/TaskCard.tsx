@@ -4,7 +4,6 @@ import {
 } from "@/components/ui/select"
 import { Apple, ExternalLink, HardDrive, Laptop, Square, X } from "lucide-react"
 import { RunningIndicator } from "./AgentStatus"
-
 const STATUS_TARGETS: Record<Status, Status[]> = {
   triage: ["todo", "ready"],
   todo: ["ready", "blocked", "triage"],
@@ -37,7 +36,7 @@ function OsInfo({ ws }: { ws?: Workspace }) {
   return null
 }
 
-export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign }: {
+export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPage, onMove, onStop, onReassign, onDragStart, onDragEnd }: {
   task: Task
   profiles: Profile[]
   workspaces?: Workspace[]
@@ -46,6 +45,8 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
   onMove: (s: Status) => void
   onStop: () => void
   onReassign: (a: string) => void
+  onDragStart?: (taskId: string) => void
+  onDragEnd?: () => void
 }) {
   const targets = STATUS_TARGETS[task.status] ?? []
   const profile = profiles.find((p) => p.name === task.assignee)
@@ -53,7 +54,12 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
   const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
   const desc = task.result || task.body
   return (
-    <article className="decorative-card kanban-task-card group shrink-0 rounded-lg border border-line/60 bg-surface/45 p-3.5 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-line-strong hover:bg-inset/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/45">
+    <article
+      draggable={task.status !== "running"}
+      onDragStart={(e) => { if (task.status === "running") { e.preventDefault(); return }; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", task.id); onDragStart?.(task.id) }}
+      onDragEnd={onDragEnd}
+      className="decorative-card kanban-task-card group shrink-0 rounded-lg border border-line/60 bg-surface/45 p-3.5 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-line-strong hover:bg-inset/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/45 data-[dragging=true]:opacity-50"
+    >
       {/* title + open-page icon */}
       <div className="flex items-start justify-between gap-2">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
@@ -74,7 +80,8 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
       )}
 
       {task.status === "running" && (
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wider text-amber-300/80">active</span>
           <RunningIndicator startedAt={task.started_at} compact />
         </div>
       )}

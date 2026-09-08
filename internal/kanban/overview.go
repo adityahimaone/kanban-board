@@ -33,6 +33,7 @@ type Overview struct {
 	UsageMode      string         `json:"usage_mode"`
 	UsageNote      string         `json:"usage_note"`
 	Flows          []OverviewFlow `json:"flows"`
+	TaskHealth     map[string]int `json:"task_health"`
 }
 
 func cpuPercent() float64 {
@@ -104,7 +105,7 @@ func OverviewData() (Overview, error) {
 	if err != nil {
 		return Overview{}, err
 	}
-	o := Overview{Profiles: len(profiles), Workspaces: len(workspaces), UsageMode: "activity", UsageNote: "Token/cost telemetry unavailable; flow shows real task activity by profile."}
+	o := Overview{Profiles: len(profiles), Workspaces: len(workspaces), UsageMode: "activity", UsageNote: "Token/cost telemetry unavailable; flow shows real task activity by profile.", TaskHealth: OverviewHealthSummary()}
 	for _, b := range boards {
 		tasks, e := ListTasks(b.Slug)
 		if e != nil {

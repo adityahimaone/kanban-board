@@ -50,7 +50,7 @@ Repo: `~/apps/kanban-board`, deploy VPS :8790, share `~/.hermes/kanban/boards/<s
 
 Spec: `docs/specs/2026-09-08-agent-control-plane-reliability-design.md`
 
-Status: design written, awaiting implementation approval.
+Status: implementation slice complete; verification passed. UI health actions remain limited to task detail page.
 
 ### Discovery/design
 
@@ -60,36 +60,39 @@ Status: design written, awaiting implementation approval.
 - [x] Define retry/release/clone contracts
 - [x] Define health states and thresholds
 - [x] Define SSE envelope and polling fallback
-- [ ] User reviews and approves spec
+- [x] User reviewed spec and approved implementation
 
 ### Backend
 
-- [ ] Health domain + threshold tests
-- [ ] Retry operation + route
-- [ ] Stale release operation + route
-- [ ] Clone operation + route
-- [ ] Task health route
-- [ ] Overview health summary
-- [ ] SSE event hub + stream route
-- [ ] Mutation event broadcasts
+- [x] Health domain + threshold tests
+- [x] Retry operation + route
+- [x] Stale release operation + route
+- [x] Clone operation + route
+- [x] Task health route
+- [x] Overview health summary
+- [x] SSE event hub + stream route
+- [x] Board task/status mutation broadcasts
+- [ ] Workspace/node mutation broadcasts
 - [ ] Backend HTTP tests
 
 ### Frontend
 
-- [ ] Typed API methods
-- [ ] SSE client with reconnect/backoff
-- [ ] Board invalidation from SSE
-- [ ] Task detail refresh from SSE
-- [ ] Health indicator
-- [ ] Retry/release/clone actions
-- [ ] Polling fallback verification
+- [x] Typed API methods
+- [x] SSE client + event listener
+- [x] Board invalidation from SSE
+- [x] Task detail health query + refresh
+- [x] Health indicator on detail page
+- [x] Retry/release/clone actions on detail page
+- [x] Polling fallback remains enabled
+- [ ] Health indicator on board cards
+- [ ] Run-control actions on drawer
 
 ### Verification
 
-- [ ] `go vet ./...`
-- [ ] `go test ./...`
-- [ ] `go build ./cmd/server`
-- [ ] `pnpm build` in `web/`
+- [x] `go vet ./...`
+- [x] `go test ./...`
+- [x] `go build ./cmd/server`
+- [x] `pnpm build` in `web/`
 - [ ] Authenticated API smoke tests
 - [ ] SSE mutation smoke test
 - [ ] Scope/diff review
