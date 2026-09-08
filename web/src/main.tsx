@@ -3,8 +3,10 @@ import { createRoot } from "react-dom/client"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { bind } from "cuelume"
 import App from "./App"
+import { applyTheme, readTheme } from "./hooks/useSettings"
 import "./index.css"
 
+applyTheme(readTheme())
 bind()
 
 const qc = new QueryClient({

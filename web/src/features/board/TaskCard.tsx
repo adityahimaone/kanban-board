@@ -53,7 +53,8 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
   const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
   const desc = task.result || task.body
   return (
-    <article className="group relative rounded-lg border border-[#1e2430]/50 bg-[#0b0e14]/40 p-3.5 shadow-none transition-colors duration-150 hover:border-[#1e2430] hover:bg-[#161b27]/30">
+    <article className="group relative overflow-hidden rounded-lg border border-line bg-surface p-3.5 shadow-none transition-colors duration-150 hover:border-accent/45 hover:bg-surface-raised/60">
+      <span aria-hidden className={`absolute inset-y-3 left-0 w-0.5 rounded-r-full ${task.status === "running" ? "bg-green" : task.status === "review" ? "bg-amber" : task.status === "blocked" ? "bg-rose" : "bg-line-strong"}`} />
       {/* title + open-page icon */}
       <div className="flex items-start justify-between gap-2">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
@@ -62,7 +63,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
         <button
           onClick={onOpenPage}
           title="Buka detail page"
-          className="shrink-0 rounded p-1 text-neutral-600 opacity-0 transition-opacity hover:text-[#10e0dd] focus:opacity-100 group-hover:opacity-100"
+          className="shrink-0 rounded p-1 text-ink-4 transition-colors hover:bg-accent-tint hover:text-accent"
         >
           <ExternalLink className="size-3.5" />
         </button>
@@ -70,7 +71,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
 
       {/* description */}
       {desc && (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-neutral-400">{desc}</p>
+        <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-ink-3">{desc}</p>
       )}
 
       {task.status === "running" && (
@@ -87,11 +88,11 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
             <SelectTrigger
               size="sm"
               title={profile ? `${profile.name} — ${profile.model}` : "Agent profile"}
-              className="h-7 w-auto max-w-32 gap-1 rounded-md border-none bg-[#161b27] px-2.5 text-xs font-medium text-neutral-200 shadow-none hover:bg-[#1e2430] focus-visible:ring-0"
+              className="h-7 w-auto max-w-32 gap-1 rounded-md border-none bg-surface-raised px-2.5 text-xs font-medium text-ink shadow-none hover:bg-inset focus-visible:ring-0"
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-[#1e2430] bg-[#11151f]">
+            <SelectContent className="border-line bg-surface">
               <SelectItem value="__none" className="text-[11px]">unassigned</SelectItem>
               {profiles.map((p) => (
                 <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-[11px]">{p.name}</SelectItem>
@@ -112,7 +113,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
           {(task.workspace_path || task.priority > 0) && (
             <span className="min-w-0 truncate" title={task.workspace_path}>
               {wsIsSsh && "ssh · "}{ws?.name ?? (task.workspace_path ? task.workspace_path.split(/[\\/]/).pop() : "")}
-              {task.priority > 0 && <span className="ml-1.5 font-medium text-amber-300/90">P{task.priority}</span>}
+              {task.priority > 0 && <span className="ml-1.5 font-medium text-amber">P{task.priority}</span>}
             </span>
           )}
           <OsInfo ws={ws} />
