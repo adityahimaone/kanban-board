@@ -53,7 +53,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
   const wsIsSsh = ws ? !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1" : isSshPath(task.workspace_path || "")
   const desc = task.result || task.body
   return (
-    <article className="group relative rounded-lg border border-[#1e2430]/50 bg-[#0b0e14]/40 p-3.5 shadow-none transition-colors duration-150 hover:border-[#1e2430] hover:bg-[#161b27]/30">
+    <article className="group relative rounded-lg border border-[var(--color-line)]/50 bg-[var(--color-bg)]/40 p-3.5 shadow-none transition-colors duration-150 hover:border-[var(--color-line)] hover:bg-[var(--color-inset)]/30">
       {/* title + open-page icon */}
       <div className="flex items-start justify-between gap-2">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
@@ -62,7 +62,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
         <button
           onClick={onOpenPage}
           title="Buka detail page"
-          className="shrink-0 rounded p-1 text-neutral-600 opacity-0 transition-opacity hover:text-[#10e0dd] focus:opacity-100 group-hover:opacity-100"
+          className="shrink-0 rounded p-1 text-neutral-600 opacity-0 transition-opacity hover:text-[var(--color-accent)] focus:opacity-100 group-hover:opacity-100"
         >
           <ExternalLink className="size-3.5" />
         </button>
@@ -87,11 +87,11 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
             <SelectTrigger
               size="sm"
               title={profile ? `${profile.name} — ${profile.model}` : "Agent profile"}
-              className="h-7 w-auto max-w-32 gap-1 rounded-md border-none bg-[#161b27] px-2.5 text-xs font-medium text-neutral-200 shadow-none hover:bg-[#1e2430] focus-visible:ring-0"
+              className="h-7 w-auto max-w-32 gap-1 rounded-md border-none bg-[var(--color-inset)] px-2.5 text-xs font-medium text-neutral-200 shadow-none hover:bg-[var(--color-line)] focus-visible:ring-0"
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-[#1e2430] bg-[#11151f]">
+            <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
               <SelectItem value="__none" className="text-[11px]">unassigned</SelectItem>
               {profiles.map((p) => (
                 <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-[11px]">{p.name}</SelectItem>
@@ -122,7 +122,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
 
       {/* status moves — hover only */}
       {(targets.length > 0 || task.status === "running") && (
-        <div className="mt-2 flex flex-wrap gap-1 border-t border-[#1e2430]/40 pt-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-[var(--color-line)]/40 pt-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           {task.status === "running" && (
             <button
               onClick={onStop}
@@ -135,7 +135,7 @@ export default function TaskCard({ task, profiles, workspaces, onOpen, onOpenPag
             <button
               key={s}
               onClick={() => onMove(s)}
-              className="rounded px-1.5 py-0.5 text-[10px] text-neutral-400 transition-colors hover:bg-[#1e2430] hover:text-[#10e0dd]"
+              className="rounded px-1.5 py-0.5 text-[10px] text-neutral-400 transition-colors hover:bg-[var(--color-line)] hover:text-[var(--color-accent)]"
             >
               → {s}
             </button>

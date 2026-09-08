@@ -104,15 +104,15 @@ export default function TaskDialog({
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
 
-  const selCls = "w-full border-[#1e2430] bg-[#0b0e14] text-sm data-[size=default]:h-9"
+  const selCls = "w-full border-[var(--color-line)] bg-[var(--color-bg)] text-sm data-[size=default]:h-9"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">New Task</h2>
         <Label className="mt-3 block text-xs text-neutral-400">Title</Label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul task"
-          className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+          className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" />
         <div className="mt-3 flex items-center justify-between">
           <Label className="text-xs text-neutral-400">Body</Label>
           <div className="flex items-center gap-1">
@@ -120,7 +120,7 @@ export default function TaskDialog({
               variant="outline" size="sm"
               disabled={aiBusy || !body.trim()}
               onClick={() => improveBody("fast")}
-              className="h-6 gap-1 border-[#10e0dd]/40 px-2 text-[11px] text-[#10e0dd] hover:bg-[#10e0dd]/10 hover:text-[#10e0dd]"
+              className="h-6 gap-1 border-[var(--color-accent)]/40 px-2 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)]"
               title="Improve instan pakai template (tanpa AI call)"
             >
               <Sparkles className="size-3" />
@@ -130,7 +130,7 @@ export default function TaskDialog({
               variant="outline" size="sm"
               disabled={aiBusy || !body.trim()}
               onClick={() => improveBody("deep")}
-              className="h-6 gap-1 border-[#1e2430] px-2 text-[11px] text-neutral-300 hover:bg-[#10e0dd]/10 hover:text-[#10e0dd]"
+              className="h-6 gap-1 border-[var(--color-line)] px-2 text-[11px] text-neutral-300 hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)]"
               title="Improve pakai AI model (lebih lambat, hasil lebih kontekstual)"
             >
               {aiMode === "deep" ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
@@ -139,13 +139,13 @@ export default function TaskDialog({
           </div>
         </div>
         <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} placeholder="Deskripsi (opsional) — klik AI improve biar prompt-nya dirapikan"
-          className="mt-1 border-[#1e2430] bg-[#0b0e14] text-sm" />
+          className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)] text-sm" />
         <Label className="mt-3 block text-xs text-neutral-400">Agent Profile</Label>
         <Select value={assignee} onValueChange={setAssignee}>
           <SelectTrigger className={`mt-1 ${selCls}`}>
             <SelectValue placeholder="profile" />
           </SelectTrigger>
-          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+          <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
             {profiles.map((p) => (
               <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-sm">
                 {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}
@@ -156,7 +156,7 @@ export default function TaskDialog({
         <Label className="mt-3 block text-xs text-neutral-400">Execution</Label>
         <Select value={executor} onValueChange={(v) => setExecutor(v as typeof executor)}>
           <SelectTrigger className={`mt-1 ${selCls}`}><SelectValue /></SelectTrigger>
-          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+          <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
             <SelectItem value="auto" className="text-sm">Auto (workspace policy)</SelectItem>
             <SelectItem value="hermes" className="text-sm">Hermes</SelectItem>
             <SelectItem value="codex" className="text-sm">Codex</SelectItem>
@@ -171,7 +171,7 @@ export default function TaskDialog({
               <SelectTrigger className={`mt-1 ${selCls} min-w-0 [&>span]:truncate`}>
                 <SelectValue placeholder="workspace" />
               </SelectTrigger>
-              <SelectContent className="max-w-[22rem] border-[#1e2430] bg-[#11151f]">
+              <SelectContent className="max-w-[22rem] border-[var(--color-line)] bg-[var(--color-surface)]">
                 {workspaces.map((w) => {
                   const ssh = isSshWorkspace(w)
                   const live = isLive(w)
@@ -183,7 +183,7 @@ export default function TaskDialog({
                         {live && <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400" title={w.status === "local" ? "local" : `connected ${w.ping_ms != null ? Math.round(w.ping_ms) + "ms" : ""}`} />}
                         <span className="min-w-0 flex-1 truncate">{w.name}</span>
                         {ssh && <Badge variant="outline" className="shrink-0 border-violet-500/30 bg-violet-500/10 px-1 py-0 text-[9px] leading-none text-violet-300">ssh</Badge>}
-                        {osLabel && <Badge variant="outline" className="shrink-0 border-[#1e2430] bg-[#0b0e14] px-1 py-0 text-[9px] leading-none text-neutral-400">{osLabel}</Badge>}
+                        {osLabel && <Badge variant="outline" className="shrink-0 border-[var(--color-line)] bg-[var(--color-bg)] px-1 py-0 text-[9px] leading-none text-neutral-400">{osLabel}</Badge>}
                       </span>
                     </SelectItem>
                   )
@@ -198,7 +198,7 @@ export default function TaskDialog({
               <SelectTrigger className={`mt-1 ${selCls}`}>
                 <SelectValue placeholder="priority" />
               </SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
                 <SelectItem value="0" className="text-sm">0 — normal</SelectItem>
                 <SelectItem value="1" className="text-sm">1</SelectItem>
                 <SelectItem value="2" className="text-sm">2 — high</SelectItem>
@@ -210,7 +210,7 @@ export default function TaskDialog({
         {err && <p className="mt-3 text-xs text-red-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={submit} disabled={busy} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button size="sm" onClick={submit} disabled={busy} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             {busy ? "…" : "Create"}
           </Button>
         </div>

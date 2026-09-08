@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
 import { ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download, Eye, EyeOff } from "lucide-react"
 import { setEnabled as setCuelumeEnabled, setVolume } from "cuelume"
 import { useSidebarPreferences } from "@/lib/sidebar-preferences"
+import { useTheme, type ThemePreference } from "@/hooks/useSettings"
 
 const TABS = [
   { id: "general", label: "General" },
@@ -48,6 +49,7 @@ export default function SettingsPage() {
   const [compact, setCompact] = useLocalStorage(COMPACT_KEY, false)
   const [pingMs, setPing] = useLocalStorage(PING_KEY, 30000)
   const { items, isVisible, move, toggle, reset } = useSidebarPreferences()
+  const { theme, setTheme } = useTheme()
 
   // Sync cuelume engine with stored prefs on mount/change
   useEffect(() => {
@@ -75,22 +77,22 @@ export default function SettingsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center gap-3 border-b border-[#1e2430] px-6 py-4">
+      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--color-line)] px-6 py-4">
         <h1 className="text-lg font-semibold text-neutral-100">Settings</h1>
         <div className="relative ml-auto w-64">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari setting…"
-            className="h-8 border-[#1e2430] bg-[#0b0e14] pl-7 text-xs" />
+            className="h-8 border-[var(--color-line)] bg-[var(--color-bg)] pl-7 text-xs" />
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <nav className="flex w-48 shrink-0 flex-col gap-1 border-r border-[#1e2430] bg-[#11151f]/40 p-3">
+        <nav className="flex w-48 shrink-0 flex-col gap-1 border-r border-[var(--color-line)] bg-[var(--color-surface)]/40 p-3">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               data-cuelume-hover="tick" data-cuelume-press data-cuelume-release
               className={`rounded-md px-3 py-2 text-left text-xs font-medium transition-colors ${
-                tab === t.id ? "bg-[#10e0dd]/10 text-[#10e0dd]" : "text-neutral-400 hover:bg-[#1e2430]/60 hover:text-neutral-200"
+                tab === t.id ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]" : "text-neutral-400 hover:bg-[var(--color-line)]/60 hover:text-neutral-200"
               }`}>
               {t.label}
             </button>
@@ -103,10 +105,10 @@ export default function SettingsPage() {
 
             <TabsContent value="general" className="mt-0 space-y-6">
               {show("Sound Effects", "Audio") && (
-                <div className="space-y-4 rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                <div className="space-y-4 rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {soundOn ? <Volume2 className="size-4 text-[#10e0dd]" /> : <VolumeX className="size-4 text-neutral-500" />}
+                      {soundOn ? <Volume2 className="size-4 text-[var(--color-accent)]" /> : <VolumeX className="size-4 text-neutral-500" />}
                       <div>
                         <p className="text-sm font-medium text-neutral-200">Sound Effects</p>
                         <p className="text-xs text-neutral-500">Interaction feedback via cuelume</p>
@@ -122,14 +124,14 @@ export default function SettingsPage() {
                       </div>
                       <input type="range" min={0} max={1} step={0.05} value={volume}
                         onChange={(e) => setVol(Number(e.target.value))}
-                        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#1e2430] accent-[#10e0dd]" />
+                        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[var(--color-line)] accent-[var(--color-accent)]" />
                     </div>
                   )}
                 </div>
               )}
 
               {show("Auto Refresh", "Polling", "Board") && (
-                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
                   <div className="flex items-center gap-3">
                     <RefreshCw className="size-4 text-neutral-400" />
                     <div>
@@ -138,7 +140,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <select value={refreshMs} onChange={(e) => setRefresh(Number(e.target.value))}
-                    className="h-8 rounded border border-[#1e2430] bg-[#0b0e14] px-2 text-xs text-neutral-200 outline-none focus:border-[#10e0dd]">
+                    className="h-8 rounded border border-[var(--color-line)] bg-[var(--color-bg)] px-2 text-xs text-neutral-200 outline-none focus:border-[var(--color-accent)]">
                     {refreshOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
@@ -150,8 +152,29 @@ export default function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="appearance" className="mt-0 space-y-6">
+              {show("Theme", "Appearance", "Light", "Dark") && (
+                <div className="flex items-center justify-between rounded-lg border border-line/60 bg-surface/40 p-4">
+                  <div className="flex items-center gap-3">
+                    <LayoutGrid className="size-4 text-ink-3" />
+                    <div>
+                      <p className="text-sm font-medium text-ink-2">Theme</p>
+                      <p className="text-xs text-ink-4">System mengikuti OS · dark default</p>
+                    </div>
+                  </div>
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value as ThemePreference)}
+                    className="h-8 rounded border border-line bg-inset px-2 text-xs text-ink-2 outline-none focus:border-accent"
+                  >
+                    <option value="system">System</option>
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                  </select>
+                </div>
+              )}
+
               {show("Compact", "Card", "Density") && (
-                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
                   <div className="flex items-center gap-3">
                     <LayoutGrid className="size-4 text-neutral-400" />
                     <div>
@@ -164,14 +187,14 @@ export default function SettingsPage() {
               )}
 
               {show("Sidebar", "Navigation", "Order", "Hide", "Show") && (
-                <div className="space-y-3 rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                <div className="space-y-3 rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-neutral-200">Sidebar Navigation</p>
                       <p className="text-xs text-neutral-500">Atur urutan fitur dan sembunyikan halaman yang tidak dipakai.</p>
                     </div>
                     <button type="button" onClick={reset} title="Reset sidebar" aria-label="Reset sidebar navigation"
-                      className="inline-flex shrink-0 items-center gap-1 rounded border border-[#1e2430] px-2 py-1 text-[11px] text-neutral-400 hover:border-[#10e0dd]/60 hover:text-[#10e0dd]">
+                      className="inline-flex shrink-0 items-center gap-1 rounded border border-[var(--color-line)] px-2 py-1 text-[11px] text-neutral-400 hover:border-[var(--color-accent)]/60 hover:text-[var(--color-accent)]">
                       <RotateCcw className="size-3" /> Reset
                     </button>
                   </div>
@@ -180,17 +203,17 @@ export default function SettingsPage() {
                       const Icon = item.icon
                       const visible = isVisible(item.id)
                       return (
-                        <div key={item.id} className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${visible ? "border-[#1e2430] bg-[#0b0e14]" : "border-[#1e2430]/60 bg-[#0b0e14]/40 opacity-65"}`}>
+                        <div key={item.id} className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${visible ? "border-[var(--color-line)] bg-[var(--color-bg)]" : "border-[var(--color-line)]/60 bg-[var(--color-bg)]/40 opacity-65"}`}>
                           <GripVertical className="size-3.5 shrink-0 text-neutral-600" aria-hidden="true" />
                           <Icon className="size-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
                           <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{item.label}</span>
                           <div className="flex shrink-0 items-center gap-0.5">
                             <button type="button" onClick={() => move(item.id, -1)} disabled={index === 0} title={`Move ${item.label} up`} aria-label={`Move ${item.label} up`}
-                              className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-25"><ArrowUp className="size-3.5" /></button>
+                              className="rounded p-1 text-neutral-500 hover:bg-[var(--color-line)] hover:text-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-25"><ArrowUp className="size-3.5" /></button>
                             <button type="button" onClick={() => move(item.id, 1)} disabled={index === items.length - 1} title={`Move ${item.label} down`} aria-label={`Move ${item.label} down`}
-                              className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-25"><ArrowDown className="size-3.5" /></button>
+                              className="rounded p-1 text-neutral-500 hover:bg-[var(--color-line)] hover:text-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-25"><ArrowDown className="size-3.5" /></button>
                             <button type="button" onClick={() => toggle(item.id, !visible)} disabled={item.id === "board"} title={item.id === "board" ? "Task Board selalu tersedia" : visible ? `Hide ${item.label}` : `Show ${item.label}`} aria-label={item.id === "board" ? "Task Board always visible" : visible ? `Hide ${item.label}` : `Show ${item.label}`}
-                              className="rounded p-1 text-neutral-500 hover:bg-[#1e2430] hover:text-[#10e0dd] disabled:pointer-events-none disabled:opacity-40">{visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</button>
+                              className="rounded p-1 text-neutral-500 hover:bg-[var(--color-line)] hover:text-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-40">{visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</button>
                           </div>
                         </div>
                       )
@@ -199,7 +222,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {!show("Compact", "Card", "Density", "Sidebar", "Navigation", "Order", "Hide", "Show") && (
+              {!show("Theme", "Appearance", "Light", "Dark", "Compact", "Card", "Density", "Sidebar", "Navigation", "Order", "Hide", "Show") && (
                 <p className="text-xs text-neutral-600">No match.</p>
               )}
             </TabsContent>
@@ -210,7 +233,7 @@ export default function SettingsPage() {
 
             <TabsContent value="advanced" className="mt-0 space-y-6">
               {show("Ping", "Workspace", "Heartbeat") && (
-                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
                   <div className="flex items-center gap-3">
                     <Activity className="size-4 text-neutral-400" />
                     <div>
@@ -219,14 +242,14 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <select value={pingMs} onChange={(e) => setPing(Number(e.target.value))}
-                    className="h-8 rounded border border-[#1e2430] bg-[#0b0e14] px-2 text-xs text-neutral-200 outline-none focus:border-[#10e0dd]">
+                    className="h-8 rounded border border-[var(--color-line)] bg-[var(--color-bg)] px-2 text-xs text-neutral-200 outline-none focus:border-[var(--color-accent)]">
                     {pingOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               )}
 
               {show("Export", "Backup", "Data") && (
-                <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
                   <div className="flex items-center gap-3">
                     <Download className="size-4 text-neutral-400" />
                     <div>
@@ -243,7 +266,7 @@ export default function SettingsPage() {
                     URL.revokeObjectURL(a.href)
                   }}
                     data-cuelume-press data-cuelume-release
-                    className="rounded border border-[#1e2430] bg-[#0b0e14] px-3 py-1.5 text-xs text-neutral-300 hover:border-[#10e0dd] hover:text-[#10e0dd]">
+                    className="rounded border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-neutral-300 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
                     Export
                   </button>
                 </div>

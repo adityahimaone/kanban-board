@@ -52,7 +52,7 @@ export default function SkillsPage() {
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-lg font-semibold tracking-tight">Skills</h1>
-        <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
+        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
           {skills.data?.length ?? 0} installed
         </span>
         <div className="relative ml-auto w-64">
@@ -61,7 +61,7 @@ export default function SkillsPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Cari skill…"
-            className="h-8 border-[#1e2430] bg-[#0b0e14] pl-7 text-xs"
+            className="h-8 border-[var(--color-line)] bg-[var(--color-bg)] pl-7 text-xs"
           />
         </div>
       </div>
@@ -83,19 +83,19 @@ export default function SkillsPage() {
                 <div className="mb-2 flex items-center gap-2">
                   <h2 className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400" title={category}>{category}</h2>
                   <span className="font-mono text-[10px] text-neutral-600">{categorySkills.length}</span>
-                  <div className="h-px flex-1 bg-[#1e2430]" />
+                  <div className="h-px flex-1 bg-[var(--color-line)]" />
                 </div>
                 <div className={`grid gap-2 ${active ? "lg:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
                   {categorySkills.map((s) => (
                     <Card
                       key={s.path || s.name}
-                      className={`cursor-pointer border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/35 ${active === s.name ? "border-[#10e0dd]/60" : ""}`}
+                      className={`cursor-pointer border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${active === s.name ? "border-[var(--color-accent)]/60" : ""}`}
                       onClick={() => setActive(s.name)}
                     >
                       <CardContent className="flex min-h-[96px] flex-col p-3.5">
                         <div className="flex min-w-0 items-start gap-2.5">
-                          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#10e0dd]/15 bg-[#161b27]">
-                            <Puzzle className="size-3.5 text-[#10e0dd]" />
+                          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[var(--color-accent)]/15 bg-[var(--color-inset)]">
+                            <Puzzle className="size-3.5 text-[var(--color-accent)]" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="truncate text-sm font-semibold leading-5" title={s.name}>{s.name}</h3>
@@ -112,9 +112,9 @@ export default function SkillsPage() {
           </div>
 
           {active && (
-            <div className="flex min-h-0 flex-col rounded-lg border border-[#1e2430] bg-[#11151f]">
-              <div className="flex shrink-0 items-center gap-2 border-b border-[#1e2430] px-3 py-2">
-                <h2 className="truncate font-mono text-xs font-semibold text-[#10e0dd]">{active}/SKILL.md</h2>
+            <div className="flex min-h-0 flex-col rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)]">
+              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-line)] px-3 py-2">
+                <h2 className="truncate font-mono text-xs font-semibold text-[var(--color-accent)]">{active}/SKILL.md</h2>
                 <Button variant="ghost" size="sm" className="ml-auto size-6 p-0" onClick={() => setActive(null)}>
                   <X className="size-3.5" />
                 </Button>

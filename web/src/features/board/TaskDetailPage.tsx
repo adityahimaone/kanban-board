@@ -14,7 +14,7 @@ const STATUS_CHIP: Record<string, string> = {
   running: "border-sky-500/40 bg-sky-500/10 text-sky-300",
   blocked: "border-amber-500/40 bg-amber-500/10 text-amber-300",
   review: "border-violet-500/40 bg-violet-500/10 text-violet-300",
-  archived: "border-[#1e2430] bg-[#161b27] text-neutral-400",
+  archived: "border-[var(--color-line)] bg-[var(--color-inset)] text-neutral-400",
 }
 
 function CommentSection({ slug, task, profiles }: { slug: string; task: Task; profiles: Profile[] }) {
@@ -49,7 +49,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
   }
 
   return (
-    <div className="rounded-lg border border-[#1e2430] bg-[#0b0e14] p-3">
+    <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Reply to agent</h3>
         <div className="ml-auto flex flex-wrap gap-1">
@@ -57,7 +57,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
             <button
               key={p.name}
               onClick={() => mention(p.name)}
-              className={`rounded-full border px-1.5 py-0.5 text-[10px] ${task.assignee === p.name ? "border-[#10e0dd]/50 bg-[#10e0dd]/10 text-[#10e0dd]" : "border-[#1e2430] text-neutral-400 hover:border-[#10e0dd]/40 hover:text-[#10e0dd]"}`}
+              className={`rounded-full border px-1.5 py-0.5 text-[10px] ${task.assignee === p.name ? "border-[var(--color-accent)]/50 bg-[var(--color-accent)]/10 text-[var(--color-accent)]" : "border-[var(--color-line)] text-neutral-400 hover:border-[var(--color-accent)]/40 hover:text-[var(--color-accent)]"}`}
               title={`tag @${p.name}`}
             >
               @{p.name}
@@ -67,7 +67,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
       </div>
       <div className="mt-2 max-h-32 space-y-1.5 overflow-y-auto">
         {(comments.data ?? []).map((c) => (
-          <div key={c.id} className="rounded border border-[#1e2430] bg-[#11151f] px-2 py-1.5">
+          <div key={c.id} className="rounded border border-[var(--color-line)] bg-[var(--color-surface)] px-2 py-1.5">
             <p className="text-[10px] text-neutral-500">
               <span className="font-medium text-neutral-300">{c.author}</span> · {new Date(c.created_at * 1000).toLocaleString()}
             </p>
@@ -84,7 +84,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
         onChange={(e) => setDraft(e.target.value)}
         rows={3}
         placeholder={`Tulis balasan… tag @${task.assignee || "agent"} buat minta dia respond`}
-        className="mt-2 min-h-0 resize-none border-[#1e2430] bg-[#11151f] text-xs"
+        className="mt-2 min-h-0 resize-none border-[var(--color-line)] bg-[var(--color-surface)] text-xs"
       />
       {err && <p className="mt-1 text-[11px] text-red-400">{err}</p>}
       <div className="mt-1.5 flex justify-end">
@@ -92,7 +92,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
           size="sm"
           disabled={!draft.trim() || post.isPending}
           onClick={() => { setErr(null); post.mutate(draft.trim()) }}
-          className="gap-1 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90"
+          className="gap-1 bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90"
         >
           {post.isPending ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
           Send
@@ -134,7 +134,7 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
   if (task.status !== "review") return null
 
   return (
-    <div className="mt-3 rounded-lg border border-violet-500/40 bg-[#0b0e14] p-3">
+    <div className="mt-3 rounded-lg border border-violet-500/40 bg-[var(--color-bg)] p-3">
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-violet-300">Review changes</h3>
         {diff.isLoading && <Loader2 className="size-3 animate-spin text-violet-300" />}
@@ -142,8 +142,8 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
         <div className="ml-auto flex items-center gap-1.5">
           {diff.data?.clean ? <span className="text-[10px] text-neutral-500">No changes</span> : (
             <Select value={action ?? ""} onValueChange={(v) => setAction(v as "commit" | "commit_push")}>
-              <SelectTrigger className="h-7 w-[150px] border-[#1e2430] bg-[#11151f] text-[11px]"><SelectValue placeholder="Pilih aksi…" /></SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]"><SelectItem value="commit" className="text-xs">Commit</SelectItem><SelectItem value="commit_push" className="text-xs">Commit & Push</SelectItem></SelectContent>
+              <SelectTrigger className="h-7 w-[150px] border-[var(--color-line)] bg-[var(--color-surface)] text-[11px]"><SelectValue placeholder="Pilih aksi…" /></SelectTrigger>
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]"><SelectItem value="commit" className="text-xs">Commit</SelectItem><SelectItem value="commit_push" className="text-xs">Commit & Push</SelectItem></SelectContent>
             </Select>
           )}
           <Button
@@ -158,7 +158,7 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
         </div>
       </div>
       {err && <p className="mt-1 text-[11px] text-red-400">{err}</p>}
-      <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded border border-[#1e2430] bg-[#11151f] p-2 font-mono text-[10px] leading-relaxed text-neutral-300">
+      <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--color-line)] bg-[var(--color-surface)] p-2 font-mono text-[10px] leading-relaxed text-neutral-300">
         {diff.isLoading ? "Loading diff…" : diff.error ? `Gagal load diff: ${(diff.error as Error).message}` : diff.data ? `${diff.data.stat}\n\n${diff.data.diff}` : "—"}
       </pre>
     </div>
@@ -199,17 +199,17 @@ export default function TaskDetailPage({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       {/* top bar: back + title */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onBack} className="gap-1 border-[#1e2430] bg-[#11151f] text-neutral-300">
+        <Button variant="outline" size="sm" onClick={onBack} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300">
           <ArrowLeft className="size-3.5" /> Board
         </Button>
         <h1 className="truncate text-base font-semibold">{task.title}</h1>
       </div>
 
       {/* header card */}
-      <div className="mt-3 rounded-lg border border-[#1e2430] bg-[#0b0e14] p-3">
+      <div className="mt-3 rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-500">
           <Badge variant="outline" className="px-1.5 py-0 font-mono text-[9px] leading-none text-neutral-400">{task.id}</Badge>
-          <Badge variant="outline" className={`px-1.5 py-0 text-[9px] leading-none ${STATUS_CHIP[task.status] ?? "border-[#1e2430] bg-[#161b27] text-neutral-300"}`}>{task.status}</Badge>
+          <Badge variant="outline" className={`px-1.5 py-0 text-[9px] leading-none ${STATUS_CHIP[task.status] ?? "border-[var(--color-line)] bg-[var(--color-inset)] text-neutral-300"}`}>{task.status}</Badge>
           {task.priority > 0 && (
             <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] leading-none text-amber-300">P{task.priority}</Badge>
           )}
@@ -220,17 +220,17 @@ export default function TaskDetailPage({
 
         {/* meta grid */}
         <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-          <div className="rounded-lg border border-[#1e2430] bg-[#11151f] p-2.5">
+          <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
             <Select
               value={task.assignee || "unassigned"}
               onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => alert(err.message))}
               disabled={task.status === "running"}
             >
-              <SelectTrigger className="mt-1 h-8 w-full border-[#1e2430] bg-[#0b0e14] text-xs disabled:opacity-50">
+              <SelectTrigger className="mt-1 h-8 w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs disabled:opacity-50">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="max-h-72 border-[#1e2430] bg-[#11151f]">
+              <SelectContent className="max-h-72 border-[var(--color-line)] bg-[var(--color-surface)]">
                 <SelectItem value="unassigned" className="text-xs">unassigned</SelectItem>
                 {profiles.map((p) => (
                   <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-xs">
@@ -248,7 +248,7 @@ export default function TaskDetailPage({
               <p className="mt-0.5 text-[10px] text-red-400">Provider invalid — worker bakal crash.</p>
             )}
           </div>
-          <div className="min-w-0 rounded-lg border border-[#1e2430] bg-[#11151f] p-2.5">
+          <div className="min-w-0 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Workspace</label>
             <p className="mt-1 truncate text-xs text-neutral-300" title={task.workspace_path || "scratch"}>
               {ws ? ws.name : task.workspace_path ? task.workspace_path.split(/[\\/]/).pop() : "scratch"}
@@ -261,7 +261,7 @@ export default function TaskDetailPage({
         </div>
 
         {task.body && (
-          <div className="mt-2 max-h-28 overflow-y-auto rounded-lg border border-[#1e2430] bg-[#11151f] p-2.5">
+          <div className="mt-2 max-h-28 overflow-y-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Deskripsi</label>
             <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-300">{task.body}</p>
           </div>
@@ -270,21 +270,21 @@ export default function TaskDetailPage({
           <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-[11px] leading-relaxed text-red-300">{task.last_failure_error}</p>
         )}
         {resultSplit && resultSplit.working && (
-          <div className="mt-2 rounded-lg border border-[#1e2430] bg-[#11151f] p-2.5">
+          <div className="mt-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
             <button type="button" onClick={() => setShowWorking((v) => !v)} aria-expanded={showWorking}
               className="flex w-full items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-200">
               <span className={`transition-transform duration-200 ${showWorking ? "rotate-90" : ""}`}>▸</span>
               Working log {showWorking ? "" : "(tap untuk buka)"}
             </button>
             {showWorking && (
-              <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-[#1e2430] bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-neutral-400">{resultSplit.working}</pre>
+              <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--color-line)] bg-[var(--color-bg)] p-2 font-mono text-[10px] leading-relaxed text-neutral-400">{resultSplit.working}</pre>
             )}
           </div>
         )}
         {resultSplit && (
           <div className="mt-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3">
             <label className="block text-[10px] font-medium uppercase tracking-wider text-emerald-300">Result</label>
-            <pre className="mt-1.5 max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-500/20 bg-[#0b0e14] p-2.5 font-mono text-xs leading-relaxed text-emerald-100/90">{resultSplit.final || resultSplit.working}</pre>
+            <pre className="mt-1.5 max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-500/20 bg-[var(--color-bg)] p-2.5 font-mono text-xs leading-relaxed text-emerald-100/90">{resultSplit.final || resultSplit.working}</pre>
           </div>
         )}
 
@@ -306,7 +306,7 @@ export default function TaskDetailPage({
               variant="outline"
               size="sm"
               onClick={() => onMove(s).catch((e: Error) => alert(e.message))}
-              className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:border-[#10e0dd]/50 hover:text-[#10e0dd]"
+              className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
             >
               → {s}
             </Button>
@@ -333,13 +333,13 @@ export default function TaskDetailPage({
           <p className="text-xs text-neutral-500">No events</p>
         ) : (
           groups.map((g) => (
-            <section key={g.title} className="min-w-0 rounded-lg border border-[#1e2430] bg-[#0b0e14] p-3">
+            <section key={g.title} className="min-w-0 rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
               <div className="flex items-center gap-2">
                 <span className={`size-2 rounded-full ${TONE_DOT[g.tone]}`} />
                 <h4 className={`text-[11px] font-semibold uppercase tracking-wider ${TONE_TEXT[g.tone]}`}>
                   {g.title}
                 </h4>
-                <span className="h-px flex-1 bg-[#1e2430]" />
+                <span className="h-px flex-1 bg-[var(--color-line)]" />
                 <span className="text-[10px] text-neutral-600">{g.cards.length}</span>
               </div>
               <div className="mt-2 space-y-1.5">

@@ -65,25 +65,25 @@ export default function LogsPage() {
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-lg font-semibold tracking-tight">Logs</h1>
-        <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
+        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
           ~/.hermes/logs
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Select value={file} onValueChange={setFile}>
-            <SelectTrigger size="sm" className="w-44 border-[#1e2430] bg-[#0b0e14] text-xs">
+            <SelectTrigger size="sm" className="w-44 border-[var(--color-line)] bg-[var(--color-bg)] text-xs">
               <SelectValue placeholder="file" />
             </SelectTrigger>
-            <SelectContent className="border-[#1e2430] bg-[#11151f]">
+            <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
               {LOG_FILES.map((f) => (
                 <SelectItem key={f.value} value={f.value} className="text-xs">{f.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={tail} onValueChange={setTail}>
-            <SelectTrigger size="sm" className="w-28 border-[#1e2430] bg-[#0b0e14] text-xs">
+            <SelectTrigger size="sm" className="w-28 border-[var(--color-line)] bg-[var(--color-bg)] text-xs">
               <SelectValue placeholder="tail" />
             </SelectTrigger>
-            <SelectContent className="border-[#1e2430] bg-[#11151f]">
+            <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
               {TAILS.map((t) => (
                 <SelectItem key={t} value={t} className="text-xs">last {t}</SelectItem>
               ))}
@@ -92,7 +92,7 @@ export default function LogsPage() {
           <Button
             variant={autoRefresh ? "default" : "outline"} size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            className={autoRefresh ? "bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90" : ""}
+            className={autoRefresh ? "bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90" : ""}
           >
             <RefreshCw className={`size-3.5 ${autoRefresh ? "animate-spin" : ""}`} /> Live
           </Button>
@@ -105,7 +105,7 @@ export default function LogsPage() {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="misal: dispatch, t_0b6b086c, error, workspace"
-          className="mt-1 border-[#1e2430] bg-[#0b0e14] font-mono text-xs"
+          className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)] font-mono text-xs"
         />
       </div>
 
@@ -126,7 +126,7 @@ export default function LogsPage() {
           </div>
           <pre
             ref={preRef}
-            className="mt-2 min-h-0 flex-1 overflow-auto rounded-md border border-[#1e2430] bg-[#0b0e14] p-3 font-mono text-[11px] leading-relaxed"
+            className="mt-2 min-h-0 flex-1 overflow-auto rounded-md border border-[var(--color-line)] bg-[var(--color-bg)] p-3 font-mono text-[11px] leading-relaxed"
           >
             {logs.data?.lines.length
               ? logs.data.lines.map((l, i) => (

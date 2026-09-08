@@ -68,7 +68,7 @@ export default function TaskDetail({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
       <aside
-        className="flex h-full w-full max-w-md flex-col gap-3 overflow-y-auto border-l border-[#1e2430] bg-[#11151f] p-4"
+        className="flex h-full w-full max-w-md flex-col gap-3 overflow-y-auto border-l border-[var(--color-line)] bg-[var(--color-surface)] p-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
@@ -78,7 +78,7 @@ export default function TaskDetail({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-500">
-          <Badge variant="outline" className={`px-1.5 py-0 text-[9px] leading-none ${STATUS_CHIP[task.status] ?? "border-[#1e2430] bg-[#161b27] text-neutral-300"}`}>{task.status}</Badge>
+          <Badge variant="outline" className={`px-1.5 py-0 text-[9px] leading-none ${STATUS_CHIP[task.status] ?? "border-[var(--color-line)] bg-[var(--color-inset)] text-neutral-300"}`}>{task.status}</Badge>
           {task.priority > 0 && (
             <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] leading-none text-amber-300">P{task.priority}</Badge>
           )}
@@ -91,17 +91,17 @@ export default function TaskDetail({
         <AgentTaskStatus task={task} events={events.data ?? []} />
 
         {/* agent */}
-        <div className="rounded-lg border border-[#1e2430] bg-[#0b0e14] p-2.5">
+        <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-2.5">
           <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
           <Select
             value={task.assignee || "unassigned"}
             onValueChange={(v) => onReassign(v === "unassigned" ? "" : v).catch((err: Error) => alert(err.message))}
             disabled={task.status === "running"}
           >
-            <SelectTrigger className="mt-1 h-8 w-full border-[#1e2430] bg-[#11151f] text-xs disabled:opacity-50">
+            <SelectTrigger className="mt-1 h-8 w-full border-[var(--color-line)] bg-[var(--color-surface)] text-xs disabled:opacity-50">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="max-h-72 border-[#1e2430] bg-[#11151f]">
+            <SelectContent className="max-h-72 border-[var(--color-line)] bg-[var(--color-surface)]">
               <SelectItem value="unassigned" className="text-xs">unassigned</SelectItem>
               {profiles.map((p) => (
                 <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-xs">
@@ -121,7 +121,7 @@ export default function TaskDetail({
         </div>
 
         {/* meta rows */}
-        <div className="divide-y divide-[#1e2430]/60 rounded-lg border border-[#1e2430] bg-[#0b0e14] px-2.5">
+        <div className="divide-y divide-[var(--color-line)]/60 rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] px-2.5">
           <Row label="Workspace">
             {task.workspace_path
               ? <span className="flex items-center justify-end gap-1.5" title={task.workspace_path}>
@@ -141,7 +141,7 @@ export default function TaskDetail({
         </div>
 
         {task.body && (
-          <div className="rounded-lg border border-[#1e2430] bg-[#0b0e14] p-2.5">
+          <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Deskripsi</label>
             <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-300">{task.body}</p>
           </div>
@@ -153,7 +153,7 @@ export default function TaskDetail({
           </div>
         )}
         {resultSplit?.working && (
-          <div className="rounded-lg border border-[#1e2430] bg-[#11151f] p-2.5">
+          <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
             <button
               type="button"
               onClick={() => setShowWorking((v) => !v)}
@@ -164,14 +164,14 @@ export default function TaskDetail({
               Working log{showWorking ? "" : " (tap untuk buka)"}
             </button>
             {showWorking && (
-              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-[#1e2430] bg-[#0b0e14] p-2 font-mono text-[10px] leading-relaxed text-neutral-400">{resultSplit.working}</pre>
+              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--color-line)] bg-[var(--color-bg)] p-2 font-mono text-[10px] leading-relaxed text-neutral-400">{resultSplit.working}</pre>
             )}
           </div>
         )}
         {resultSplit && (
           <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-emerald-300">Result</label>
-            <pre className="mt-1.5 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-500/20 bg-[#0b0e14] p-2 font-mono text-[11px] leading-relaxed text-emerald-100/90">{resultSplit.final || resultSplit.working}</pre>
+            <pre className="mt-1.5 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-500/20 bg-[var(--color-bg)] p-2 font-mono text-[11px] leading-relaxed text-emerald-100/90">{resultSplit.final || resultSplit.working}</pre>
           </div>
         )}
 
@@ -193,7 +193,7 @@ export default function TaskDetail({
               variant="outline"
               size="sm"
               onClick={() => onMove(s).catch((e: Error) => alert(e.message))}
-              className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:border-[#10e0dd]/50 hover:text-[#10e0dd]"
+              className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
             >
               → {s}
             </Button>
@@ -201,7 +201,7 @@ export default function TaskDetail({
         </div>
 
         <div className="mt-auto pt-1">
-          <Button onClick={onOpenPage} size="sm" className="w-full gap-1.5 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button onClick={onOpenPage} size="sm" className="w-full gap-1.5 bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             <ExternalLink className="size-3.5" /> Buka detail page
           </Button>
         </div>

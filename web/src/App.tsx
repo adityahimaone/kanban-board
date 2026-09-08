@@ -157,13 +157,13 @@ export default function App() {
         {BOARD_COLUMNS.map((col) => {
           const cards = byCol(col)
           return (
-          <section key={col} className={`flex h-full shrink-0 flex-col rounded-xl bg-[#11151f]/40 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
+          <section key={col} className={`flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-line/70 bg-surface/60 backdrop-blur supports-[backdrop-filter]:bg-surface/60 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
             <h2 className="flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               <span className="flex items-center gap-1.5">
                 {col === "archived" && <Archive className="size-3" />}
                 {col}
               </span>
-              <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px]">{cards.length}</span>
+              <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px]">{cards.length}</span>
             </h2>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
               {cards.map((t) => (
@@ -190,10 +190,10 @@ export default function App() {
     )
 
   const filterRail = page === "board" && !detailId && filtersOpen && (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[#1e2430] bg-[#11151f]">
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-[#1e2430] px-3">
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-line)] bg-[var(--color-surface)]">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-[var(--color-line)] px-3">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Filters</span>
-        {filtersActive && <span className="size-2 rounded-full bg-[#10e0dd]" />}
+        {filtersActive && <span className="size-2 rounded-full bg-[var(--color-accent)]" />}
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
           <div className="flex items-center justify-between">
@@ -207,13 +207,13 @@ export default function App() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / body / id / result…"
-              className="h-8 border-[#1e2430] bg-[#0b0e14] pl-7 text-xs" />
+              className="h-8 border-[var(--color-line)] bg-[var(--color-bg)] pl-7 text-xs" />
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-neutral-500">Status</label>
             <Select value={fStatus} onValueChange={setFStatus}>
-              <SelectTrigger size="sm" className="w-full border-[#1e2430] bg-[#0b0e14] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectTrigger size="sm" className="w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
                 <SelectItem value="__all" className="text-xs">Semua status</SelectItem>
                 {BOARD_COLUMNS.map((s) => (
                   <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
@@ -224,8 +224,8 @@ export default function App() {
           <div>
             <label className="mb-1 block text-[11px] text-neutral-500">Agent</label>
             <Select value={fAgent} onValueChange={setFAgent}>
-              <SelectTrigger size="sm" className="w-full border-[#1e2430] bg-[#0b0e14] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectTrigger size="sm" className="w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
                 {PROFILE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
                 ))}
@@ -239,8 +239,8 @@ export default function App() {
           <div>
             <label className="mb-1 block text-[11px] text-neutral-500">Workspace</label>
             <Select value={fWorkspace} onValueChange={setFWorkspace}>
-              <SelectTrigger size="sm" className="w-full border-[#1e2430] bg-[#0b0e14] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectTrigger size="sm" className="w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
                 {WORKSPACE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
                 ))}
@@ -254,8 +254,8 @@ export default function App() {
           <div>
             <label className="mb-1 block text-[11px] text-neutral-500">Priority</label>
             <Select value={fPriority} onValueChange={setFPriority}>
-              <SelectTrigger size="sm" className="w-full border-[#1e2430] bg-[#0b0e14] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectTrigger size="sm" className="w-full border-[var(--color-line)] bg-[var(--color-bg)] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
                 <SelectItem value="__all" className="text-xs">Semua</SelectItem>
                 <SelectItem value="0" className="text-xs">P0 normal</SelectItem>
                 <SelectItem value="1" className="text-xs">P1</SelectItem>
@@ -271,10 +271,10 @@ export default function App() {
   const headerControls = page === "board" && !detailId ? (
     <div className="flex min-w-0 items-center gap-2">
       <Select value={slug} onValueChange={(next) => { setSlug(next); go(pagePath("board", next)) }}>
-        <SelectTrigger size="sm" className="w-auto gap-1.5 border-[#1e2430] bg-[#0b0e14] text-xs">
+        <SelectTrigger size="sm" className="w-auto gap-1.5 border-[var(--color-line)] bg-[var(--color-bg)] text-xs">
           <SelectValue placeholder="board" />
         </SelectTrigger>
-        <SelectContent className="border-[#1e2430] bg-[#11151f]">
+        <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
           {active.map((b) => (
             <SelectItem key={b.slug} value={b.slug} className="text-xs">
               {b.icon ? `${b.icon} ` : ""}{b.name}
@@ -282,23 +282,23 @@ export default function App() {
           ))}
         </SelectContent>
       </Select>
-      <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="gap-1 border-[#1e2430] bg-[#11151f] text-neutral-300">
+      <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300">
         <Plus className="size-3.5" /> New Board
       </Button>
-      <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="gap-1 border-[#1e2430] bg-[#11151f] text-neutral-300 disabled:opacity-40">
+      <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300 disabled:opacity-40">
         <Pencil className="size-3.5" /> Edit
       </Button>
       <Separator orientation="vertical" className="h-5" />
-      <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
+      <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
         {filtersActive ? `${filtered.length}/${tasks.data?.length ?? 0}` : `${tasks.data?.length ?? 0}`} tasks
       </span>
       <Button size="sm" onClick={() => setCreating(true)}
-        className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+        className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
         <Plus className="size-3.5" /> New Task
       </Button>
     </div>
   ) : detailId ? (
-    <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">{detailId}</span>
+    <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">{detailId}</span>
   ) : null
 
   return (
@@ -413,20 +413,20 @@ function NewBoardDialog({ onClose, onCreated }: { onClose: () => void; onCreated
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">New Board</h2>
         <label className="mt-3 block text-xs text-neutral-400">Slug</label>
         <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="f8-gadjian"
-          className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+          className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" />
         <label className="mt-3 block text-xs text-neutral-400">Name</label>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="F8 Gadjian"
-          className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+          className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" />
         <label className="mt-3 block text-xs text-neutral-400">Icon (emoji)</label>
-        <Input value={icon} onChange={(e) => setIcon(e.target.value)} className="mt-1 w-20 border-[#1e2430] bg-[#0b0e14]" />
+        <Input value={icon} onChange={(e) => setIcon(e.target.value)} className="mt-1 w-20 border-[var(--color-line)] bg-[var(--color-bg)]" />
         {err && <p className="mt-3 text-xs text-red-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={busy} onClick={submit} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button size="sm" disabled={busy} onClick={submit} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             {busy ? "…" : "Create"}
           </Button>
         </div>
@@ -455,18 +455,18 @@ function EditBoardDialog({ board, onClose, onSaved }: { board: Board; onClose: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">Edit Board · {board.slug}</h2>
         <label className="mt-3 block text-xs text-neutral-400">Slug (read-only)</label>
-        <Input value={board.slug} disabled className="mt-1 border-[#1e2430] bg-[#0b0e14] opacity-60" />
+        <Input value={board.slug} disabled className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)] opacity-60" />
         <label className="mt-3 block text-xs text-neutral-400">Name</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" />
         <label className="mt-3 block text-xs text-neutral-400">Icon (emoji)</label>
-        <Input value={icon} onChange={(e) => setIcon(e.target.value)} className="mt-1 w-20 border-[#1e2430] bg-[#0b0e14]" />
+        <Input value={icon} onChange={(e) => setIcon(e.target.value)} className="mt-1 w-20 border-[var(--color-line)] bg-[var(--color-bg)]" />
         {err && <p className="mt-3 text-xs text-red-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={busy} onClick={submit} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button size="sm" disabled={busy} onClick={submit} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             {busy ? "…" : "Save"}
           </Button>
         </div>

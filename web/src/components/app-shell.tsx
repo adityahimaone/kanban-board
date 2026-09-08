@@ -15,7 +15,7 @@ export function AppShell({
 	children: ReactNode;
 }) {
 	return (
-		<div className="overflow-hidden">
+		<div className="overflow-hidden bg-bg text-ink">
 			<SidebarProvider className="relative h-svh">
 				<AppSidebar page={page} onSelectPage={onSelectPage} />
 				<SidebarInset className="md:peer-data-[variant=inset]:ml-0 flex h-dvh flex-col overflow-hidden">

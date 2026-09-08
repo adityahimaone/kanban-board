@@ -55,7 +55,7 @@ function LoaderGrid() {
       {CHEVRON.map((delay, index) => (
         <span
           key={index}
-          className="size-1 rounded-[1px] bg-[#10e0dd]"
+          className="size-1 rounded-[1px] bg-[var(--color-accent)]"
           style={{ opacity: 0.18, animation: `pixel-on 650ms ease-in-out ${delay}ms infinite` }}
         />
       ))}
@@ -214,7 +214,7 @@ export function AgentTaskStatus({ task, events }: { task: Task; events: TaskEven
       ) : (
         <>
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-neutral-500">
-            <span className="rounded border border-[#1e2430] bg-[#0b0e14] px-1.5 py-0.5">{task.status}</span>
+            <span className="rounded border border-[var(--color-line)] bg-[var(--color-bg)] px-1.5 py-0.5">{task.status}</span>
             {task.assignee && <span>agent: {task.assignee}</span>}
             {remote && <span>node: remote workspace</span>}
           </div>

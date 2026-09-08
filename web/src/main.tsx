@@ -4,8 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { bind } from "cuelume"
 import App from "./App"
 import "./index.css"
+import { applyTheme, readTheme } from "./hooks/useSettings"
 
 bind()
+applyTheme(readTheme())
 
 const qc = new QueryClient({
   defaultOptions: { queries: { refetchInterval: 15_000, retry: 1 } },

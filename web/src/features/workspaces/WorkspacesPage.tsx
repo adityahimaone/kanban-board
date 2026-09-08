@@ -43,7 +43,7 @@ function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tin
     return { label: "windows", Icon: Laptop, tint: "border-sky-500/30 bg-sky-500/10 text-sky-300" }
   }
   if (os === "mac" || host.includes("mac") || path.startsWith("/users/aditya") || path.includes("/users/")) {
-    return { label: "mac", Icon: Apple, tint: "border-neutral-700 bg-[#0b0e14] text-neutral-300" }
+    return { label: "mac", Icon: Apple, tint: "border-neutral-700 bg-[var(--color-bg)] text-neutral-300" }
   }
   if (!host || host === "localhost" || host === "127.0.0.1" || os === "linux") {
     return { label: "vps", Icon: Monitor, tint: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" }
@@ -62,7 +62,7 @@ const EKG_W = 220 // fixed virtual width; scaled to container via viewBox
 function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | undefined; live: boolean; ok: boolean; height?: number }) {
   const pts = (points ?? []).slice(-30)
   const last = pts[pts.length - 1]
-  const accent = ok ? "#10e0dd" : "#f87171"
+  const accent = ok ? "var(--color-accent)" : "var(--color-danger)"
   const BASE = height - 6, TOP = 6
   const [w, setW] = useState(EKG_W)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -118,7 +118,7 @@ function EkgTrace({ points, live, ok, height = 64 }: { points: PingPoint[] | und
   return (
     <div
       ref={boxRef}
-      className={`relative overflow-hidden rounded-md border border-[#1e2430] bg-[#0b0e14] ${live ? "shadow-[inset_0_0_12px_rgba(16,224,221,0.05)]" : ""}`}
+      className={`relative overflow-hidden rounded-md border border-[var(--color-line)] bg-[var(--color-bg)] ${live ? "shadow-[inset_0_0_12px_var(--color-accent-tint)]" : ""}`}
       style={{ height }}
       title={last
         ? `${last.ok ? "ok" : "fail"} ${last.ms != null ? Math.round(last.ms) + "ms" : ""} · ${good.length ? `${Math.round(min)}–${Math.round(max)}ms` : ""}`
@@ -152,7 +152,7 @@ function StatusChip({ ws }: { ws: Workspace }) {
   const s = STATUS_STYLE[(ws.status as WsStatus) ?? "unknown"] ?? STATUS_STYLE.unknown
   const live = ws.status === "connected" || ws.status === "local"
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border border-[#1e2430] px-2 py-0.5 text-[11px] ${s.text}`}
+    <span className={`inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-2 py-0.5 text-[11px] ${s.text}`}
       style={{ background: "rgba(0,0,0,0.2)" }}>
       <span className={`size-2 rounded-full ${s.dot} ${live ? "animate-pulse" : ""}`} />
       {s.label}
@@ -217,11 +217,11 @@ function WorkspaceForm({
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
 
-  const inpCls = "border-[#1e2430] bg-[#0b0e14]"
+  const inpCls = "border-[var(--color-line)] bg-[var(--color-bg)]"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">{editing ? `Edit workspace ${initial?.id}` : "New workspace"}</h2>
         {!editing && (
           <>
@@ -234,7 +234,7 @@ function WorkspaceForm({
           <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+          <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
             <SelectItem value="local" className="text-sm">Local (VPS ini)</SelectItem>
             <SelectItem value="ssh" className="text-sm">SSH (remote host)</SelectItem>
           </SelectContent>
@@ -246,7 +246,7 @@ function WorkspaceForm({
               <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
                 <SelectValue placeholder="pilih host" />
               </SelectTrigger>
-              <SelectContent className="border-[#1e2430] bg-[#11151f]">
+              <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
                 {Object.keys(SSH_PRESETS).map((h) => (
                   <SelectItem key={h} value={h} className="text-sm">{h}</SelectItem>
                 ))}
@@ -262,7 +262,7 @@ function WorkspaceForm({
           <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+          <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
             {OS_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
             ))}
@@ -286,7 +286,7 @@ function WorkspaceForm({
           <SelectTrigger className={`mt-1 w-full text-sm data-[size=default]:h-9 ${inpCls}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-[#1e2430] bg-[#11151f]">
+          <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
             <SelectItem value="dir" className="text-sm">dir</SelectItem>
             <SelectItem value="git" className="text-sm">git</SelectItem>
             <SelectItem value="scratch" className="text-sm">scratch</SelectItem>
@@ -295,7 +295,7 @@ function WorkspaceForm({
         {err && <p className="mt-3 text-xs text-red-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={busy} onClick={submit} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button size="sm" disabled={busy} onClick={submit} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             {busy ? "…" : editing ? "Save" : "Create"}
           </Button>
         </div>
@@ -311,13 +311,13 @@ function LogsDialog({ ws, onClose }: { ws: Workspace; onClose: () => void }) {
   })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="flex max-h-[70vh] w-full max-w-2xl flex-col rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[70vh] w-full max-w-2xl flex-col rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Logs — {ws.name}</h2>
           <Button variant="ghost" size="sm" className="ml-auto" onClick={onClose}>✕</Button>
         </div>
         <Separator className="my-2" />
-        <pre className="flex-1 overflow-auto whitespace-pre-wrap break-all rounded-md border border-[#1e2430] bg-[#0b0e14] p-3 font-mono text-[11px] leading-relaxed text-neutral-300">
+        <pre className="flex-1 overflow-auto whitespace-pre-wrap break-all rounded-md border border-[var(--color-line)] bg-[var(--color-bg)] p-3 font-mono text-[11px] leading-relaxed text-neutral-300">
           {logs.isLoading ? "Loading…" : logs.data?.length ? logs.data.join("\n") : "No activity matched this workspace."}
         </pre>
       </div>
@@ -412,14 +412,14 @@ export default function WorkspacesPage() {
     <div className="mx-auto w-full max-w-5xl p-4">
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold tracking-tight">Workspaces</h1>
-        <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
+        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
           {workspaces.data?.length ?? 0}
         </span>
         <div className="ml-auto flex gap-2">
           <Button
             variant={autoPing ? "default" : "outline"} size="sm"
             onClick={() => setAutoPing((v) => !v)}
-            className={autoPing ? "bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90" : ""}
+            className={autoPing ? "bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90" : ""}
             title="Auto ping semua workspace tiap 30 detik"
           >
             <Radio className={`size-3.5 ${autoPing ? "animate-pulse" : ""}`} /> Auto 30s
@@ -427,7 +427,7 @@ export default function WorkspacesPage() {
           <Button variant="outline" size="sm" onClick={pingAll} disabled={pinging != null}>
             <RefreshCw className={`size-3.5 ${pinging === "__all__" ? "animate-spin" : ""}`} /> Ping all
           </Button>
-          <Button size="sm" onClick={() => setForm({ open: true, edit: null })} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button size="sm" onClick={() => setForm({ open: true, edit: null })} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             <Plus className="size-3.5" /> New workspace
           </Button>
         </div>
@@ -445,16 +445,16 @@ export default function WorkspacesPage() {
             const isSsh = !!ws.host && ws.host !== "localhost" && ws.host !== "127.0.0.1"
             const live = ws.status === "connected" || ws.status === "local"
             return (
-            <Card key={ws.id} className="border-[#1e2430] bg-[#11151f]">
+            <Card key={ws.id} className="border-[var(--color-line)] bg-[var(--color-surface)]">
               <CardContent className="p-3.5">
                 <div className="flex items-start gap-2">
-                  <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-[#161b27]">
-                    <FolderGit2 className="size-4 text-[#10e0dd]" />
+                  <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-inset)]">
+                    <FolderGit2 className="size-4 text-[var(--color-accent)]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <h3 className="truncate text-sm font-semibold">{ws.name}</h3>
-                      <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-500">{ws.id}</span>
+                      <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-500">{ws.id}</span>
                       {isSsh && (
                         <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-300">
                           ssh
@@ -469,7 +469,7 @@ export default function WorkspacesPage() {
                       host: <span className="font-mono">{ws.host || "localhost"}</span> · kind: {ws.kind}
                     </p>
                     {ws.note && (
-                      <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words rounded border border-[#1e2430]/60 bg-[#0b0e14] px-2 py-1 text-[10px] leading-relaxed text-neutral-400" title={ws.note}>
+                      <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words rounded border border-[var(--color-line)]/60 bg-[var(--color-bg)] px-2 py-1 text-[10px] leading-relaxed text-neutral-400" title={ws.note}>
                         {ws.note}
                       </p>
                     )}

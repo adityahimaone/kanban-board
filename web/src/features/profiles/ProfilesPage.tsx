@@ -71,23 +71,23 @@ function ProfileForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[#1e2430] bg-[#11151f] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">{editing ? `Edit profile ${initial?.name}` : "New agent profile"}</h2>
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {!editing && (
             <>
               <Label className="mt-3 block text-xs text-neutral-400">Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="karina" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="karina" className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" />
             </>
           )}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <Label className="block text-xs text-neutral-400">Provider</Label>
               <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger className="mt-1 w-full border-[#1e2430] bg-[#0b0e14] text-sm data-[size=default]:h-9">
+                <SelectTrigger className="mt-1 w-full border-[var(--color-line)] bg-[var(--color-bg)] text-sm data-[size=default]:h-9">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-[#1e2430] bg-[#11151f] max-h-72">
+                <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)] max-h-72">
                   {providerNames.map((p) => <SelectItem key={p} value={p} className="text-sm">{p}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -99,12 +99,12 @@ function ProfileForm({
                   <Input
                     value={model} onChange={(e) => { setModel(e.target.value); setModelQ(e.target.value) }}
                     onFocus={() => setModelQ(model)} placeholder={activeProvider?.default_model || "codex"}
-                    className="mt-1 border-[#1e2430] bg-[#0b0e14]" list="model-options"
+                    className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" list="model-options"
                   />
-                  <div className="mt-1 max-h-28 overflow-y-auto rounded-md border border-[#1e2430] bg-[#0b0e14]">
+                  <div className="mt-1 max-h-28 overflow-y-auto rounded-md border border-[var(--color-line)] bg-[var(--color-bg)]">
                     {filteredModels.map((m) => (
                       <button key={m} onClick={() => { setModel(m); setModelQ("") }}
-                        className={`block w-full px-2 py-1 text-left font-mono text-[11px] hover:bg-[#1e2430] ${m === model ? "bg-[#1e2430] text-[#10e0dd]" : "text-neutral-400"}`}>
+                        className={`block w-full px-2 py-1 text-left font-mono text-[11px] hover:bg-[var(--color-line)] ${m === model ? "bg-[var(--color-line)] text-[var(--color-accent)]" : "text-neutral-400"}`}>
                         {m}
                       </button>
                     ))}
@@ -112,7 +112,7 @@ function ProfileForm({
                   </div>
                 </>
               ) : (
-                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="codex" className="mt-1 border-[#1e2430] bg-[#0b0e14]" />
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="codex" className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)]" />
               )}
             </div>
           </div>
@@ -122,7 +122,7 @@ function ProfileForm({
           <Textarea
             value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={12}
             placeholder="You are an expert full-stack developer…"
-            className="mt-1 h-64 min-h-40 resize-y overflow-y-auto border-[#1e2430] bg-[#0b0e14] font-mono text-xs leading-relaxed"
+            className="mt-1 h-64 min-h-40 resize-y overflow-y-auto border-[var(--color-line)] bg-[var(--color-bg)] font-mono text-xs leading-relaxed"
           />
           {editing && (
             <p className="mt-2 text-[11px] text-neutral-500">
@@ -135,7 +135,7 @@ function ProfileForm({
         <Separator className="my-3" />
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={busy} onClick={submit} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button size="sm" disabled={busy} onClick={submit} className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
             {busy ? "…" : editing ? "Save" : "Create"}
           </Button>
         </div>
@@ -178,11 +178,11 @@ export default function ProfilesPage() {
     <div className="mx-auto w-full max-w-5xl p-4">
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold tracking-tight">Agent Profiles</h1>
-        <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
+        <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
           {profiles.data?.length ?? 0}
         </span>
         <Button size="sm" onClick={() => setForm({ open: true, edit: null })}
-          className="ml-auto bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          className="ml-auto bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
           <Plus className="size-3.5" /> New profile
         </Button>
       </div>
@@ -195,11 +195,11 @@ export default function ProfilesPage() {
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(profiles.data ?? []).map((p) => (
-            <Card key={p.name} className={`border-[#1e2430] bg-[#11151f] transition-colors hover:border-[#10e0dd]/35 ${p.active ? "border-[#10e0dd]/55" : ""}`}>
+            <Card key={p.name} className={`border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${p.active ? "border-[var(--color-accent)]/55" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#10e0dd]/15 bg-[#161b27]">
-                    <Bot className="size-4 text-[#10e0dd]" />
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-accent)]/15 bg-[var(--color-inset)]">
+                    <Bot className="size-4 text-[var(--color-accent)]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-start gap-2">
@@ -210,7 +210,7 @@ export default function ProfilesPage() {
                         </p>
                       </div>
                       {p.active && (
-                        <Badge className="shrink-0 gap-1 bg-[#10e0dd]/15 text-[10px] text-[#10e0dd] hover:bg-[#10e0dd]/15">
+                        <Badge className="shrink-0 gap-1 bg-[var(--color-accent)]/15 text-[10px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/15">
                           <Activity className="size-3" /> active
                         </Badge>
                       )}
