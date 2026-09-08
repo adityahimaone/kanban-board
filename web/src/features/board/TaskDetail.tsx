@@ -68,7 +68,7 @@ export default function TaskDetail({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
       <aside
-        className="flex h-full w-full max-w-md flex-col gap-3 overflow-y-auto border-l border-[var(--color-line)] bg-[var(--color-surface)] p-4"
+        className="glass-panel flex h-full w-full max-w-md flex-col gap-3 overflow-y-auto rounded-none border-y-0 border-l-0 p-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
@@ -91,7 +91,7 @@ export default function TaskDetail({
         <AgentTaskStatus task={task} events={events.data ?? []} />
 
         {/* agent */}
-        <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-2.5">
+        <div className="glass-inset-card rounded-lg p-2.5">
           <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
           <Select
             value={task.assignee || "unassigned"}
@@ -121,7 +121,7 @@ export default function TaskDetail({
         </div>
 
         {/* meta rows */}
-        <div className="divide-y divide-[var(--color-line)]/60 rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] px-2.5">
+        <div className="glass-inset-card divide-y divide-[var(--color-line)]/60 rounded-lg px-2.5">
           <Row label="Workspace">
             {task.workspace_path
               ? <span className="flex items-center justify-end gap-1.5" title={task.workspace_path}>
@@ -141,7 +141,7 @@ export default function TaskDetail({
         </div>
 
         {task.body && (
-          <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-2.5">
+          <div className="glass-inset-card rounded-lg p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Deskripsi</label>
             <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-300">{task.body}</p>
           </div>
@@ -153,7 +153,7 @@ export default function TaskDetail({
           </div>
         )}
         {resultSplit?.working && (
-          <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
+          <div className="glass-inset-card rounded-lg p-2.5">
             <button
               type="button"
               onClick={() => setShowWorking((v) => !v)}

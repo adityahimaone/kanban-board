@@ -49,7 +49,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
   }
 
   return (
-    <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
+    <div className="glass-inset-card rounded-lg p-3">
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Reply to agent</h3>
         <div className="ml-auto flex flex-wrap gap-1">
@@ -134,7 +134,7 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
   if (task.status !== "review") return null
 
   return (
-    <div className="mt-3 rounded-lg border border-violet-500/40 bg-[var(--color-bg)] p-3">
+    <div className="glass-inset-card rounded-lg border border-violet-500/40 p-3">
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-violet-300">Review changes</h3>
         {diff.isLoading && <Loader2 className="size-3 animate-spin text-violet-300" />}
@@ -220,7 +220,7 @@ export default function TaskDetailPage({
 
         {/* meta grid */}
         <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-          <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
+          <div className="glass-inset-card rounded-lg p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Agent</label>
             <Select
               value={task.assignee || "unassigned"}
@@ -261,7 +261,7 @@ export default function TaskDetailPage({
         </div>
 
         {task.body && (
-          <div className="mt-2 max-h-28 overflow-y-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
+          <div className="glass-inset-card mt-2 max-h-28 overflow-y-auto rounded-lg p-2.5">
             <label className="block text-[10px] uppercase tracking-wider text-neutral-500">Deskripsi</label>
             <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-300">{task.body}</p>
           </div>
@@ -270,7 +270,7 @@ export default function TaskDetailPage({
           <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-[11px] leading-relaxed text-red-300">{task.last_failure_error}</p>
         )}
         {resultSplit && resultSplit.working && (
-          <div className="mt-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-2.5">
+          <div className="glass-inset-card mt-2 rounded-lg p-2.5">
             <button type="button" onClick={() => setShowWorking((v) => !v)} aria-expanded={showWorking}
               className="flex w-full items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-200">
               <span className={`transition-transform duration-200 ${showWorking ? "rotate-90" : ""}`}>▸</span>
@@ -333,7 +333,7 @@ export default function TaskDetailPage({
           <p className="text-xs text-neutral-500">No events</p>
         ) : (
           groups.map((g) => (
-            <section key={g.title} className="min-w-0 rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
+            <section key={g.title} className="glass-inset-card min-w-0 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className={`size-2 rounded-full ${TONE_DOT[g.tone]}`} />
                 <h4 className={`text-[11px] font-semibold uppercase tracking-wider ${TONE_TEXT[g.tone]}`}>

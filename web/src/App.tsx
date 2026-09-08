@@ -190,7 +190,7 @@ export default function App() {
     )
 
   const filterRail = page === "board" && !detailId && filtersOpen && (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-line)] bg-[var(--color-surface)]">
+    <aside className="glass-panel flex h-full w-72 shrink-0 flex-col rounded-none border-y-0 border-l-0">
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-[var(--color-line)] px-3">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Filters</span>
         {filtersActive && <span className="size-2 rounded-full bg-[var(--color-accent)]" />}
@@ -413,7 +413,7 @@ function NewBoardDialog({ onClose, onCreated }: { onClose: () => void; onCreated
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-panel-raised w-full max-w-sm rounded-xl p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">New Board</h2>
         <label className="mt-3 block text-xs text-neutral-400">Slug</label>
         <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="f8-gadjian"
@@ -455,7 +455,7 @@ function EditBoardDialog({ board, onClose, onSaved }: { board: Board; onClose: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-panel-raised w-full max-w-sm rounded-xl p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">Edit Board · {board.slug}</h2>
         <label className="mt-3 block text-xs text-neutral-400">Slug (read-only)</label>
         <Input value={board.slug} disabled className="mt-1 border-[var(--color-line)] bg-[var(--color-bg)] opacity-60" />

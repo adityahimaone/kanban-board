@@ -108,7 +108,7 @@ export default function TaskDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-panel-raised w-full max-w-lg rounded-xl p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">New Task</h2>
         <Label className="mt-3 block text-xs text-neutral-400">Title</Label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul task"
