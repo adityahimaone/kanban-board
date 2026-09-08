@@ -92,7 +92,7 @@ function CommentSection({ slug, task, profiles }: { slug: string; task: Task; pr
           size="sm"
           disabled={!draft.trim() || post.isPending}
           onClick={() => { setErr(null); post.mutate(draft.trim()) }}
-          className="h-7 gap-1 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90"
+          className="gap-1 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90"
         >
           {post.isPending ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
           Send
@@ -150,7 +150,7 @@ function ReviewSection({ slug, task, onDone }: { slug: string; task: Task; onDon
             size="sm"
             disabled={(!action && !diff.data?.clean) || approve.isPending}
             onClick={() => { setErr(null); approve.mutate(diff.data?.clean ? "done" : action!) }}
-            className="h-7 gap-1 bg-violet-500 text-white hover:bg-violet-400"
+            className="gap-1 bg-violet-500 text-white hover:bg-violet-400"
           >
             {approve.isPending ? <Loader2 className="size-3 animate-spin" /> : null}
             {diff.data?.clean ? "Mark done" : "Approve"}

@@ -37,7 +37,7 @@ export function BillingHealth() {
 						</EmptyDescription>
 					</EmptyHeader>
 					<EmptyContent>
-						<Button asChild variant="ghost">
+						<Button asChild variant="ghost" size="sm">
 							<a href="/#">
 								Review open invoices
 								<ArrowRightIcon aria-hidden="true" />

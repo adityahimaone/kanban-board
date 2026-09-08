@@ -201,7 +201,7 @@ export default function TaskDetail({
         </div>
 
         <div className="mt-auto pt-1">
-          <Button onClick={onOpenPage} className="w-full gap-1.5 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button onClick={onOpenPage} size="sm" className="w-full gap-1.5 bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
             <ExternalLink className="size-3.5" /> Buka detail page
           </Button>
         </div>

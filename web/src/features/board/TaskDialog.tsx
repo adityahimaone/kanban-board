@@ -209,8 +209,8 @@ export default function TaskDialog({
         </div>
         {err && <p className="mt-3 text-xs text-red-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={busy} className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
             {busy ? "…" : "Create"}
           </Button>
         </div>
