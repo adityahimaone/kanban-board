@@ -55,6 +55,10 @@ func dispatchPendingRemoteTasks() {
 			if msg == "" {
 				msg = r.title
 			}
+			command := r.command
+			if r.executor == "shell" {
+				command = r.body
+			}
 			req := kanban.NodeDispatchRequest{
 				TaskID:    r.id,
 				Title:     r.title,
@@ -62,7 +66,7 @@ func dispatchPendingRemoteTasks() {
 				Message:   msg,
 				Workspace: r.ws,
 				Executor:  r.executor,
-				Command:   r.command,
+				Command:   command,
 			}
 			log.Printf("remote-dispatcher: dispatching %s (%s) via node-agent", r.id, b.Slug)
 			_, err := kanban.DispatchRemote(req, 10*time.Minute)

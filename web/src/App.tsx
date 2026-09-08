@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
-import { AppSidebar, type Page } from "@/components/AppSidebar"
+import { AppShell } from "@/components/app-shell"
+import { AppHeader } from "@/components/app-header"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,15 +20,23 @@ import MemoryPage from "./features/memory/MemoryPage"
 import SettingsPage from "./features/settings/SettingsPage"
 import OverviewPage from "./features/overview/OverviewPage"
 import AgentMappingPage from "./features/flow/AgentMappingPage"
-import { Archive, Pencil, Plus, Search, X } from "lucide-react"
+import { Archive, Plus, Pencil, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 import LoadingState from "./components/LoadingState"
 import { pagePath, parseRoute } from "./lib/routes"
+import { SIDEBAR_ITEMS, type Page } from "./lib/sidebar-preferences"
 
 const BOARD_COLUMNS: Status[] = [...COLUMNS, "archived"]
 
 const PROFILE_OPTIONS = [{ value: "__all", label: "Semua agent" }]
 const WORKSPACE_OPTIONS = [{ value: "__all", label: "Semua workspace" }]
+
+function labelForPage(page: Page): string {
+  const item = SIDEBAR_ITEMS.find((i) => i.id === page)
+  if (item) return item.label
+  if (page === "settings") return "Settings"
+  return page
+}
 
 export default function App() {
   const initialRoute = useMemo(() => parseRoute(window.location.pathname), [])
@@ -120,18 +128,11 @@ export default function App() {
   }
 
   const byCol = (s: Status) => filtered.filter((t) => t.status === s)
-  const pageTitle =
-    page === "workspaces" ? "Workspaces"
-    : page === "profiles" ? "Agent Profiles"
-    : page === "providers" ? "Providers"
-    : page === "logs" ? "Logs"
-    : page === "skills" ? "Skills"
-    : page === "memory" ? "Memory"
-    : page === "overview" ? "Overview"
-    : page === "agent-mapping" ? "Flow Map"
-    : page === "settings" ? "Settings"
-    : detailPage ? detailPage.title
-    : "Task Board"
+
+  const breadcrumb =
+    detailPage
+      ? { title: detailPage.title }
+      : { title: page === "board" ? "Task Board" : labelForPage(page) }
 
   function handleSelectPage(p: Page) {
     if (p === "board") {
@@ -157,7 +158,7 @@ export default function App() {
           const cards = byCol(col)
           return (
           <section key={col} className={`flex h-full shrink-0 flex-col rounded-xl bg-[#11151f]/40 ${col === "archived" ? "w-60 opacity-90" : "w-72"}`}>
-            <h2 className="flex shrink-0 items-center justify-between border-b border-[#1e2430]/60 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            <h2 className="flex shrink-0 items-center justify-between px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               <span className="flex items-center gap-1.5">
                 {col === "archived" && <Archive className="size-3" />}
                 {col}
@@ -267,78 +268,77 @@ export default function App() {
     </aside>
   )
 
+  const headerControls = page === "board" && !detailId ? (
+    <div className="flex min-w-0 items-center gap-2">
+      <Select value={slug} onValueChange={(next) => { setSlug(next); go(pagePath("board", next)) }}>
+        <SelectTrigger size="sm" className="w-auto gap-1.5 border-[#1e2430] bg-[#0b0e14] text-xs">
+          <SelectValue placeholder="board" />
+        </SelectTrigger>
+        <SelectContent className="border-[#1e2430] bg-[#11151f]">
+          {active.map((b) => (
+            <SelectItem key={b.slug} value={b.slug} className="text-xs">
+              {b.icon ? `${b.icon} ` : ""}{b.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="h-7 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300">
+        <Plus className="size-3" /> New Board
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="h-7 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300 disabled:opacity-40">
+        <Pencil className="size-3" /> Edit
+      </Button>
+      <Separator orientation="vertical" className="h-5" />
+      <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
+        {filtersActive ? `${filtered.length}/${tasks.data?.length ?? 0}` : `${tasks.data?.length ?? 0}`} tasks
+      </span>
+      <Button size="sm" onClick={() => setCreating(true)}
+        className="bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
+        <Plus className="size-3.5" /> New Task
+      </Button>
+    </div>
+  ) : detailId ? (
+    <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">{detailId}</span>
+  ) : null
+
   return (
-    <SidebarProvider>
-      <AppSidebar page={page} onSelectPage={handleSelectPage} />
-      <SidebarInset className="flex h-dvh flex-col overflow-hidden bg-[#0b0e14]">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[#1e2430] bg-[#11151f] px-3">
-          <SidebarTrigger className="-ml-1 text-neutral-300 hover:text-[#10e0dd]" />
-          <Separator orientation="vertical" className="mr-1 h-5" />
-          <h1 className="truncate text-sm font-semibold tracking-tight">{pageTitle}</h1>
-
-          {page === "board" && !detailId && (
-            <>
-              <Select value={slug} onValueChange={(next) => { setSlug(next); go(pagePath("board", next)) }}>
-                <SelectTrigger size="sm" className="ml-2 w-auto gap-1.5 border-[#1e2430] bg-[#0b0e14] text-xs">
-                  <SelectValue placeholder="board" />
-                </SelectTrigger>
-                <SelectContent className="border-[#1e2430] bg-[#11151f]">
-                  {active.map((b) => (
-                    <SelectItem key={b.slug} value={b.slug} className="text-xs">
-                      {b.icon ? `${b.icon} ` : ""}{b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" onClick={() => setCreatingBoard(true)} className="h-7 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300">
-                <Plus className="size-3" /> New Board
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="h-7 gap-1 border-[#1e2430] bg-[#11151f] px-2 text-xs text-neutral-300 disabled:opacity-40">
-                <Pencil className="size-3" /> Edit
-              </Button>
-              <span className="rounded bg-[#0b0e14] px-1.5 py-0.5 text-[10px] text-neutral-400">
-                {filtersActive ? `${filtered.length}/${tasks.data?.length ?? 0}` : `${tasks.data?.length ?? 0}`} tasks
-              </span>
-              <Button size="sm" onClick={() => setCreating(true)}
-                className="ml-auto bg-[#10e0dd] text-black hover:bg-[#10e0dd]/90">
-                <Plus className="size-3.5" /> New Task
-              </Button>
-            </>
-          )}
-          {page === "board" && detailId && (
-            <span className="ml-2 rounded bg-[#0b0e14] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">{detailId}</span>
-          )}
-        </header>
-
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          {filterRail}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {page === "workspaces" && <div className="flex-1 overflow-y-auto"><WorkspacesPage /></div>}
-            {page === "profiles" && <div className="flex-1 overflow-y-auto"><ProfilesPage /></div>}
-            {page === "providers" && <div className="flex-1 overflow-y-auto"><ProvidersPage /></div>}
-            {page === "logs" && <div className="flex min-h-0 flex-1 flex-col"><LogsPage /></div>}
-            {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
-            {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
-            {page === "overview" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><OverviewPage /></div>}
-            {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
-            {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
-            {page === "board" && detailId && detailPage && (
-              <TaskDetailPage
-                slug={slug}
-                task={detailPage}
-                profiles={profiles.data ?? []}
-                workspaces={workspaces.data ?? []}
-                onBack={() => { setDetailId(null); go(pagePath("board", slug)) }}
-                onMove={(s) => move.mutateAsync({ id: detailPage.id, status: s }).then(() => undefined)}
-                onStop={() => stop.mutateAsync(detailPage.id).then(() => undefined)}
-                onReassign={(a) => reassign.mutateAsync({ id: detailPage.id, assignee: a }).then(() => undefined)}
-              />
-            )}
-            {page === "board" && detailId && !detailPage && (tasks.isLoading ? <LoadingState variant="detail" label="Memuat detail task" /> : <div className="flex flex-1 items-center justify-center p-6 text-sm text-red-400">Task `{detailId}` tidak ditemukan di board ini.</div>)}
-            {page === "board" && !detailId && boardBody}
-          </div>
-        </div>
-      </SidebarInset>
+    <AppShell
+      page={page}
+      onSelectPage={handleSelectPage}
+      header={
+        <AppHeader
+          breadcrumb={breadcrumb}
+          right={headerControls}
+          onSettings={() => handleSelectPage("settings")}
+        />
+      }
+    >
+      {filterRail}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {page === "workspaces" && <div className="flex-1 overflow-y-auto"><WorkspacesPage /></div>}
+        {page === "profiles" && <div className="flex-1 overflow-y-auto"><ProfilesPage /></div>}
+        {page === "providers" && <div className="flex-1 overflow-y-auto"><ProvidersPage /></div>}
+        {page === "logs" && <div className="flex min-h-0 flex-1 flex-col"><LogsPage /></div>}
+        {page === "skills" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SkillsPage /></div>}
+        {page === "memory" && <div className="flex-1 overflow-y-auto"><MemoryPage /></div>}
+        {page === "overview" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><OverviewPage /></div>}
+        {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
+        {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
+        {page === "board" && detailId && detailPage && (
+          <TaskDetailPage
+            slug={slug}
+            task={detailPage}
+            profiles={profiles.data ?? []}
+            workspaces={workspaces.data ?? []}
+            onBack={() => { setDetailId(null); go(pagePath("board", slug)) }}
+            onMove={(s) => move.mutateAsync({ id: detailPage.id, status: s }).then(() => undefined)}
+            onStop={() => stop.mutateAsync(detailPage.id).then(() => undefined)}
+            onReassign={(a) => reassign.mutateAsync({ id: detailPage.id, assignee: a }).then(() => undefined)}
+          />
+        )}
+        {page === "board" && detailId && !detailPage && (tasks.isLoading ? <LoadingState variant="detail" label="Memuat detail task" /> : <div className="flex flex-1 items-center justify-center p-6 text-sm text-red-400">Task `{detailId}` tidak ditemukan di board ini.</div>)}
+        {page === "board" && !detailId && boardBody}
+      </div>
 
       {creating && (
         <TaskDialog
@@ -388,7 +388,7 @@ export default function App() {
           onOpenPage={() => { const t = detail; setDetail(null); setDetailId(t.id); go(pagePath("board", slug, t.id)) }}
         />
       )}
-    </SidebarProvider>
+    </AppShell>
   )
 }
 

@@ -232,3 +232,16 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 }
 .map-idle-card { animation: map-idle-card 3.6s ease-in-out infinite; }
 .map-idle-edge { stroke-dasharray: 3 9; animation: map-idle-edge 2.8s linear infinite; }
+
+.dark {
+  --sidebar: #0e1118;
+  --sidebar-foreground: #e6e9ef;
+  --sidebar-primary: #10e0dd;
+  --sidebar-primary-foreground: #06070a;
+  --sidebar-accent: #161b27;
+  --sidebar-accent-foreground: #e6e9ef;
+  --sidebar-border: #1e2430;
+  --sidebar-ring: #10e0dd;
+}
+</parameter>
+<parameter name="old_string">

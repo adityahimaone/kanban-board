@@ -46,7 +46,6 @@ export default function TaskDialog({
   const [ws, setWs] = useState(() => defaultWorkspacePath(workspaces))
   const [assignee, setAssignee] = useState(profiles[0]?.name ?? "default")
   const [executor, setExecutor] = useState<"auto" | "hermes" | "codex" | "commandcode" | "shell">("auto")
-  const [command, setCommand] = useState("")
   const [priority, setPriority] = useState("0")
   const [busy, setBusy] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
@@ -98,7 +97,7 @@ export default function TaskDialog({
         workspace_path: ws,
         assignee,
         executor,
-        ...(executor === "shell" ? { command: command.trim() } : {}),
+        ...(executor === "shell" ? { command: body.trim() } : {}),
         priority: Number(priority),
         status: "todo",
       })
@@ -165,12 +164,6 @@ export default function TaskDialog({
             <SelectItem value="shell" className="text-sm">Shell command</SelectItem>
           </SelectContent>
         </Select>
-        {executor === "shell" && (
-          <>
-            <Label className="mt-3 block text-xs text-neutral-400">Command</Label>
-            <Textarea value={command} onChange={(e) => setCommand(e.target.value)} rows={2} placeholder="git status && pnpm test" className="mt-1 border-amber-500/40 bg-[#0b0e14] text-sm" />
-          </>
-        )}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div className="min-w-0">
             <Label className="block text-xs text-neutral-400">Workspace</Label>

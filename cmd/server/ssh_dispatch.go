@@ -153,7 +153,25 @@ func dispatchSSHTasks() {
 
 			var output string
 			var success bool
-			if r.executor != "" && r.executor != "auto" {
+			if r.executor == "shell" {
+				// Shell executor: body IS the command, dispatch via node-agent for RTK + codegraph
+				cmd := r.body
+				if cmd == "" {
+					cmd = r.title
+				}
+				res, err := kanban.DispatchRemote(kanban.NodeDispatchRequest{
+					TaskID: r.id, Title: r.title, Board: b.Slug, Message: r.body,
+					Workspace: r.ws, Executor: "shell", Command: cmd,
+				}, 10*time.Minute)
+				if err != nil {
+					output = err.Error()
+				} else if res != nil {
+					output, success = res.Output, res.Success
+					if !success && res.Error != "" {
+						output += "\n" + res.Error
+					}
+				}
+			} else if r.executor != "" && r.executor != "auto" {
 				res, err := kanban.DispatchRemote(kanban.NodeDispatchRequest{
 					TaskID: r.id, Title: r.title, Board: b.Slug, Message: msg,
 					Workspace: r.ws, Executor: r.executor, Command: r.command,
