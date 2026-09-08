@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -78,6 +79,18 @@ func taskLogActivity(slug, taskID string, startedAt *int64) (time.Time, string) 
 	return newest, source
 }
 
+// remoteWorkspace reports whether the path belongs to a non-VPS host
+// (mac /Users or a Windows drive), which dispatches through node-agent.
+func remoteWorkspace(path string) bool {
+	return strings.HasPrefix(path, "/Users/") || strings.Contains(path, `:\`)
+}
+
+// overviewNodeDown asks the node-agent once per overview refresh.
+func overviewNodeDown() bool {
+	st, _ := NodeAgentHealth()
+	return st != nil && st.Status == "down"
+}
+
 // TaskHealthFor computes liveness for one task.
 func TaskHealthFor(slug, taskID string) (TaskHealth, error) {
 	db, err := openDB(slug)
@@ -86,8 +99,9 @@ func TaskHealthFor(slug, taskID string) (TaskHealth, error) {
 	}
 	defer db.Close()
 	var status string
+	var workspacePath string
 	var started, completed sql.NullInt64
-	err = db.QueryRow(`SELECT status, started_at, completed_at FROM tasks WHERE id=?`, taskID).Scan(&status, &started, &completed)
+	err = db.QueryRow(`SELECT status, started_at, completed_at, COALESCE(workspace_path,'') FROM tasks WHERE id=?`, taskID).Scan(&status, &started, &completed, &workspacePath)
 	if err == sql.ErrNoRows {
 		return TaskHealth{}, fmt.Errorf("task not found: %s", taskID)
 	}
@@ -107,13 +121,22 @@ func TaskHealthFor(slug, taskID string) (TaskHealth, error) {
 	last, source := taskLogActivity(slug, taskID, startedPtr)
 	h.LastActivityAt = last.Unix()
 	h.Source = source
-	h.Health = classifyHealth(status, last, time.Now(), false)
+	// lost wins over age when the task runs on a remote workspace whose
+	// node-agent is currently down — the worker simply cannot report.
+	nodeLost := false
+	if remoteWorkspace(workspacePath) {
+		st, _ := NodeAgentHealth()
+		nodeLost = st != nil && st.Status == "down"
+	}
+	h.Health = classifyHealth(status, last, time.Now(), nodeLost)
 	h.AgeSeconds = int64(time.Since(last).Seconds())
 	switch h.Health {
 	case "silent":
 		h.Reason = fmt.Sprintf("no activity for %d minutes", int(h.AgeSeconds/60))
 	case "stuck":
 		h.Reason = fmt.Sprintf("no activity for %d minutes — safe to release", int(h.AgeSeconds/60))
+	case "lost":
+		h.Reason = "node-agent is down for this remote workspace"
 	case "unknown":
 		h.Reason = "no log file and no started_at — activity unknown"
 	default:
@@ -130,17 +153,21 @@ func BoardTaskHealth(slug string) (map[string]TaskHealth, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, status, started_at FROM tasks WHERE status='running'`)
+	rows, err := db.Query(`SELECT id, status, started_at, COALESCE(workspace_path,'') FROM tasks WHERE status='running'`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := make(map[string]TaskHealth)
 	now := time.Now()
+	nodeDown := false // counted once per call, not per-row curl storm
+	if nst, _ := NodeAgentHealth(); nst != nil && nst.Status == "down" {
+		nodeDown = true
+	}
 	for rows.Next() {
-		var id, status string
+		var id, status, workspacePath string
 		var started sql.NullInt64
-		if err := rows.Scan(&id, &status, &started); err != nil {
+		if err := rows.Scan(&id, &status, &started, &workspacePath); err != nil {
 			return nil, err
 		}
 		var startedPtr *int64
@@ -149,7 +176,8 @@ func BoardTaskHealth(slug string) (map[string]TaskHealth, error) {
 			startedPtr = &v
 		}
 		last, source := taskLogActivity(slug, id, startedPtr)
-		health := classifyHealth(status, last, now, false)
+		nodeLost := remoteWorkspace(workspacePath) && nodeDown
+		health := classifyHealth(status, last, now, nodeLost)
 		age := int64(0)
 		if !last.IsZero() {
 			age = int64(now.Sub(last).Seconds())
@@ -215,9 +243,9 @@ func ReleaseStaleTask(slug, taskID string) (Task, error) {
 		return Task{}, err
 	}
 	defer tx.Rollback()
-	var status string
+	var status, workspacePath string
 	var started sql.NullInt64
-	if err := tx.QueryRow(`SELECT status, started_at FROM tasks WHERE id=?`, taskID).Scan(&status, &started); err == sql.ErrNoRows {
+	if err := tx.QueryRow(`SELECT status, started_at, COALESCE(workspace_path,'') FROM tasks WHERE id=?`, taskID).Scan(&status, &started, &workspacePath); err == sql.ErrNoRows {
 		return Task{}, &RunControlError{Code: 404, Err: fmt.Errorf("task not found: %s", taskID)}
 	} else if err != nil {
 		return Task{}, err
@@ -231,7 +259,12 @@ func ReleaseStaleTask(slug, taskID string) (Task, error) {
 		startedPtr = &v
 	}
 	last, _ := taskLogActivity(slug, taskID, startedPtr)
-	if h := classifyHealth("running", last, time.Now(), false); h != "stuck" && h != "lost" {
+	nodeLost := false
+	if remoteWorkspace(workspacePath) {
+		st, _ := NodeAgentHealth()
+		nodeLost = st != nil && st.Status == "down"
+	}
+	if h := classifyHealth("running", last, time.Now(), nodeLost); h != "stuck" && h != "lost" {
 		return Task{}, &RunControlError{Code: 409, Err: fmt.Errorf("task looks active (health=%s); release is only for stuck/lost runs", h)}
 	}
 	// Clear dispatcher-owned runtime fields so the respawn starts clean.
@@ -351,15 +384,15 @@ func OverviewHealthSummary() map[string]int {
 		if err != nil {
 			continue
 		}
-		rows, err := db.Query(`SELECT id, status, started_at FROM tasks WHERE status='running'`)
+		rows, err := db.Query(`SELECT id, status, started_at, COALESCE(workspace_path,'') FROM tasks WHERE status='running'`)
 		if err != nil {
 			db.Close()
 			continue
 		}
 		for rows.Next() {
-			var id, status string
+			var id, status, workspacePath string
 			var started sql.NullInt64
-			if err := rows.Scan(&id, &status, &started); err != nil {
+			if err := rows.Scan(&id, &status, &started, &workspacePath); err != nil {
 				continue
 			}
 			var startedPtr *int64
@@ -368,7 +401,8 @@ func OverviewHealthSummary() map[string]int {
 				startedPtr = &v
 			}
 			last, _ := taskLogActivity(b.Slug, id, startedPtr)
-			out[classifyHealth(status, last, now, false)]++
+			lost := remoteWorkspace(workspacePath) && overviewNodeDown()
+			out[classifyHealth(status, last, now, lost)]++
 		}
 		rows.Close()
 		db.Close()

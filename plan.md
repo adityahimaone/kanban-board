@@ -50,7 +50,7 @@ Repo: `~/apps/kanban-board`, deploy VPS :8790, share `~/.hermes/kanban/boards/<s
 
 Spec: `docs/specs/2026-09-08-agent-control-plane-reliability-design.md`
 
-Status: reliability follow-up slice complete; verification passed. Board-card health badge and authenticated/live smoke tests remain.
+Status: reliability slice complete; verification and local authenticated/SSE smoke passed. Existing auth/UI work remains separate.
 
 ### Discovery/design
 
@@ -73,7 +73,7 @@ Status: reliability follow-up slice complete; verification passed. Board-card he
 - [x] SSE event hub + stream route
 - [x] Board task/status mutation broadcasts
 - [x] Workspace/node mutation broadcasts
-- [ ] Backend HTTP tests
+- [x] Backend HTTP/domain route tests
 
 ### Frontend
 
@@ -93,6 +93,6 @@ Status: reliability follow-up slice complete; verification passed. Board-card he
 - [x] `go test ./...`
 - [x] `go build ./cmd/server`
 - [x] `pnpm build` in `web/`
-- [ ] Authenticated API smoke tests
-- [ ] SSE mutation smoke test
-- [ ] Scope/diff review
+- [x] Authenticated API smoke tests (local live server)
+- [x] SSE mutation smoke test (task_created observed)
+- [x] Scope/diff review

@@ -11,6 +11,7 @@ type Overview = {
   failed_tasks: number
   profiles: number
   workspaces: number
+  task_health: { healthy: number; silent: number; stuck: number; lost: number; unknown: number }
 }
 
 type Tone = "accent" | "success" | "warning" | "danger" | "info"
@@ -77,16 +78,13 @@ function StatCard({ icon: Icon, label, value, note, tone = "accent" }: { icon: t
 function GaugeDial({ value, tone = "accent", label, detail, icon: Icon }: { value: number; tone?: Tone; label: string; detail: string; icon: typeof Cpu }) {
   const pct = Math.max(0, Math.min(100, value))
   const color = tones[tone].icon
-  const r = 54
-  const circ = Math.PI * r
-  const filled = (pct / 100) * circ
   return (
-    <div className="flex flex-col items-center rounded-lg border border-[var(--color-line)] bg-[var(--color-inset)]/45 p-4">
+    <div className="gauge-dial flex flex-col items-center rounded-lg border border-[var(--color-line)] bg-[var(--color-inset)]/45 p-4">
       <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[var(--color-ink-4)]"><Icon className="size-3" style={{ color }} />{label}</span>
       <div className="relative mt-3">
         <svg width="140" height="84" viewBox="0 0 140 84" className="overflow-visible">
-          <path d="M 14 70 A 56 56 0 0 1 126 70" fill="none" stroke="var(--color-bg)" strokeWidth="10" strokeLinecap="round" />
-          <path d="M 14 70 A 56 56 0 0 1 126 70" fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${filled} ${circ - filled}`} style={{ filter: `drop-shadow(0 0 6px ${color})` }} />
+          <path pathLength="100" d="M 14 70 A 56 56 0 0 1 126 70" fill="none" stroke="var(--color-bg)" strokeWidth="10" strokeLinecap="round" />
+          <path pathLength="100" d="M 14 70 A 56 56 0 0 1 126 70" fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${pct} 100`} strokeDashoffset="0" />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
           <span className="font-mono text-xl font-semibold tabular-nums" style={{ color }}>{pct.toFixed(1)}%</span>
@@ -140,6 +138,9 @@ export default function OverviewPage() {
             <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-[var(--color-accent)]">Task health</p><h2 className="mt-1 text-sm font-semibold">Status distribution</h2></div><Workflow className="size-4 text-[var(--color-accent)]" /></div>
             <TaskHealthChart data={data} />
             <div className="mt-6 rounded-lg border border-[var(--color-line)] bg-[var(--color-inset)]/45 p-3"><div className="flex items-center justify-between text-xs"><span className="text-[var(--color-ink-3)]">Completion rate</span><b className="font-mono text-[var(--color-success)]">{completionRate}%</b></div><div className="mt-2 h-1.5 rounded-full bg-[var(--color-bg)]"><div className="h-full rounded-full bg-[var(--color-success)]" style={{ width: `${completionRate}%` }} /></div></div>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+              {(["healthy", "silent", "stuck", "lost"] as const).map((health) => <div key={health} className="rounded-lg border border-[var(--color-line)] bg-[var(--color-inset)]/45 p-2"><p className="text-[9px] uppercase tracking-wider text-[var(--color-ink-4)]">{health}</p><p className="mt-1 font-mono text-sm text-[var(--color-ink)]">{data.task_health?.[health] ?? 0}</p></div>)}
+            </div>
           </section>
         </div>
 
