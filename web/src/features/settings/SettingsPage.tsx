@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
 import { ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download, Eye, EyeOff } from "lucide-react"
 import { setEnabled as setCuelumeEnabled, setVolume } from "cuelume"
 import { useSidebarPreferences } from "@/lib/sidebar-preferences"
-import { applyTheme, THEME_KEY, type ThemePreference } from "@/hooks/useSettings"
 
 const TABS = [
   { id: "general", label: "General" },
@@ -48,7 +47,6 @@ export default function SettingsPage() {
   const [refreshMs, setRefresh] = useLocalStorage(REFRESH_KEY, 15000)
   const [compact, setCompact] = useLocalStorage(COMPACT_KEY, false)
   const [pingMs, setPing] = useLocalStorage(PING_KEY, 30000)
-  const [theme, setTheme] = useLocalStorage<ThemePreference>(THEME_KEY, "system")
   const { items, isVisible, move, toggle, reset } = useSidebarPreferences()
 
   // Sync cuelume engine with stored prefs on mount/change
@@ -56,8 +54,6 @@ export default function SettingsPage() {
     setCuelumeEnabled(soundOn)
     setVolume(volume)
   }, [soundOn, volume])
-
-  useEffect(() => { applyTheme(theme) }, [theme])
 
   const needle = q.trim().toLowerCase()
   const show = (...labels: string[]) => !needle || labels.some((l) => l.toLowerCase().includes(needle))
@@ -154,23 +150,6 @@ export default function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="appearance" className="mt-0 space-y-6">
-              {show("Theme", "Light", "Dark", "System", "Appearance") && (
-                <div className="flex items-center justify-between rounded-lg border border-line bg-surface p-4">
-                  <div className="flex items-center gap-3">
-                    <Eye className="size-4 text-accent" />
-                    <div>
-                      <p className="text-sm font-medium text-ink">Theme</p>
-                      <p className="text-xs text-ink-3">Use dark, light, or follow system preference.</p>
-                    </div>
-                  </div>
-                  <select value={theme} onChange={(e) => setTheme(e.target.value as ThemePreference)}
-                    className="h-8 rounded border border-line bg-inset px-2 text-xs text-ink outline-none focus:border-accent">
-                    <option value="system">System</option>
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                  </select>
-                </div>
-              )}
               {show("Compact", "Card", "Density") && (
                 <div className="flex items-center justify-between rounded-lg border border-[#1e2430]/60 bg-[#11151f]/30 p-4">
                   <div className="flex items-center gap-3">

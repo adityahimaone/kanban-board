@@ -5,17 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" sizes="64x64" href="/brand/switchyard-favicon.png" />
     <title>Switchyard</title>
-    <script>
-      (() => {
-        try {
-          const preference = localStorage.getItem("kb-theme") || "system"
-          const light = preference === "light" || (preference === "system" && matchMedia("(prefers-color-scheme: light)").matches)
-          document.documentElement.classList.toggle("light", light)
-          document.documentElement.classList.toggle("dark", !light)
-          document.documentElement.dataset.theme = preference
-        } catch {}
-      })()
-    </script>
   </head>
   <body>
     <div id="root"></div>

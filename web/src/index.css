@@ -2,192 +2,57 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
-  Switchyard semantic tokens — ink / paper / signal.
-  Dark is default (:root). Light mode overrides under .light.
-  Never hard-code page colours in components; use these roles.
-*/
-:root,
-.dark {
-  --radius: 0.5rem;
+@theme {
+  --color-bg: #0b0e14;
+  --color-panel: #11151f;
+  --color-border: #1e2430;
+  --color-accent: #10e0dd;
 
-  /* canvas / surfaces */
-  --color-bg: #101112;
-  --color-panel: #181a1b;
-  --color-surface: #181a1b;
-  --color-surface-raised: #202324;
-  --color-inset: #16181a;
-
-  /* ink */
-  --color-foreground: #f1f2ed;
-  --color-ink: #f1f2ed;
-  --color-ink-2: #c9ccc2;
-  --color-ink-3: #a3a69e;
-  --color-ink-4: #787b73;
-
-  /* hairlines */
-  --color-line: rgba(241, 242, 237, 0.11);
-  --color-line-strong: rgba(241, 242, 237, 0.18);
-  --color-border-app: rgba(241, 242, 237, 0.11);
-  --color-border: rgba(241, 242, 237, 0.11);
-  --color-input: rgba(241, 242, 237, 0.14);
-
-  /* signals */
-  --color-accent: #6be6d9;
-  --color-primary: #6be6d9;
-  --color-lavender: #a89cff;
-  --color-amber: #f1b65a;
-  --color-green: #72d79a;
-  --color-rose: #ff8d9a;
-  --color-info: #7cc0f5;
-  --color-destructive: #ff8d9a;
-  --color-danger: #ff8d9a;
-  --color-success: #72d79a;
-  --color-warning: #f1b65a;
-
-  /* tints */
-  --color-accent-tint: rgba(107, 230, 217, 0.12);
-  --color-lavender-tint: rgba(168, 156, 255, 0.12);
-  --color-amber-tint: rgba(241, 182, 90, 0.13);
-  --color-green-tint: rgba(114, 215, 154, 0.13);
-  --color-red-tint: rgba(255, 141, 154, 0.14);
-
-  /* shadcn mapping */
-  --color-card: #181a1b;
-  --color-card-foreground: #f1f2ed;
-  --color-popover: #202324;
-  --color-popover-foreground: #f1f2ed;
-  --color-primary-foreground: #101112;
-  --color-secondary: #202324;
-  --color-secondary-foreground: #f1f2ed;
-  --color-muted: #202324;
-  --color-muted-foreground: #a3a69e;
-  --color-accent-foreground: #101112;
-  --color-destructive-foreground: #2b0d12;
-  --color-ring: #6be6d9;
-}
-
-.light {
-  --color-bg: #f6f6f3;
-  --color-panel: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-raised: #fcfcfa;
-  --color-inset: #efefe9;
-
-  --color-foreground: #171817;
-  --color-ink: #171817;
-  --color-ink-2: #43463f;
-  --color-ink-3: #6c7069;
-  --color-ink-4: #9a9d94;
-
-  --color-line: rgba(23, 24, 23, 0.12);
-  --color-line-strong: rgba(23, 24, 23, 0.2);
-  --color-border-app: rgba(23, 24, 23, 0.12);
-  --color-border: rgba(23, 24, 23, 0.12);
-  --color-input: rgba(23, 24, 23, 0.16);
-
-  --color-accent: #087d73;
-  --color-primary: #087d73;
-  --color-lavender: #6659c9;
-  --color-amber: #b66b06;
-  --color-green: #187b42;
-  --color-rose: #c43f52;
-  --color-info: #1d6fa5;
-  --color-destructive: #c43f52;
-  --color-danger: #c43f52;
-  --color-success: #187b42;
-  --color-warning: #b66b06;
-
-  --color-accent-tint: rgba(8, 125, 115, 0.1);
-  --color-lavender-tint: rgba(102, 89, 201, 0.1);
-  --color-amber-tint: rgba(182, 107, 6, 0.1);
-  --color-green-tint: rgba(24, 123, 66, 0.1);
-  --color-red-tint: rgba(196, 63, 82, 0.1);
-
-  --color-card: #ffffff;
-  --color-card-foreground: #171817;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #171817;
-  --color-primary-foreground: #f6f6f3;
-  --color-secondary: #fcfcfa;
-  --color-secondary-foreground: #171817;
-  --color-muted: #efefe9;
-  --color-muted-foreground: #6c7069;
-  --color-accent-foreground: #f6f6f3;
+  --color-background: #0b0e14;
+  --color-foreground: #e6e9ef;
+  --color-card: #11151f;
+  --color-card-foreground: #e6e9ef;
+  --color-popover: #11151f;
+  --color-popover-foreground: #e6e9ef;
+  --color-primary: #10e0dd;
+  --color-primary-foreground: #06070a;
+  --color-secondary: #161b27;
+  --color-secondary-foreground: #e6e9ef;
+  --color-muted: #161b27;
+  --color-muted-foreground: #8b93a7;
+  --color-accent-foreground: #06070a;
+  --color-destructive: #ef4444;
   --color-destructive-foreground: #fff;
-  --color-ring: #087d73;
+  --color-border-app: #1e2430;
+  --color-input: #1e2430;
+  --color-ring: #10e0dd;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-danger: #ef4444;
+  --color-surface: #11151f;
+  --color-inset: #161b27;
+  --color-line: #1e2430;
+  --color-ink: #e6e9ef;
+  --color-ink-2: #b5bdcc;
+  --color-ink-3: #8b93a7;
+  --color-red: #ef4444;
+  --color-green: #22c55e;
+  --color-red-tint: rgba(239, 68, 68, 0.14);
+  --color-green-tint: rgba(34, 197, 94, 0.14);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
-@theme inline {
-  --color-bg: var(--color-bg);
-  --color-panel: var(--color-panel);
-  --color-surface: var(--color-surface);
-  --color-surface-raised: var(--color-surface-raised);
-  --color-inset: var(--color-inset);
-  --color-ink: var(--color-ink);
-  --color-ink-2: var(--color-ink-2);
-  --color-ink-3: var(--color-ink-3);
-  --color-ink-4: var(--color-ink-4);
-  --color-line: var(--color-line);
-  --color-line-strong: var(--color-line-strong);
-  --color-accent: var(--color-accent);
-  --color-lavender: var(--color-lavender);
-  --color-amber: var(--color-amber);
-  --color-green: var(--color-green);
-  --color-rose: var(--color-rose);
-  --color-info: var(--color-info);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-@theme inline {
-  --color-background: var(--color-bg);
-  --color-foreground: var(--color-ink);
-  --color-border: var(--color-border);
-  --color-input: var(--color-input);
-  --color-ring: var(--color-ring);
-  --color-primary: var(--color-primary);
-  --color-primary-foreground: var(--color-primary-foreground);
-  --color-secondary: var(--color-secondary);
-  --color-secondary-foreground: var(--color-secondary-foreground);
-  --color-muted: var(--color-muted);
-  --color-muted-foreground: var(--color-muted-foreground);
-  --color-accent: var(--color-accent);
-  --color-accent-foreground: var(--color-accent-foreground);
-  --color-destructive: var(--color-destructive);
-  --color-destructive-foreground: var(--color-destructive-foreground);
-  --color-card: var(--color-card);
-  --color-card-foreground: var(--color-card-foreground);
-  --color-popover: var(--color-popover);
-  --color-popover-foreground: var(--color-popover-foreground);
-  --color-success: var(--color-success);
-  --color-warning: var(--color-warning);
-  --color-danger: var(--color-danger);
-}
-
-:root,
-.dark {
-  --sidebar: #131415;
-  --sidebar-foreground: #f1f2ed;
-  --sidebar-primary: #6be6d9;
-  --sidebar-primary-foreground: #101112;
-  --sidebar-accent: #202324;
-  --sidebar-accent-foreground: #f1f2ed;
-  --sidebar-border: rgba(241, 242, 237, 0.09);
-  --sidebar-ring: #6be6d9;
-}
-
-.light {
-  --sidebar: #ffffff;
-  --sidebar-foreground: #171817;
-  --sidebar-primary: #087d73;
-  --sidebar-primary-foreground: #f6f6f3;
-  --sidebar-accent: #fcfcfa;
-  --sidebar-accent-foreground: #171817;
-  --sidebar-border: rgba(23, 24, 23, 0.12);
-  --sidebar-ring: #087d73;
+:root {
+  --radius: 0.5rem;
+  --sidebar: #0e1118;
+  --sidebar-foreground: #e6e9ef;
+  --sidebar-primary: #10e0dd;
+  --sidebar-primary-foreground: #06070a;
+  --sidebar-accent: #161b27;
+  --sidebar-accent-foreground: #e6e9ef;
+  --sidebar-border: #1e2430;
+  --sidebar-ring: #10e0dd;
 }
 
 @theme inline {
@@ -199,19 +64,18 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
-body {
-  background: var(--color-bg);
-  color: var(--color-foreground);
-}
+html, body, #root { height: 100%; }
+body { background: var(--color-bg); color: var(--color-foreground); }
 
-/* motion + utilities preserved */
+/* Loading uses the app's existing signal language: one sweep and a few quiet
+   geometry-preserving bars. It communicates progress without taking over the
+   screen like a spinner or adding a new visual system. */
 @keyframes signal-sweep {
   from { transform: translateX(-120%); }
   to { transform: translateX(260%); }
@@ -228,21 +92,21 @@ body {
   height: 1px;
   width: 34%;
   background: var(--color-accent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 45%, transparent);
-  animation: signal-sweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 12px rgba(16, 224, 221, 0.45);
+  animation: signal-sweep 1.8s cubic-bezier(.4, 0, .2, 1) infinite;
 }
 .signal-skeleton {
   display: block;
   position: relative;
   overflow: hidden;
   border-radius: 3px;
-  background: var(--color-inset);
+  background: #161b27;
 }
 .signal-skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg, transparent 20%, color-mix(in srgb, var(--color-accent) 14%, transparent) 48%, transparent 76%);
+  background: linear-gradient(105deg, transparent 20%, rgba(16, 224, 221, 0.14) 48%, transparent 76%);
   background-size: 220% 100%;
   animation: signal-drop 1.8s ease-in-out infinite;
 }
@@ -253,89 +117,131 @@ body {
   .signal-skeleton::after { animation: none; opacity: 0.16; }
 }
 
-* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-line-strong) 60%, transparent) transparent; }
+/* thin scrollbars to match dark theme */
+* { scrollbar-width: thin; scrollbar-color: #2a3140 transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-line-strong) 70%, transparent); border-radius: 4px; }
+*::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 4px; }
 *::-webkit-scrollbar-track { background: transparent; }
 
-@keyframes ekg-sweep { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes ekg-sweep {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+/* Agent Flow: task dot traveling along its channel (offset-distance 0->100).
+   Ping-pong comes from CSS `alternate`; fade at both ends hides the respawn
+   so dots never "teleport" back to the parent in full view. */
 @keyframes flow-travel {
-  0% { offset-distance: 0%; opacity: 0; }
-  8% { opacity: 1; }
-  50% { offset-distance: 100%; opacity: 1; }
-  58% { opacity: 0; }
-  61% { offset-distance: 100%; opacity: 0; }
-  100% { offset-distance: 0%; opacity: 0; }
+  0%   { offset-distance: 0%;   opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { offset-distance: 100%; opacity: 1; }
+  58%  { opacity: 0; }
+  61%  { offset-distance: 100%; opacity: 0; }
+  100% { offset-distance: 0%;   opacity: 0; }
 }
+
+/* Agent Flow: idle shimmer cascade root -> leaf */
 @keyframes flow-idle {
-  0% { offset-distance: 0%; opacity: 0.35; }
-  12% { opacity: 0.9; }
-  88% { opacity: 0.9; }
-  100% { offset-distance: 100%; opacity: 0.35; }
+  0% { offset-distance: 0%; opacity: .35; }
+  12% { opacity: .9; }
+  88% { opacity: .9; }
+  100% { offset-distance: 100%; opacity: .35; }
 }
+
+/* Active tunnel riders move one-way; delays form continuous queue. */
 @keyframes flow-active {
   0% { offset-distance: 0%; opacity: 0; }
   8% { opacity: 1; }
   92% { opacity: 1; }
   100% { offset-distance: 100%; opacity: 0; }
 }
+
 @keyframes flow-shimmer {
-  0%, 8% { opacity: 0; offset-distance: 0%; }
-  10% { opacity: 1; }
-  26% { opacity: 1; offset-distance: 100%; }
+  0%, 8%    { opacity: 0; offset-distance: 0%; }
+  10%       { opacity: 1; }
+  26%       { opacity: 1; offset-distance: 100%; }
   30%, 100% { opacity: 0; offset-distance: 100%; }
 }
+
+/* Provider page: restrained network decoration */
 .provider-card-grid {
-  background-image: linear-gradient(color-mix(in srgb, var(--color-accent) 4.5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 4.5%, transparent) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(16, 224, 221, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 224, 221, 0.045) 1px, transparent 1px);
   background-size: 20px 20px;
   mask-image: radial-gradient(ellipse at 30% 20%, black, transparent 70%);
   animation: provider-grid-drift 22s linear infinite;
 }
 .provider-card-scan {
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 45%, transparent), transparent);
+  background: linear-gradient(90deg, transparent, rgba(16, 224, 221, 0.45), transparent);
   animation: provider-scan-sweep 5s ease-in-out infinite;
 }
 @keyframes provider-grid-drift { to { background-position: 20px 20px; } }
 @keyframes provider-scan-sweep { 0%, 100% { transform: translateX(0); opacity: 0.15; } 50% { transform: translateX(60%); opacity: 0.75; } }
-@media (prefers-reduced-motion: reduce) { .provider-card-grid, .provider-card-scan { animation: none; } }
-@keyframes flow-hot-pulse { 0% { opacity: 0.75; } 50% { opacity: 1; } 100% { opacity: 0.75; } }
+@media (prefers-reduced-motion: reduce) {
+  .provider-card-grid, .provider-card-scan { animation: none; }
+}
+
+/* Agent Flow: card ring pulse when a dot arrives at / departs that node */
+@keyframes flow-hot-pulse {
+  0% { opacity: .75; }
+  50% { opacity: 1; }
+  100% { opacity: .75; }
+}
+
 @keyframes flow-card-pulse {
-  0% { box-shadow: 0 0 0 0 var(--pulse-hue, #6be6d9); opacity: 0.9; }
-  70% { box-shadow: 0 0 0 10px transparent; opacity: 0; }
+  0%   { box-shadow: 0 0 0 0 var(--pulse-hue, #10e0dd); opacity: 0.9; }
+  70%  { box-shadow: 0 0 0 10px transparent; opacity: 0; }
   100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
 }
-@keyframes pixel-on { 0%, 100% { opacity: 0.12; transform: scale(0.85); } 50% { opacity: 0.9; transform: scale(1); } }
+
+@keyframes pixel-on {
+  0%, 100% { opacity: 0.12; transform: scale(0.85); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ring-sweep { from { stroke-dashoffset: 0; } to { stroke-dashoffset: var(--ring-c, -100); } }
-@media (prefers-reduced-motion: reduce) { @keyframes pixel-on { from, to { opacity: 0.18; transform: none; } } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes pixel-on { from, to { opacity: 0.18; transform: none; } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
+
 .map-control {
   display: flex;
   width: 28px;
   height: 28px;
   align-items: center;
   justify-content: center;
-  color: var(--color-ink-3);
+  color: #8b8e86;
   transition: color 150ms ease-out, background-color 150ms ease-out;
 }
-.map-control:hover { background: var(--color-surface-raised); color: var(--color-ink); }
-.map-control:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
-@keyframes map-idle-card { 0%, 100% { border-color: var(--color-line); transform: translateY(0); } 50% { border-color: var(--color-line-strong); transform: translateY(-1px); } }
-@keyframes map-idle-edge { to { stroke-dashoffset: -24; } }
+.map-control:hover { background: #1c1e1b; color: #e8e8e3; }
+.map-control:focus-visible { outline: 2px solid #10e0dd; outline-offset: -2px; }
+
+@keyframes map-idle-card {
+  0%, 100% { border-color: rgba(255,255,255,.11); transform: translateY(0); }
+  50% { border-color: rgba(255,255,255,.22); transform: translateY(-1px); }
+}
+@keyframes map-idle-edge {
+  to { stroke-dashoffset: -24; }
+}
 .map-idle-card { animation: map-idle-card 3.6s ease-in-out infinite; }
 .map-idle-edge { stroke-dasharray: 3 9; animation: map-idle-edge 2.8s linear infinite; }
 
-/* Signal Stamp + dot-grid helpers */
-.signal-stamp-dot {
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--color-ink) 10%, transparent) 1px, transparent 1px);
-  background-size: 10px 10px;
+.dark {
+  --sidebar: #0e1118;
+  --sidebar-foreground: #e6e9ef;
+  --sidebar-primary: #10e0dd;
+  --sidebar-primary-foreground: #06070a;
+  --sidebar-accent: #161b27;
+  --sidebar-accent-foreground: #e6e9ef;
+  --sidebar-border: #1e2430;
+  --sidebar-ring: #10e0dd;
 }
-.signal-stamp-bloom {
-  background: radial-gradient(320px 220px at 22% 18%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 62%),
-    radial-gradient(280px 200px at 78% 32%, color-mix(in srgb, var(--color-lavender) 12%, transparent), transparent 62%);
-}
-@media (prefers-reduced-motion: reduce) { .signal-stamp-bloom { opacity: 0.55; } }
+</parameter>
+<parameter name="old_string">
