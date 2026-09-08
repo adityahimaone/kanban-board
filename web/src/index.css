@@ -144,10 +144,10 @@ body { background: var(--color-bg); color: var(--color-foreground); }
 .map-control { display:flex; width:28px; height:28px; align-items:center; justify-content:center; color:var(--color-ink-3); transition:color 150ms,background-color 150ms; }
 .map-control:hover { background:var(--color-accent-tint); color:var(--color-ink); }
 .map-control:focus-visible { outline:2px solid var(--color-accent); outline-offset:-2px; }
-.decorative-card { position: relative; overflow: hidden; background: var(--color-surface); transition: border-color 140ms, box-shadow 140ms, transform 140ms; }
-.decorative-card::before { content: ""; position: absolute; inset: -30%; pointer-events: none; background: radial-gradient(42% 52% at 12% 0%, color-mix(in srgb, var(--color-accent) 20%, transparent), transparent 70%), radial-gradient(50% 60% at 96% 100%, color-mix(in srgb, var(--color-info) 13%, transparent), transparent 72%); opacity: .8; }
-.decorative-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+.decorative-card { position: relative; overflow: hidden; background: var(--color-surface); transition: border-color 140ms, box-shadow 140ms; }
+.decorative-card::before { content: ""; position: absolute; inset: 8px; pointer-events: none; border: 1px solid color-mix(in srgb, var(--color-accent) 18%, transparent); clip-path: polygon(0 0, 18px 0, 18px 1px, calc(100% - 18px) 1px, calc(100% - 18px) 0, 100% 0, 100% 18px, calc(100% - 1px) 18px, calc(100% - 1px) calc(100% - 18px), 100% calc(100% - 18px), 100% 100%, calc(100% - 18px) 100%, calc(100% - 18px) calc(100% - 1px), 18px calc(100% - 1px), 18px 100%, 0 100%, 0 calc(100% - 18px), 1px calc(100% - 18px), 1px 18px, 0 18px); opacity: .8; }
+.decorative-card::after { content: ""; position: absolute; top: 0; left: 18px; width: 56px; height: 2px; pointer-events: none; background: var(--color-accent); box-shadow: 0 0 12px var(--color-blue-glow); }
 .decorative-card > * { position: relative; z-index: 1; }
-.decorative-card:hover { border-color: var(--color-line-strong); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.14), 0 0 26px color-mix(in srgb,var(--color-blue-glow) 30%,transparent); }
+.decorative-card:hover { border-color: var(--color-line-strong); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.14), 0 0 22px color-mix(in srgb,var(--color-blue-glow) 24%,transparent); }
 .provider-card-grid, .provider-card-scan { display: none; }
 @media (prefers-reduced-motion: reduce) { .decorative-card { transition: none; } }

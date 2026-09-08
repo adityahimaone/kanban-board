@@ -46,7 +46,7 @@ function platformBadge(w: Workspace): { label: string; Icon: typeof Monitor; tin
     return { label: "mac", Icon: Apple, tint: "border-neutral-700 bg-[var(--color-bg)] text-neutral-300" }
   }
   if (!host || host === "localhost" || host === "127.0.0.1" || os === "linux") {
-    return { label: "vps", Icon: Monitor, tint: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" }
+    return { label: "vps", Icon: Monitor, tint: "border-[var(--color-line)] bg-[var(--color-inset)] text-[var(--color-ink-2)]" }
   }
   return { label: "linux", Icon: HardDrive, tint: "border-amber-500/30 bg-amber-500/10 text-amber-300" }
 }
