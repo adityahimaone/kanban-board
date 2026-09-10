@@ -26,7 +26,7 @@ type workspaceFile struct {
 // typed keys that win over the original file on save
 var workspaceKnownKeys = map[string]bool{
 	"id": true, "name": true, "path": true, "host": true, "os": true, "kind": true,
-	"note": true, "apps": true,
+	"note": true, "apps": true, "codegraph_apps": true, "codegraph_hidden": true,
 }
 
 var wsMu sync.Mutex
@@ -113,9 +113,23 @@ func saveWorkspaces(f *workspaceFile) error {
 	return os.Rename(tmp, workspacesPath())
 }
 
+func localWorkspacePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			if path == "~" {
+				return home
+			}
+			return filepath.Join(home, strings.TrimPrefix(path, "~/"))
+		}
+	}
+	return path
+}
+
 // ListWorkspaces reads + hydrates status from ping history so the list
 // doesn't flicker to "unknown" after a restart — last known status wins.
-// Local hosts stay "local".
+// Local hosts stay "local" only when their path exists; missing local paths
+// must surface as unreachable instead of looking healthy.
 func ListWorkspaces() ([]Workspace, error) {
 	wsMu.Lock()
 	defer wsMu.Unlock()
@@ -132,7 +146,15 @@ func ListWorkspaces() ([]Workspace, error) {
 	for i := range out {
 		w := &out[i]
 		if w.Host == "" || w.Host == "localhost" || w.Host == "127.0.0.1" {
-			w.Status = "local"
+			// local workspace: "local" only while the path exists; a missing
+			// or tilde path the dispatcher can't resolve must show offline.
+			w.Path = localWorkspacePath(w.Path)
+			if _, err := os.Stat(w.Path); err != nil {
+				w.Status = "unreachable"
+				w.StatusMsg = "local path missing: " + trimErr(err)
+			} else {
+				w.Status = "local"
+			}
 			continue
 		}
 		if pts := hist[w.ID]; len(pts) > 0 {
@@ -257,6 +279,7 @@ func PingWorkspace(w *Workspace) Workspace {
 	res.PingMs = nil
 	start := time.Now()
 	if res.Host == "" || res.Host == "localhost" || res.Host == "127.0.0.1" {
+		res.Path = localWorkspacePath(res.Path)
 		if _, err := os.Stat(res.Path); err == nil {
 			res.Status, res.StatusMsg = "connected", "path ok"
 		} else {

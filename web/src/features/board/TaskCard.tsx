@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/select"
 import { Apple, ExternalLink, HardDrive, Laptop, Square, X } from "lucide-react"
 import { RunningIndicator } from "./AgentStatus"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const HEALTH_TONE: Record<string, string> = { healthy: "text-emerald-300", silent: "text-amber-300", stuck: "text-red-300", lost: "text-red-300/70" }
 const STATUS_TARGETS: Record<Status, Status[]> = {
@@ -103,7 +104,8 @@ export default function TaskCard({ task, profiles, health, workspaces, onOpen, o
       <div className="space-y-2 pt-2">
         {/* primary: agent + failure */}
         <div className="flex items-center justify-between gap-2">
-          <Select value={task.assignee || "__none"} onValueChange={(v) => onReassign(v === "__none" ? "" : v)}>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Select value={task.assignee || "__none"} onValueChange={(v) => onReassign(v === "__none" ? "" : v)}>
             <SelectTrigger
               size="sm"
               title={profile ? `${profile.name} — ${profile.model}` : "Agent profile"}
@@ -117,7 +119,16 @@ export default function TaskCard({ task, profiles, health, workspaces, onOpen, o
                 <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-[11px]">{p.name}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
+            </Select>
+            {profile && (
+              <Avatar className="size-5 shrink-0" title={profile.name}>
+                {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile.name} />}
+                <AvatarFallback className="bg-[var(--color-inset)] text-[9px] text-[var(--color-accent)]">
+                  {profile.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </div>
           {profile && !profile.valid && (
             <span className="shrink-0 text-[11px] font-medium text-red-400" title={`provider ${profile.provider} invalid — worker crash`}>broken</span>
           )}

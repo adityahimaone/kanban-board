@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api, type Profile, type ProfileDetail } from "@/api"
+import { api, setProfileAvatarUrl, uploadProfileAvatar, type Profile, type ProfileDetail } from "@/api"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -34,6 +35,12 @@ function ProfileForm({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [modelQ, setModelQ] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState("")
+  const [avatarPreview, setAvatarPreview] = useState(initial?.avatar_url ?? "")
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [avatarErr, setAvatarErr] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const profileQueries = useQueryClient()
   const providersQ = useQuery({
     queryKey: ["providers"],
     queryFn: () => api<{ name: string; base_url: string; default_model: string; models: string[] }[]>("/api/providers"),
@@ -52,6 +59,52 @@ function ProfileForm({
     providerRoster[0]
   const modelOptions: string[] = activeProvider?.models?.length ? [...activeProvider.models].sort() : []
   const filteredModels = modelQ ? modelOptions.filter((m) => m.toLowerCase().includes(modelQ.toLowerCase())).slice(0, 80) : modelOptions.slice(0, 80)
+
+  async function onAvatarPicked(f: File) {
+    if (!initial) return
+    setAvatarBusy(true); setAvatarErr(null)
+    try {
+      await uploadProfileAvatar(initial.name, f)
+      profileQueries.invalidateQueries({ queryKey: ["profiles-full"] })
+      profileQueries.invalidateQueries({ queryKey: ["profiles"] })
+      setAvatarPreview(`/api/profiles/${initial.name}/avatar?ts=${Date.now()}`)
+    } catch (e) {
+      setAvatarErr((e as Error).message)
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
+  async function onAvatarUrlSaved() {
+    if (!initial) return
+    setAvatarBusy(true); setAvatarErr(null)
+    try {
+      const saved = await setProfileAvatarUrl(initial.name, avatarUrl)
+      profileQueries.invalidateQueries({ queryKey: ["profiles-full"] })
+      profileQueries.invalidateQueries({ queryKey: ["profiles"] })
+      setAvatarPreview(saved.avatar_url ?? avatarUrl)
+      setAvatarUrl("")
+    } catch (e) {
+      setAvatarErr((e as Error).message)
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
+  async function onAvatarRemoved() {
+    if (!initial) return
+    setAvatarBusy(true); setAvatarErr(null)
+    try {
+      await api(`/api/profiles/${initial.name}/avatar`, { method: "DELETE" })
+      profileQueries.invalidateQueries({ queryKey: ["profiles-full"] })
+      profileQueries.invalidateQueries({ queryKey: ["profiles"] })
+      setAvatarPreview("")
+    } catch (e) {
+      setAvatarErr((e as Error).message)
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
 
   async function submit() {
     if (!editing && !/^[a-z0-9_-]{1,32}$/.test(name.trim())) {
@@ -74,6 +127,54 @@ function ProfileForm({
       <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold">{editing ? `Edit profile ${initial?.name}` : "New agent profile"}</h2>
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {editing && (
+            <div className="mt-3 flex items-center gap-3 rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
+              <Avatar className="size-14 shrink-0 rounded-lg">
+                {avatarPreview ? (
+                  <AvatarImage src={avatarPreview} alt={initial?.name ?? ""} />
+                ) : null}
+                <AvatarFallback className="rounded-lg bg-[var(--color-inset)] text-sm text-[var(--color-accent)]">
+                  {initial?.name.slice(0, 2).toUpperCase() ?? "AG"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  <Button type="button" variant="outline" size="sm" disabled={avatarBusy} onClick={() => avatarInputRef.current?.click()}>
+                    {avatarBusy ? "…" : "Upload avatar"}
+                  </Button>
+                  {!!avatarPreview && (
+                    <Button type="button" variant="outline" size="sm" disabled={avatarBusy} onClick={onAvatarRemoved}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] leading-snug text-neutral-500">PNG / JPEG / GIF (animated) / WebP — max 2 MB</p>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="https://…/avatar.png"
+                    className="h-7 flex-1 border-[var(--color-line)] bg-[var(--color-bg)] text-xs"
+                  />
+                  <Button type="button" variant="outline" size="sm" disabled={avatarBusy || !avatarUrl.trim()} onClick={onAvatarUrlSaved}>
+                    URL
+                  </Button>
+                </div>
+                {avatarErr && <p className="text-[11px] text-red-400">{avatarErr}</p>}
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) onAvatarPicked(f)
+                  e.currentTarget.value = ""
+                }}
+              />
+            </div>
+          )}
           {!editing && (
             <>
               <Label className="mt-3 block text-xs text-neutral-400">Name</Label>
@@ -203,9 +304,16 @@ export default function ProfilesPage() {
             <Card key={p.name} className={`decorative-card border-[var(--color-line)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]/35 ${p.active ? "border-[var(--color-accent)]/55" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-accent)]/15 bg-[var(--color-inset)]">
-                    <Bot className="size-4 text-[var(--color-accent)]" />
-                  </div>
+                  {p.avatar_url ? (
+                    <Avatar className="size-9 shrink-0 rounded-lg">
+                      <AvatarImage src={p.avatar_url} alt={p.name} />
+                      <AvatarFallback className="rounded-lg bg-[var(--color-inset)] text-[10px] text-[var(--color-accent)]">{p.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-accent)]/15 bg-[var(--color-inset)]">
+                      <Bot className="size-4 text-[var(--color-accent)]" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-start gap-2">
                       <div className="min-w-0 flex-1">

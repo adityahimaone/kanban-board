@@ -15,6 +15,8 @@ import (
 	"kanban-board/internal/kanban"
 )
 
+var version = "v0.1.0"
+
 func envOr(k, d string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
@@ -35,6 +37,10 @@ func fail(w http.ResponseWriter, err error, code int) {
 }
 
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		fmt.Println(version)
+		return
+	}
 	addr := envOr("KANBAN_ADDR", "127.0.0.1:8790")
 	dist := envOr("KANBAN_WEB_DIST", "web/dist")
 	if err := kanban.EnsureAuthSeed(); err != nil {
@@ -441,11 +447,16 @@ func main() {
 			fail(w, fmt.Errorf("task is not running (status=%s)", cur), 400)
 			return
 		}
-		if !requestTaskStop(id) {
-			fail(w, fmt.Errorf("active worker for task was not found"), 409)
+		if requestTaskStop(id) {
+			writeJSON(w, http.StatusAccepted, map[string]string{"status": "stopping"})
 			return
 		}
-		writeJSON(w, http.StatusAccepted, map[string]string{"status": "stopping"})
+		// Force-stop for node-agent dispatches that bypass activeRuns.
+		if err := kanban.ForceStopTask(r.PathValue("slug"), id); err != nil {
+			fail(w, err, http.StatusConflict)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]string{"status": "force-stopped"})
 	})
 
 	// review gate: diff + approve (commit / commit&push) — only path review->done
@@ -493,6 +504,59 @@ func main() {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"deleted": r.PathValue("id")})
+	})
+	mux.HandleFunc("GET /api/workspaces/{id}/codegraph", func(w http.ResponseWriter, r *http.Request) {
+		ws, err := kanban.ListWorkspaces()
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		for _, e := range ws {
+			if e.ID == r.PathValue("id") {
+				report, err := kanban.CodeGraphReportForWorkspace(&e)
+				if err != nil {
+					fail(w, err, 502)
+					return
+				}
+				writeJSON(w, http.StatusOK, report)
+				return
+			}
+		}
+		fail(w, http.ErrMissingFile, 404)
+	})
+	mux.HandleFunc("POST /api/workspaces/{id}/codegraph/index", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Path string `json:"path"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+			fail(w, err, 400)
+			return
+		}
+		ws, err := kanban.ListWorkspaces()
+		if err != nil {
+			fail(w, err, 500)
+			return
+		}
+		for _, e := range ws {
+			if e.ID == r.PathValue("id") {
+				job, err := kanban.CodeGraphIndex(&e, req.Path)
+				if err != nil {
+					fail(w, err, 400)
+					return
+				}
+				writeJSON(w, http.StatusAccepted, job)
+				return
+			}
+		}
+		fail(w, http.ErrMissingFile, 404)
+	})
+	mux.HandleFunc("GET /api/workspaces/{id}/codegraph/jobs/{jobID}", func(w http.ResponseWriter, r *http.Request) {
+		job, ok := kanban.CodeGraphJob(r.PathValue("jobID"))
+		if !ok {
+			fail(w, http.ErrMissingFile, 404)
+			return
+		}
+		writeJSON(w, http.StatusOK, job)
 	})
 	mux.HandleFunc("POST /api/workspaces/ping", func(w http.ResponseWriter, r *http.Request) {
 		out, err := kanban.PingAll()
@@ -578,6 +642,70 @@ func main() {
 			return
 		}
 		writeJSON(w, http.StatusOK, profiles)
+	})
+	mux.HandleFunc("GET /api/profiles/{name}/avatar", func(w http.ResponseWriter, r *http.Request) {
+		data, mime, ok := kanban.ProfileAvatar(r.PathValue("name"))
+		if !ok {
+			fail(w, http.ErrMissingFile, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", mime)
+		w.Header().Set("Cache-Control", "private, max-age=300")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	})
+	mux.HandleFunc("PUT /api/profiles/{name}/avatar-url", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			URL string `json:"url"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+			fail(w, err, http.StatusBadRequest)
+			return
+		}
+		if err := kanban.SetProfileAvatarURL(r.PathValue("name"), req.URL); err != nil {
+			fail(w, err, http.StatusBadRequest)
+			return
+		}
+		p, err := kanban.GetProfile(r.PathValue("name"))
+		if err != nil {
+			fail(w, err, http.StatusNotFound)
+			return
+		}
+		writeJSON(w, http.StatusOK, p)
+	})
+	mux.HandleFunc("POST /api/profiles/{name}/avatar", func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(2*1024*1024 + 512); err != nil {
+			fail(w, fmt.Errorf("invalid avatar upload: %w", err), http.StatusBadRequest)
+			return
+		}
+		file, header, err := r.FormFile("avatar")
+		if err != nil {
+			fail(w, fmt.Errorf("avatar file required"), http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, 2*1024*1024+1))
+		if err != nil {
+			fail(w, err, http.StatusBadRequest)
+			return
+		}
+		if err := kanban.SetProfileAvatar(r.PathValue("name"), header.Header.Get("Content-Type"), data); err != nil {
+			fail(w, err, http.StatusBadRequest)
+			return
+		}
+		p, err := kanban.GetProfile(r.PathValue("name"))
+		if err != nil {
+			fail(w, err, http.StatusNotFound)
+			return
+		}
+		writeJSON(w, http.StatusOK, p)
+	})
+	mux.HandleFunc("DELETE /api/profiles/{name}/avatar", func(w http.ResponseWriter, r *http.Request) {
+		if err := kanban.RemoveProfileAvatar(r.PathValue("name")); err != nil {
+			fail(w, err, http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
 	mux.HandleFunc("GET /api/profiles/{name}", func(w http.ResponseWriter, r *http.Request) {
 		p, err := kanban.GetProfile(r.PathValue("name"))

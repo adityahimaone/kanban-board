@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { FolderGit2, Plus, RefreshCw, ScrollText, Trash2, Pencil, Loader2, Monitor, Apple, Laptop, HardDrive, Radio } from "lucide-react"
 import LoadingState from "@/components/LoadingState"
+import { CodeGraphPanel } from "./CodeGraphPanel"
 
 type WsStatus = "connected" | "unreachable" | "unknown" | "local"
 
@@ -338,6 +339,7 @@ export default function WorkspacesPage() {
   const [form, setForm] = useState<{ open: boolean; edit: Workspace | null }>({ open: false, edit: null })
   const [logsFor, setLogsFor] = useState<Workspace | null>(null)
   const [pinging, setPinging] = useState<string | null>(null)
+  const [codeGraphOpen, setCodeGraphOpen] = useState<Record<string, boolean>>({})
   const { pingMs } = useSettings()
   const [autoPing, setAutoPing] = useState(true)
   const pingingRef = useRef(false)
@@ -498,8 +500,10 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-3">
-                  <EkgTrace points={pingHistories.data?.[ws.id]} live={live} ok={ws.status === "connected"} height={72} />
+                  <EkgTrace points={pingHistories.data?.[ws.id]} live={live} ok={live} height={72} />
                 </div>
+
+                <CodeGraphPanel ws={ws} open={!!codeGraphOpen[ws.id]} onToggle={() => setCodeGraphOpen((old) => ({ ...old, [ws.id]: !old[ws.id] }))} />
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => pingOne(ws)} disabled={pinging != null}>

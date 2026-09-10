@@ -86,26 +86,29 @@ func BoardDBPath(slug string) string { return filepath.Join(boardDir(slug), "kan
 // preserved by workspace.go's merge on save. Runtime-only fields are
 // populated by PingWorkspace/ListWorkspaces only.
 type Workspace struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	Path      string   `json:"path"`
-	Host      string   `json:"host"`
-	OS        string   `json:"os,omitempty"`
-	Kind      string   `json:"kind"`
-	Note      string   `json:"note,omitempty"`
-	Apps      []string `json:"apps,omitempty"`
-	Status    string   `json:"status,omitempty"`
-	StatusMsg string   `json:"status_message,omitempty"`
-	PingMs    *float64 `json:"ping_ms,omitempty"`
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Path            string         `json:"path"`
+	Host            string         `json:"host"`
+	OS              string         `json:"os,omitempty"`
+	Kind            string         `json:"kind"`
+	Note            string         `json:"note,omitempty"`
+	Apps            []string       `json:"apps,omitempty"`
+	CodeGraphApps   []CodeGraphApp `json:"codegraph_apps,omitempty"`
+	CodeGraphHidden []string       `json:"codegraph_hidden,omitempty"`
+	Status          string         `json:"status,omitempty"`
+	StatusMsg       string         `json:"status_message,omitempty"`
+	PingMs          *float64       `json:"ping_ms,omitempty"`
 }
 
 type Profile struct {
-	Name     string `json:"name"`
-	Model    string `json:"model"`
-	Provider string `json:"provider"`
-	Active   bool   `json:"active"`
-	Valid    bool   `json:"valid"`
-	BaseURL  string `json:"base_url,omitempty"`
+	Name      string `json:"name"`
+	Model     string `json:"model"`
+	Provider  string `json:"provider"`
+	Active    bool   `json:"active"`
+	Valid     bool   `json:"valid"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+	BaseURL   string `json:"base_url,omitempty"`
 }
 
 func openDB(slug string) (*sql.DB, error) {
@@ -164,9 +167,6 @@ func ListBoards() ([]Board, error) {
 			}
 			var b Board
 			if err := json.Unmarshal(raw, &b); err != nil {
-				continue
-			}
-			if b.ArchivedSkip() {
 				continue
 			}
 			out = append(out, b)
@@ -323,6 +323,32 @@ func StatusTransition(slug, taskID, to string) error {
 
 func ArchiveTask(slug, taskID string) error { return StatusTransition(slug, taskID, "archived") }
 
+// ForceStopTask releases a running task when no in-process cancel handle exists,
+// such as a node-agent dispatch. Worker late results cannot revive blocked.
+func ForceStopTask(slug, taskID string) error {
+	db, err := openDB(slug)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	now := time.Now().Unix()
+	res, err := db.Exec(`UPDATE tasks SET status='blocked', completed_at=?, claim_lock=NULL,
+		claim_expires=NULL, worker_pid=NULL, current_run_id=NULL,
+		last_heartbeat_at=NULL, last_failure_error='force-stopped by user'
+		WHERE id=? AND status='running'`, now, taskID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return fmt.Errorf("task is no longer running")
+	}
+	if err := insertEvent(db, taskID, "stopped", map[string]any{"source": "board-ui", "reason": "force-stopped by user"}); err != nil {
+		return err
+	}
+	broadcastEvent("status_changed", map[string]any{"task_id": taskID, "to": "blocked"})
+	return nil
+}
+
 func TaskEvents(slug, taskID string) ([]TaskEvent, error) {
 	db, err := openDB(slug)
 	if err != nil {
@@ -423,6 +449,11 @@ func ListProfiles() ([]Profile, error) {
 				p.Model, p.Provider, p.BaseURL = parseModelYAML(string(raw))
 			}
 			p.Valid = profileValid(p.Provider)
+			if hasAvatar(e.Name()) {
+				p.AvatarURL = "/api/profiles/" + e.Name() + "/avatar"
+			} else {
+				p.AvatarURL = ProfileAvatarURL(e.Name())
+			}
 			out = append(out, p)
 		}
 	}
@@ -432,6 +463,11 @@ func ListProfiles() ([]Profile, error) {
 		def.Model, def.Provider, def.BaseURL = parseModelYAML(string(raw))
 	}
 	def.Valid = profileValid(def.Provider)
+	if hasAvatar("default") {
+		def.AvatarURL = "/api/profiles/default/avatar"
+	} else {
+		def.AvatarURL = ProfileAvatarURL("default")
+	}
 	out = append(out, def)
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil

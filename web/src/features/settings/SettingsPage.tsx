@@ -2,17 +2,19 @@ import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
-import { Bell, XCircle, Eye, EyeOff, ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download } from "lucide-react"
+import { Bell, XCircle, Eye, EyeOff, ArrowDown, ArrowUp, GripVertical, RotateCcw, Search, Volume2, VolumeX, RefreshCw, LayoutGrid, Activity, Download, Archive, ArchiveRestore } from "lucide-react"
 import { setEnabled as setCuelumeEnabled, setVolume } from "cuelume"
 import { useSidebarPreferences } from "@/lib/sidebar-preferences"
 import { useTheme, type ThemePreference } from "@/hooks/useSettings"
 import { Button } from "@/components/ui/button"
-import { api } from "@/api"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { api, archiveBoard, type Board } from "@/api"
 
 const TABS = [
   { id: "general", label: "General" },
   { id: "appearance", label: "Appearance" },
   { id: "notifications", label: "Notifications" },
+  { id: "boards", label: "Boards" },
   { id: "advanced", label: "Advanced" },
 ] as const
 
@@ -314,6 +316,10 @@ export default function SettingsPage() {
               )}
             </TabsContent>
 
+            <TabsContent value="boards" className="mt-0 space-y-6">
+              <BoardArchiveManager />
+            </TabsContent>
+
             <TabsContent value="advanced" className="mt-0 space-y-6">
               {show("Ping", "Workspace", "Heartbeat") && (
                 <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
@@ -361,6 +367,53 @@ export default function SettingsPage() {
             </TabsContent>
           </Tabs>
         </main>
+      </div>
+    </div>
+  )
+}
+
+function BoardArchiveManager() {
+  const qc = useQueryClient()
+  const { data: boards = [] } = useQuery<Board[]>({ queryKey: ["boards"], queryFn: () => api<Board[]>("/api/boards") })
+  const archived = boards.filter((b) => b.archived)
+  const active = boards.filter((b) => !b.archived)
+
+  function toggle(slug: string, next: boolean) {
+    void archiveBoard(slug, next).then(() => qc.invalidateQueries({ queryKey: ["boards"] }))
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border border-[var(--color-line)]/60 bg-[var(--color-surface)]/30 p-4">
+      <div className="flex items-center gap-3">
+        <Archive className="size-4 text-neutral-400" />
+        <div>
+          <p className="text-sm font-medium text-neutral-200">Board Archive</p>
+          <p className="text-xs text-neutral-500">Archive or restore boards. Archived boards hidden dari board selector.</p>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {active.map((b) => (
+          <div key={b.slug} className="flex items-center justify-between rounded border border-[var(--color-line)]/40 bg-[var(--color-bg)] px-3 py-2">
+            <span className="text-xs text-neutral-200">{b.icon ? `${b.icon} ` : ""}{b.name}</span>
+            <Button size="sm" variant="outline" onClick={() => toggle(b.slug, true)} className="gap-1 border-[var(--color-line)] text-neutral-400 hover:text-red-400">
+              <Archive className="size-3" /> Archive
+            </Button>
+          </div>
+        ))}
+        {archived.length > 0 && (
+          <>
+            <p className="pt-2 text-[10px] uppercase tracking-wider text-neutral-600">Archived</p>
+            {archived.map((b) => (
+              <div key={b.slug} className="flex items-center justify-between rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                <span className="text-xs text-neutral-400">{b.icon ? `${b.icon} ` : ""}{b.name}</span>
+                <Button size="sm" variant="outline" onClick={() => toggle(b.slug, false)} className="gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10">
+                  <ArchiveRestore className="size-3" /> Restore
+                </Button>
+              </div>
+            ))}
+          </>
+        )}
+        {boards.length === 0 && <p className="text-xs text-neutral-600">No boards.</p>}
       </div>
     </div>
   )

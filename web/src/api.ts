@@ -165,10 +165,26 @@ export interface Workspace {
   os?: string
   kind: string
   note?: string
+  codegraph_apps?: { path: string; name: string }[]
+  codegraph_hidden?: string[]
   status?: string
   status_message?: string
   ping_ms?: number | null
 }
+
+export interface CodeGraphEntry {
+  path: string
+  name: string
+  manual?: boolean
+  status: { state: string; available: boolean; indexed: boolean; last_changed?: number; last_label?: string; message?: string }
+}
+
+export interface CodeGraphReport { workspace_id: string; apps: CodeGraphEntry[]; hidden: string[] }
+export interface CodeGraphJob { id: string; path: string; state: string; message?: string }
+
+export function codeGraphReport(id: string) { return api<CodeGraphReport>(`/api/workspaces/${id}/codegraph`) }
+export function codeGraphIndex(id: string, path: string) { return api<CodeGraphJob>(`/api/workspaces/${id}/codegraph/index`, { method: "POST", body: JSON.stringify({ path }) }) }
+export function codeGraphJob(id: string, jobID: string) { return api<CodeGraphJob>(`/api/workspaces/${id}/codegraph/jobs/${jobID}`) }
 
 export interface PingPoint {
   at: number
@@ -183,6 +199,7 @@ export interface Profile {
   provider: string
   active: boolean
   valid: boolean
+  avatar_url?: string
 }
 
 export interface ProfileDetail {
@@ -194,6 +211,7 @@ export interface ProfileDetail {
   base_url?: string
   system_prompt: string
   skills: string[]
+  avatar_url?: string
 }
 
 export interface ProviderModel {
@@ -234,6 +252,28 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     throw err
   }
   return res.json() as Promise<T>
+}
+
+export async function uploadProfileAvatar(name: string, file: File) {
+  const body = new FormData()
+  body.append("avatar", file)
+  const res = await fetch(`/api/profiles/${name}/avatar`, { method: "POST", body })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error((data as { error?: string }).error ?? res.statusText)
+  }
+  return res.json() as Promise<ProfileDetail>
+}
+
+export function setProfileAvatarUrl(name: string, url: string) {
+  return api<ProfileDetail>(`/api/profiles/${name}/avatar-url`, {
+    method: "PUT",
+    body: JSON.stringify({ url }),
+  })
+}
+
+export function removeProfileAvatar(name: string) {
+  return api<{ ok: boolean }>(`/api/profiles/${name}/avatar`, { method: "DELETE" })
 }
 
 export function runTask(slug: string, taskId: string) {

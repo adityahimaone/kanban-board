@@ -13,12 +13,13 @@ import (
 // config.yaml holds model/provider, SOUL.md is the system prompt, skills/ is
 // the list of skill dirs. CRUD edits only these three surfaces.
 type AgentProfile struct {
-	Name     string `json:"name"`
-	Model    string `json:"model"`
-	Provider string `json:"provider"`
-	Active   bool   `json:"active"`
-	Valid    bool   `json:"valid"`
-	BaseURL  string `json:"base_url,omitempty"`
+	Name      string `json:"name"`
+	Model     string `json:"model"`
+	Provider  string `json:"provider"`
+	Active    bool   `json:"active"`
+	Valid     bool   `json:"valid"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+	BaseURL   string `json:"base_url,omitempty"`
 
 	SystemPrompt string   `json:"system_prompt"` // SOUL.md content
 	Skills       []string `json:"skills"`        // dir names under skills/
@@ -79,6 +80,14 @@ func GetProfile(name string) (*AgentProfile, error) {
 		p.Model, p.Provider, p.BaseURL = parseModelYAML(string(raw))
 	}
 	p.Valid = profileValid(p.Provider)
+	if hasAvatar(name) {
+		p.AvatarURL = "/api/profiles/" + name + "/avatar"
+	}
+	if p.AvatarURL == "" {
+		if ext := ProfileAvatarURL(name); ext != "" {
+			p.AvatarURL = ext
+		}
+	}
 	if raw, err := os.ReadFile(filepath.Join(dir, "SOUL.md")); err == nil {
 		p.SystemPrompt = string(raw)
 	}

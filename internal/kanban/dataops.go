@@ -479,4 +479,3 @@ func ImportBoard(snap *BoardSnapshot) (bool, []string, error) {
 	}
 	return created, ids, nil
 }
-

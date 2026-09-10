@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import type { Profile, Workspace } from "../../api"
 import { api } from "../../api"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -148,7 +149,13 @@ export default function TaskDialog({
           <SelectContent className="border-[var(--color-line)] bg-[var(--color-surface)]">
             {profiles.map((p) => (
               <SelectItem key={p.name} value={p.name} disabled={!p.valid} className="text-sm">
-                {p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Avatar className="size-4 shrink-0">
+                    {p.avatar_url && <AvatarImage src={p.avatar_url} alt={p.name} />}
+                    <AvatarFallback className="bg-[var(--color-inset)] text-[7px] text-[var(--color-accent)]">{p.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 truncate">{p.name}{p.model ? ` — ${p.model}` : ""}{p.active ? " (active)" : ""}{!p.valid ? " (broken config)" : ""}</span>
+                </span>
               </SelectItem>
             ))}
           </SelectContent>

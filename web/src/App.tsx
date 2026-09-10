@@ -22,7 +22,7 @@ const MemoryPage = lazy(() => import("./features/memory/MemoryPage"))
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"))
 const OverviewPage = lazy(() => import("./features/overview/OverviewPage"))
 const AgentMappingPage = lazy(() => import("./features/flow/AgentMappingPage"))
-import { Archive, Inbox, Plus, Pencil, Search, X } from "lucide-react"
+import { Archive, CheckSquare, Inbox, Plus, Pencil, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 import LoadingState from "./components/LoadingState"
 import { pagePath, parseRoute } from "./lib/routes"
@@ -173,14 +173,11 @@ export default function App() {
     const v = savedViews.find((x) => x.name === name); if (!v) return
     setQ(v.filters.q); setFStatus(v.filters.fStatus); setFAgent(v.filters.fAgent); setFWorkspace(v.filters.fWorkspace); setFPriority(v.filters.fPriority)
   }
-  function archiveBoard(archived: boolean) {
-    void api(`/api/boards/${slug}`, { method: "PATCH", body: JSON.stringify({ archived }) }).then(() => { toastGlobal(archived ? "Board archived" : "Board restored", "success"); qc.invalidateQueries({ queryKey: ["boards"] }) }).catch((e: Error) => toastGlobal(e.message, "error"))
-  }
-
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ status: Status; index: number } | null>(null)
   const [taskOrder, setTaskOrder] = useState<Record<string, string[]>>({})
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+  const [bulkMode, setBulkMode] = useState(false)
 
   function toggleTask(id: string, next: boolean) {
     setSelectedTasks((current) => {
@@ -324,7 +321,7 @@ export default function App() {
                     health={healthMap.data?.[t.id]}
                     workspaces={workspaces.data ?? []}
                     selected={selectedTasks.has(t.id)}
-                    onToggleSelect={toggleTask}
+                    onToggleSelect={bulkMode ? toggleTask : undefined}
                   />
                 </div>
               ))}
@@ -474,20 +471,13 @@ export default function App() {
       <Button variant="outline" size="sm" onClick={() => setEditingBoard(true)} disabled={!currentBoard} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300 disabled:opacity-40">
         <Pencil className="size-3.5" /> Edit
       </Button>
-      {currentBoard && !currentBoard.archived && (
-        <Button variant="outline" size="sm" onClick={() => archiveBoard(true)} className="gap-1 border-[var(--color-line)] bg-[var(--color-surface)] text-neutral-300">
-          <Archive className="size-3.5" /> Archive
-        </Button>
-      )}
-      {currentBoard?.archived && (
-        <Button variant="outline" size="sm" onClick={() => archiveBoard(false)} className="gap-1 border-emerald-500/40 bg-[var(--color-surface)] text-emerald-300">
-          <Archive className="size-3.5" /> Restore
-        </Button>
-      )}
       <Separator orientation="vertical" className="h-5" />
       <span className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] text-neutral-400">
         {filtersActive ? `${filtered.length}/${tasks.data?.length ?? 0}` : `${tasks.data?.length ?? 0}`} tasks
       </span>
+      <Button size="sm" variant={bulkMode ? "default" : "outline"} onClick={() => { setBulkMode((v) => !v); if (bulkMode) setSelectedTasks(new Set()) }} className={`gap-1 border-[var(--color-line)] ${bulkMode ? "bg-[var(--color-accent)] text-black" : "bg-[var(--color-surface)] text-neutral-300"}`}>
+        <CheckSquare className="size-3.5" /> Bulk
+      </Button>
       <Button size="sm" onClick={() => setCreating(true)}
         className="bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent)]/90">
         <Plus className="size-3.5" /> New Task
@@ -525,12 +515,12 @@ export default function App() {
       {filterRail}
       <Suspense fallback={<LoadingState variant="detail" label="Memuat halaman" />}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {page === "board" && !detailId && selectedTasks.size > 0 && (
+        {page === "board" && !detailId && bulkMode && (
           <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2 text-xs">
             <span className="font-medium text-neutral-200">{selectedTasks.size} selected</span>
-            <Button size="sm" variant="outline" onClick={() => void bulkMove("ready")}>Move ready</Button>
-            <Button size="sm" variant="outline" onClick={() => void bulkMove("blocked")}>Block</Button>
-            <Button size="sm" variant="outline" onClick={() => void bulkArchive()}>Archive</Button>
+            <Button size="sm" variant="outline" disabled={!selectedTasks.size} onClick={() => void bulkMove("ready")}>Move ready</Button>
+            <Button size="sm" variant="outline" disabled={!selectedTasks.size} onClick={() => void bulkMove("blocked")}>Block</Button>
+            <Button size="sm" variant="outline" disabled={!selectedTasks.size} onClick={() => void bulkArchive()} className="gap-1 text-neutral-400 hover:text-red-400"><Archive className="size-3" /> Archive</Button>
             <Button size="sm" variant="ghost" onClick={() => setSelectedTasks(new Set())}>Clear</Button>
           </div>
         )}

@@ -118,10 +118,14 @@ func TestBoardArchivePreservesMetadataAndRestores(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	found := false
 	for _, b := range boards {
 		if b.Slug == "arch" {
-			t.Fatal("archived board listed")
+			found = true
 		}
+	}
+	if !found {
+		t.Fatal("archived board missing from management list")
 	}
 	if err := SetBoardArchived("arch", false); err != nil {
 		t.Fatal(err)
@@ -130,7 +134,7 @@ func TestBoardArchivePreservesMetadataAndRestores(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := false
+	found = false
 	for _, b := range boards {
 		if b.Slug == "arch" {
 			found = true
