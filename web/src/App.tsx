@@ -22,6 +22,7 @@ const MemoryPage = lazy(() => import("./features/memory/MemoryPage"))
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"))
 const OverviewPage = lazy(() => import("./features/overview/OverviewPage"))
 const AgentMappingPage = lazy(() => import("./features/flow/AgentMappingPage"))
+const KnowledgePage = lazy(() => import("./features/knowledge/KnowledgePage"))
 import { Archive, CheckSquare, Inbox, Plus, Pencil, Search, X } from "lucide-react"
 import { useSettings } from "./hooks/useSettings"
 import LoadingState from "./components/LoadingState"
@@ -533,6 +534,7 @@ export default function App() {
         {page === "overview" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><OverviewPage /></div>}
         {page === "settings" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SettingsPage /></div>}
         {page === "agent-mapping" && <div className="flex min-h-0 flex-1 overflow-hidden"><AgentMappingPage /></div>}
+        {page === "knowledge" && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><KnowledgePage /></div>}
         {page === "board" && detailId && detailPage && (
           <TaskDetailPage
             slug={slug}

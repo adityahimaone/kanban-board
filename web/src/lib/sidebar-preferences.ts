@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react"
-import { Activity, Bot, Brain, FolderGit2, LayoutDashboard, Network, Puzzle, ScrollText, Server } from "lucide-react"
+import { Activity, BookOpen, Bot, Brain, FolderGit2, LayoutDashboard, Network, Puzzle, ScrollText, Server } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
-export type Page = "overview" | "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory" | "agent-mapping" | "settings"
+export type Page = "overview" | "board" | "workspaces" | "profiles" | "providers" | "logs" | "skills" | "memory" | "agent-mapping" | "knowledge" | "settings"
 
 export type SidebarItem = {
   id: Exclude<Page, "settings">
@@ -21,6 +21,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "skills", label: "Skills", tooltip: "Skills", icon: Puzzle },
   { id: "memory", label: "Memory", tooltip: "Memory", icon: Brain },
   { id: "agent-mapping", label: "Flow Map", tooltip: "Flow Map", icon: Network },
+  { id: "knowledge", label: "Knowledge", tooltip: "Execution Knowledge", icon: BookOpen },
 ]
 
 export const DEFAULT_SIDEBAR_ORDER = SIDEBAR_ITEMS.map((item) => item.id)

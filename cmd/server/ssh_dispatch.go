@@ -185,7 +185,20 @@ func dispatchSSHTasks() {
 					}
 				}
 			} else {
-				output, success = runHemesViaSSH(r.id, r.title, msg, r.ws, target, b.Slug)
+				// auto and any other: dispatch via node-agent so Mac worker resolves executor
+				// (prevents VPS-local hermes with wrong workspace and lost provenance)
+				res, err := kanban.DispatchRemote(kanban.NodeDispatchRequest{
+					TaskID: r.id, Title: r.title, Board: b.Slug, Message: msg,
+					Workspace: r.ws, Executor: "auto", Command: r.command,
+				}, 10*time.Minute)
+				if err != nil {
+					output = err.Error()
+				} else if res != nil {
+					output, success = res.Output, res.Success
+					if !success && res.Error != "" {
+						output += "\n" + res.Error
+					}
+				}
 			}
 			stopped := taskStopRequested(r.id)
 
